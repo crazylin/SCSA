@@ -1,0 +1,71 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 当创建 v 开头的标签时触发
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - platform: windows-latest
+            rid: win-x64
+            ext: .exe
+          - platform: ubuntu-latest
+            rid: linux-x64
+            ext: 
+          - platform: macos-latest
+            rid: osx-x64
+            ext:
+    runs-on: ${{ matrix.platform }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Publish
+      run: dotnet publish -c Release -r ${{ matrix.rid }} --no-restore -o publish/${{ matrix.rid }}
+
+    - name: Zip artifacts
+      shell: bash
+      run: |
+        cd publish/${{ matrix.rid }}
+        zip -r ../${{ matrix.rid }}.zip ./*
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.rid }}
+        path: publish/${{ matrix.rid }}.zip
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        files: |
+          artifacts/win-x64.zip
+          artifacts/linux-x64.zip
+          artifacts/osx-x64.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

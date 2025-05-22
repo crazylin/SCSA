@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SCSA.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:avalonia="using:OxyPlot.Avalonia"
+        xmlns:scsa="clr-namespace:SCSA"
+        xmlns:models="clr-namespace:SCSA.Models"
+        xmlns:controls="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
+        mc:Ignorable="d" Width="1200" Height="600"
+        x:Class="SCSA.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="SCSA">
+
+  <Design.DataContext>
+    <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+    <vm:MainWindowViewModel/>
+  </Design.DataContext>
+  <Window.DataTemplates>
+    <DataTemplate DataType="vm:ConnectionViewModel">
+      <scsa:ConnectionView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:RealTimeTestViewModel">
+      <scsa:RealTimeTestView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:ParameterViewModel">
+      <scsa:ParameterView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:FirmwareUpdateViewModel">
+      <scsa:FirmwareUpdateView />
+    </DataTemplate>
+  </Window.DataTemplates>
+  <Grid RowDefinitions="Auto,*">
+    <Grid Name="TitleBarHost" Grid.Row="0"
+          ColumnDefinitions="Auto,Auto,*,Auto"
+          Background="Transparent">
+      <Image Margin="12 4"
+             IsHitTestVisible="False"
+             Source="/Assets/avalonia-logo.ico"
+             Width="18" Height="18"
+             DockPanel.Dock="Left"
+             Name="WindowIcon"
+             RenderOptions.BitmapInterpolationMode="HighQuality">
+        <Image.IsVisible>
+          <OnPlatform Default="False">
+            <On Options="Windows" Content="True" />
+          </OnPlatform>
+        </Image.IsVisible>
+      </Image>
+
+      <TextBlock Text="{Binding Title, RelativeSource={RelativeSource FindAncestor, AncestorType=Window}}"
+                 FontSize="12"
+                 IsHitTestVisible="False"
+                 VerticalAlignment="Center"
+                 Grid.Column="1">
+        <TextBlock.IsVisible>
+          <OnPlatform Default="False">
+            <On Options="Windows" Content="True" />
+          </OnPlatform>
+        </TextBlock.IsVisible>
+      </TextBlock>
+
+    </Grid>
+
+    <controls:NavigationView Grid.Row="1" SelectedItem="{Binding SelectedItem}" 
+                             PaneDisplayMode="Left" IsPaneOpen="False" OpenPaneLength="150"
+                             Loaded="Control_OnLoaded">
+        <controls:NavigationView.MenuItems>
+          <controls:NavigationViewItem Content="设备管理"  IconSource="ViewAll" Tag="0">
+            
+
+          </controls:NavigationViewItem>
+          <controls:NavigationViewItem Content="实时测试" IconSource="Play" Tag="1" >
+
+          </controls:NavigationViewItem>
+          <controls:NavigationViewItem Content="固件升级" IconSource="Sync" Tag="2" >
+
+          </controls:NavigationViewItem>
+        </controls:NavigationView.MenuItems>
+        <controls:NavigationView.Content>
+            <ContentControl x:Name="ContentControl" Content="{Binding ContentView}"/>
+        </controls:NavigationView.Content>
+    </controls:NavigationView>
+    <!--<StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Spacing="10" Margin="5">
+        <Button Content="设备管理" Command="{Binding SwitchTabCommand}" CommandParameter="0"/>
+        <Button Content="实时测试" Command="{Binding SwitchTabCommand}" CommandParameter="1"/>
+        <Button Content="固件升级" Command="{Binding SwitchTabCommand}" CommandParameter="2"/>
+    </StackPanel>-->
+    <!--<Grid>
+        <Grid ColumnDefinitions="*,5,520" IsVisible="{Binding ConnectionViewVisible}">
+            <ContentControl Content="{Binding ConnectionViewModel}" Grid.Column="0" />
+            <GridSplitter Grid.Column="1" />
+            <ContentControl Content="{Binding ParameterViewModel}" Grid.Column="2" />
+        </Grid>
+        <ContentControl Content="{Binding RealTimeTestViewModel}" IsVisible="{Binding RealTimeTestViewVisible}"/>
+        <ContentControl Content="{Binding FirmwareUpdateViewModel}" IsVisible="{Binding FirmwareUpdateViewVisible}" />
+    </Grid>-->
+
+  </Grid>
+</Window>

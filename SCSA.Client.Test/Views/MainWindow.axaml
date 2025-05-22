@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SCSA.Client.Test.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="SCSA.Client.Test.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="SCSA.Client.Test">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="10 10 10 0">
+            <TextBlock Text="服务器地址"></TextBlock>
+            <TextBox Width="100" Margin="10 0 0 0" Text="{Binding IpAddress}"></TextBox>
+            <TextBlock Text="服务器端口" Margin="10 0 0 0"></TextBlock>
+            <TextBox Width="100" Margin="10 0 0 0" Text="{Binding Port}"></TextBox>
+            <Button  Content="连接服务器" Margin="10 0 0 0" Command="{Binding ConnectToServerCommand}"></Button>
+        </StackPanel>
+
+        <DockPanel Margin="10">
+            <TextBox x:Name="TextBoxLog" AcceptsReturn="True" MinHeight="300" Text="{Binding Log}"></TextBox>
+        </DockPanel>
+    </DockPanel>
+</Window>

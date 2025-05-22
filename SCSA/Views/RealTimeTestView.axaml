@@ -1,0 +1,145 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:avalonia="http://oxyplot.org/avalonia"
+             xmlns:converters="clr-namespace:SCSA.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="SCSA.RealTimeTestView">
+  <UserControl.Resources>
+    <converters:EnumToBooleanConverter x:Key="EnumConverter"></converters:EnumToBooleanConverter>
+  </UserControl.Resources>
+  <Grid ColumnDefinitions="220,5,*"  IsEnabled="{Binding ControlEnable}">
+    <StackPanel Orientation="Vertical" Spacing="5" Margin="10">
+        <!-- 按钮区域 -->
+        <UniformGrid  Columns="2" >
+            <Button Content="开始测试" Command="{Binding StartTestCommand}" FontSize="14" Padding="10,5"/>
+            <Button Content="停止测试" Command="{Binding StopTestCommand}" FontSize="14" Padding="10,5"/>
+        </UniformGrid>
+      <!-- 信号类型选择 -->
+      <StackPanel Orientation="Vertical" Spacing="5">
+        <TextBlock Text="选择信号类型：" FontSize="14" FontWeight="Bold"/>
+        <!--<ListBox Name="ListBox" ItemsSource="{Binding SignalTypes}" SelectionMode="Single" SelectedItem="{Binding SelectedSignalType}" IsEnabled="{Binding SelectedSignalTypeEnable}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <RadioButton Content="{Binding }"
+                           GroupName="SignalType"
+                           IsChecked="{Binding IsSelected, Mode=TwoWay,
+                                   RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ListBox>-->
+        <ComboBox ItemsSource="{Binding SignalTypes}" SelectedItem="{Binding SelectedSignalType}" IsEnabled="{Binding SelectedSignalTypeEnable}" HorizontalAlignment="Stretch"></ComboBox>
+      </StackPanel>
+
+
+      <StackPanel Orientation="Vertical" Margin="0,10,0,0">
+        <TextBlock Text="采样率：" FontSize="14" FontWeight="Bold"/>
+        <!--<TextBox Text="{Binding SampleRate}"/>-->
+
+        <ComboBox ItemsSource="{Binding SampleRateList}" SelectedItem="{Binding SelectedSampleRate}" IsEnabled="{Binding SelectedSignalTypeEnable}"
+                  DisplayMemberBinding="{Binding DisplayName}" HorizontalAlignment="Stretch" ></ComboBox>
+      </StackPanel>
+      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+        <TextBlock Text="显示点数：" FontSize="14" FontWeight="Bold"/>
+        <TextBox Text="{Binding DisplayPointCount}"/>
+      </StackPanel>
+      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+        <TextBlock Text="直流：" FontSize="14" FontWeight="Bold"/>
+        <CheckBox Content="启用去直流" FontSize="14" IsChecked="{Binding RemoveDc}"/>
+      </StackPanel>
+      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+        <TextBlock Text="窗函数：" FontSize="14" FontWeight="Bold"/>
+        <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding WindowFunctions}" SelectedItem="{Binding SelectedWindowFunction}"></ComboBox>
+      </StackPanel>
+      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+        <TextBlock Text="滤波：" FontSize="14" FontWeight="Bold"/>
+
+        <CheckBox Content="启用滤波" FontSize="14" IsChecked="{Binding EnableFilter}"/>
+
+        <StackPanel Orientation="Vertical" IsEnabled="{Binding EnableFilter }" Spacing="5">
+
+          <!-- 低通 -->
+          <Grid ColumnDefinitions="Auto,*" Margin="5 0 0 0">
+            <RadioButton Content="低通"
+                        GroupName="Filter"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding FilterType, 
+                                   Converter={StaticResource EnumConverter}, 
+                                   ConverterParameter=LowPass, 
+                                   Mode=TwoWay}"/>
+            <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                          HorizontalAlignment="Stretch"
+                          IsEnabled="{Binding FilterType, 
+                                    Converter={StaticResource EnumConverter}, 
+                                    ConverterParameter=LowPass}"
+                          Value="{Binding LowPass}"/>
+          </Grid>
+
+          <!-- 高通 -->
+          <Grid ColumnDefinitions="Auto,*" Margin="5 0 0 0">
+            <RadioButton Content="高通"
+                        GroupName="Filter"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding FilterType, 
+                                   Converter={StaticResource EnumConverter}, 
+                                   ConverterParameter=HighPass, 
+                                   Mode=TwoWay}"/>
+            <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                          HorizontalAlignment="Stretch"
+                          IsEnabled="{Binding FilterType, 
+                                    Converter={StaticResource EnumConverter}, 
+                                    ConverterParameter=HighPass}"
+                          Value="{Binding HighPass}"/>
+          </Grid>
+
+          <!-- 带通 -->
+          <Grid ColumnDefinitions="Auto,*,*" Margin="5 0 0 0">
+            <RadioButton Content="带通"
+                        GroupName="Filter"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding FilterType, 
+                                   Converter={StaticResource EnumConverter}, 
+                                   ConverterParameter=BandPass, 
+                                   Mode=TwoWay}"/>
+            <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                          HorizontalAlignment="Stretch"
+                          IsEnabled="{Binding FilterType, 
+                                    Converter={StaticResource EnumConverter}, 
+                                    ConverterParameter=BandPass}"
+                          Value="{Binding BandPassFirst}"/>
+            <NumericUpDown Grid.Column="2" ShowButtonSpinner="False"
+                          HorizontalAlignment="Stretch"
+                          Margin="5,0,0,0"
+                          IsEnabled="{Binding FilterType, 
+                                    Converter={StaticResource EnumConverter}, 
+                                    ConverterParameter=BandPass}"
+                          Value="{Binding BandPassSecond}"/>
+          </Grid>
+
+        </StackPanel>
+      </StackPanel>
+
+    </StackPanel>
+    <GridSplitter Grid.Column="1"></GridSplitter>
+    <!-- 动态生成波形图 -->
+    <ScrollViewer Grid.Column="2">
+      <ItemsControl ItemsSource="{Binding Waveforms}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <Grid></Grid>
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <UniformGrid Rows="2" Width="{Binding Bounds.Width, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type WrapPanel}}}">
+              <avalonia:PlotView MinHeight="200" Model="{Binding TimeDomainModel}"/>
+              <!-- 频域波形 -->
+              <avalonia:PlotView MinHeight="200" Model="{Binding FrequencyDomainModel}"/>
+            </UniformGrid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

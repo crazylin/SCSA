@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:SCSA.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="SCSA.ConnectionView">
+    <Grid ColumnDefinitions="*,5,350" IsVisible="{Binding ConnectionViewVisible}">
+      <DockPanel Grid.Column="0" Margin="10">
+
+        <!-- 顶部工具栏 -->
+        <DockPanel DockPanel.Dock="Top">
+            <Grid ColumnDefinitions="*,Auto,*" DockPanel.Dock="Left">
+                <ComboBox Grid.Column="0" ItemsSource="{Binding NetworkInterfaces}"
+                          SelectedItem="{Binding SelectedInterface}" >
+                </ComboBox>
+                <NumericUpDown Grid.Column="1" Width="80" Value="{Binding Port}"  ShowButtonSpinner="False" FormatString="0" ParsingNumberStyle="Integer"
+                               Margin="10 0 0 0"/>
+                <StackPanel Grid.Column="2"  Orientation="Horizontal" HorizontalAlignment="Right"
+                            Spacing="10"
+                            Margin="10 0 0 0">
+
+                    <Button Content="开始监听" Command="{Binding StartCommand}"/>
+                    <Button Content="停止监听" Command="{Binding StopCommand}"/>
+                </StackPanel>
+
+            </Grid>
+          
+        </DockPanel>
+        <StackPanel DockPanel.Dock="Bottom">
+          <TextBlock Text="{Binding StatusMessage}"/>
+        </StackPanel>
+        <!-- 设备列表 -->
+        <DataGrid Margin="0 5"
+                 ItemsSource="{Binding ConnectedDevices}"
+                 AutoGenerateColumns="False"
+                 IsReadOnly="True"
+                 SelectionMode="Single"
+                 SelectedItem="{Binding SelectedDevice}">
+          <DataGrid.Columns>
+            <DataGridTemplateColumn Header="选择">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <RadioButton IsChecked="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=IsSelected, Mode=TwoWay}"
+                               GroupName="DeviceSelection" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+
+
+            <DataGridTextColumn Header="设备ID" Binding="{Binding DeviceId}"/>
+            <DataGridTextColumn Header="固件版本" Binding="{Binding FirmwareVersion}"/>
+            <DataGridTextColumn Header="IP地址" Binding="{Binding EndPoint.Address}"/>
+            <DataGridTextColumn Header="端口" Binding="{Binding EndPoint.Port}"/>
+            <DataGridTextColumn Header="连接时间" Binding="{Binding ConnectTime}"/>
+            <DataGridTemplateColumn Header="操作">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="10" Margin="0 2">
+                    <Button Content="断开"
+                            Command="{Binding DataContext.DisconnectCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                            CommandParameter="{Binding}"/>
+                    <Button Content="读取参数"
+                            Command="{Binding DataContext.ReadParameterCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                            CommandParameter="{Binding}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+
+
+      </DockPanel>
+        <GridSplitter Grid.Column="1" />
+        <ContentControl Content="{Binding ParameterViewModel}" Grid.Column="2"/>
+    </Grid>
+
+</UserControl>

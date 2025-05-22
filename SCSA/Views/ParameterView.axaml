@@ -1,0 +1,188 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:SCSA.ViewModels"
+             xmlns:models="clr-namespace:SCSA.Models"
+             xmlns:converters="clr-namespace:SCSA.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:prims="clr-namespace:FluentAvalonia.UI.Controls.Primitives;assembly=FluentAvalonia"
+             xmlns:controls="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
+             x:Class="SCSA.ParameterView">
+
+  <UserControl.Resources>
+    <converters:SelectedValuesConverter x:Key="SelectedValuesConverter"></converters:SelectedValuesConverter>
+  </UserControl.Resources>
+  <UserControl.DataTemplates>
+
+    <DataTemplate DataType="{x:Type models:StringParameter}">
+      <TextBox Text="{Binding Value}"
+               Watermark="{Binding Description}"/>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type models:BoolParameter}">
+      <CheckBox IsChecked="{Binding Value}"
+                Content="{Binding Description}"
+                VerticalAlignment="Center"/>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type models:NumberParameter}">
+      <NumericUpDown Value="{Binding Value}"
+                     Minimum="{Binding MinValue}"
+                     Maximum="{Binding MaxValue}"/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type models:IntegerNumberParameter}">
+      <NumericUpDown Value="{Binding Value}" ParsingNumberStyle="Integer" FormatString="0"
+                     Minimum="{Binding MinValue}"
+                     Maximum="{Binding MaxValue}"
+                     />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type models:IntegerNumberParameter}">
+      <NumericUpDown Value="{Binding Value}" ParsingNumberStyle="Integer" FormatString="0"
+                     Minimum="{Binding MinValue}"
+                     Maximum="{Binding MaxValue}"/>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type models:FloatNumberParameter}">
+      <NumericUpDown Value="{Binding Value}" ParsingNumberStyle="Float"
+                     Minimum="{Binding MinValue}"
+                     Maximum="{Binding MaxValue}"/>
+    </DataTemplate>
+
+
+    <DataTemplate DataType="{x:Type models:EnumParameter}">
+      <ComboBox ItemsSource="{Binding Options}"
+                SelectedValue="{Binding Value}"
+                SelectedValueBinding="{Binding RealValue}"
+                HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding DisplayName}"/>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type models:EnumCheckParameter}">
+      <ListBox ItemsSource="{Binding Options}"
+               SelectionMode="Multiple"
+               HorizontalAlignment="Stretch">
+        <!-- 水平排列选项 -->
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel Orientation="Horizontal"/>
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+
+        <!-- 使用 CheckBox 作为 ListBoxItem 的模板 -->
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem">
+            <Setter Property="Template">
+              <ControlTemplate>
+                <CheckBox Content="{Binding DisplayName}"
+                          IsChecked="{TemplateBinding IsSelected}" Margin="0 2 10 2"/>
+              </ControlTemplate>
+            </Setter>
+          </Style>
+        </ListBox.Styles>
+        <ListBox.SelectedItems>
+          <MultiBinding Converter="{StaticResource SelectedValuesConverter}">
+            <Binding Path="Options" />
+            <Binding Path="SelectedValues" />
+          </MultiBinding>
+        </ListBox.SelectedItems>
+      </ListBox>
+    </DataTemplate>
+
+
+    <DataTemplate DataType="{x:Type models:EnumRadioParameter}">
+      <ListBox ItemsSource="{Binding Options}"
+               SelectionMode="Single"
+               HorizontalAlignment="Stretch"
+               SelectedValue="{Binding Value}"
+               SelectedValueBinding="{Binding RealValue}"
+               Background="Transparent">
+        <ListBox.Resources>
+
+          <!-- 如果模板把它当 Color 用，就定义为 Color -->
+          <Color           x:Key="ListViewItemBackgroundSelected">Transparent</Color>
+          <Color           x:Key="ListViewItemBackgroundSelectedPointerOver">Transparent</Color>
+          <Color           x:Key="ListViewItemBackgroundSelectedPressed">Transparent</Color>
+          <Color           x:Key="ListViewItemBackground">Transparent</Color>
+          <Color           x:Key="ListViewItemBackgroundPointerOver">Transparent</Color>
+          <Color           x:Key="ListViewItemBackgroundPressed">Transparent</Color>
+        </ListBox.Resources>
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem:selected /template/ Rectangle#SelectionIndicator">
+            <Setter Property="IsVisible" Value="False"/>
+          </Style>
+          <Style Selector="ListBox">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+
+          </Style>
+          <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+
+          </Style>
+          <Style Selector="ListBoxItem:pointerover, ListBoxItem:selected, ListBoxItem:focus">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel Orientation="Horizontal"/>
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <RadioButton Content="{Binding DisplayName}"
+                         GroupName="{Binding Name}"
+                         IsChecked="{Binding IsSelected, Mode=TwoWay,
+                                   RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                         Margin="0 2 0 2"/>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ListBox>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type models:ParameterCategory}">
+      <Expander Header="{Binding Name}" IsExpanded="False">
+        <ItemsControl ItemsSource="{Binding Parameters}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="80,Auto,*" Margin="0 2">
+                <TextBlock Text="{Binding Name}"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="5 0"
+                           Text="{Binding Address, StringFormat='[0x{0:X8}]'}"/>
+                <ContentControl Grid.Column="2"
+                                Content="{Binding}"/>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Expander>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+  <DockPanel Margin="10">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin=" 10 10">
+      <Button Content="从设备重新读取" Command="{Binding ReadParametersFromDeviceCommand}"/>
+      <Button Content="保存" Command="{Binding SaveCommand}"/>
+      <Button Content="另存为..." Command="{Binding SaveAsCommand}"/>
+    </StackPanel>
+    <ScrollViewer BringIntoViewOnFocusChange="True">
+      <ItemsControl ItemsSource="{Binding Categories}" >
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <ContentControl Content="{Binding}" Margin="0 2"/>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>
