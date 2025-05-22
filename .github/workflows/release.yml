@@ -44,22 +44,21 @@ jobs:
         path: ${{ matrix.rid }}.zip  # 关键修改：直接上传根目录的 zip
 
   create-release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-        pattern: '*-binary'
+      needs: build
+      runs-on: ubuntu-latest
+      steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: '*-binary'
 
-    - name: Verify files
-      run: ls -R artifacts  # 调试查看文件结构
+      - name: Verify files
+        run: find artifacts
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
-        files: |
-          artifacts/linux-x64.zip  # 直接指定文件路径
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: artifacts/*/*.zip
