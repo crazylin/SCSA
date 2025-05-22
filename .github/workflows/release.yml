@@ -43,7 +43,7 @@ jobs:
 
     - name: Publish
       run: |
-        dotnet publish SCSA/SCSA.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+        dotnet publish SCSA/SCSA.csproj -c Release -r ${{ matrix.rid }} --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
         cd publish
         ZIP_NAME=SCSA-${{ matrix.rid }}-${FILE_VERSION}.zip
         if [ "$RUNNER_OS" == "Windows" ]; then
