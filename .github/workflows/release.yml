@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'  # 当创建 v 开头的标签时触发
+      - 'v*'  # 当推送 v 开头的标签时触发
 
 jobs:
   build:
@@ -53,6 +53,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4  # 必须检出代码才能读取 CHANGELOG.md
+
     - name: Download artifacts
       uses: actions/download-artifact@v3
       with:
@@ -63,6 +66,7 @@ jobs:
       with:
         tag_name: ${{ github.ref_name }}
         name: Release ${{ github.ref_name }}
+        body_path: CHANGELOG.md  # 核心配置：直接读取 CHANGELOG.md 内容
         files: |
           artifacts/win-x64.zip
           artifacts/linux-x64.zip
