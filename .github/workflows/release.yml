@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write  # 关键权限
+  contents: write
   actions: read
   packages: read
 
@@ -37,7 +37,6 @@ jobs:
       with:
         dotnet-version: 8.0.x
       retry-on-error: true
-      timeout-minutes: 3
 
     - name: Restore dependencies
       run: dotnet restore
@@ -52,7 +51,7 @@ jobs:
         zip -r ../${{ matrix.rid }}.zip ./*
     
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4  # 已升级到 v4
       with:
         name: ${{ matrix.rid }}
         path: publish/${{ matrix.rid }}.zip
@@ -60,13 +59,12 @@ jobs:
   create-release:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4  # 同步升级到 v4
       with:
         path: artifacts
 
