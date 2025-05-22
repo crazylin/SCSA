@@ -3,10 +3,16 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'  # 当推送 v 开头的标签时触发
+      - 'v*'
+
+permissions:
+  contents: write  # 关键权限
+  actions: read
+  packages: read
 
 jobs:
   build:
+    timeout-minutes: 20
     strategy:
       matrix:
         platform: [windows-latest, ubuntu-latest, macos-latest]
@@ -26,10 +32,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup .NET
+    - name: Setup .NET (with retry)
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 8.0.x
+      retry-on-error: true
+      timeout-minutes: 3
 
     - name: Restore dependencies
       run: dotnet restore
@@ -52,9 +60,10 @@ jobs:
   create-release:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4  # 必须检出代码才能读取 CHANGELOG.md
+      uses: actions/checkout@v4
 
     - name: Download artifacts
       uses: actions/download-artifact@v3
@@ -66,7 +75,7 @@ jobs:
       with:
         tag_name: ${{ github.ref_name }}
         name: Release ${{ github.ref_name }}
-        body_path: CHANGELOG.md  # 核心配置：直接读取 CHANGELOG.md 内容
+        body_path: CHANGELOG.md
         files: |
           artifacts/win-x64.zip
           artifacts/linux-x64.zip
