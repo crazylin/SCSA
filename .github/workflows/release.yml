@@ -6,11 +6,10 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: write  # 必须要有 Release 写入权限
 
 jobs:
   build:
-    timeout-minutes: 20
     strategy:
       matrix:
         platform: [ubuntu-latest]
@@ -20,46 +19,39 @@ jobs:
     runs-on: ${{ matrix.platform }}
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+    - uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 8.0.x
 
-    - name: Restore dependencies
-      run: dotnet restore SCSA/SCSA.csproj --runtime ${{ matrix.rid }}
-
-    - name: Publish
-      run: dotnet publish SCSA/SCSA.csproj -c Release -r ${{ matrix.rid }} -o publish/${{ matrix.rid }}
+    - name: Build
+      run: |
+        dotnet restore SCSA/SCSA.csproj --runtime ${{ matrix.rid }}
+        dotnet publish SCSA/SCSA.csproj -c Release -r ${{ matrix.rid }} -o publish
 
     - name: Zip artifacts
-      shell: bash
       run: |
-        cd publish/${{ matrix.rid }}
-        zip -r ../${{ matrix.rid }}.zip ./*  # 生成到 publish 目录
+        cd publish
+        zip -r ../${{ matrix.rid }}.zip ./*  # 直接压缩 publish 目录内容
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.rid }}-binary  # 关键修改：唯一命名
-        path: publish/${{ matrix.rid }}.zip  # 正确路径
+        name: ${{ matrix.rid }}-binary  # 关键！加 -binary 后缀区分源码
+        path: ${{ matrix.rid }}.zip    # 直接上传压缩包
 
-  create-release:
+  release:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v4
       with:
         path: artifacts
-        pattern: '*-binary'  # 匹配二进制文件
+        pattern: '*-binary'  # 只下载编译产物
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
+    - uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.ref_name }}
         name: Release ${{ github.ref_name }}
         files: |
-          artifacts/linux-x64-binary/linux-x64.zip  # 实际文件路径
+          artifacts/*/*.zip  # 递归匹配所有子目录的 zip
