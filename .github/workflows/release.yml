@@ -17,12 +17,18 @@ jobs:
           - platform: ubuntu-latest
             rid: linux-x64
             zipname: SCSA-linux-x64.zip
+          - platform: ubuntu-latest
+            rid: linux-arm64
+            zipname: SCSA-linux-arm64.zip
           - platform: windows-latest
             rid: win-x64
             zipname: SCSA-win-x64.zip
           - platform: macos-latest
             rid: osx-x64
             zipname: SCSA-osx-x64.zip
+          - platform: macos-latest
+            rid: osx-arm64
+            zipname: SCSA-osx-arm64.zip
     runs-on: ${{ matrix.platform }}
 
     steps:
