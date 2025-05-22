@@ -45,3 +45,8 @@ jobs:
       with:
         name: ${{ matrix.rid }}
         path: publish/${{ matrix.rid }}.zip
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/linux-x64.zip
