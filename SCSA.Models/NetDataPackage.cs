@@ -1,14 +1,19 @@
-﻿using SCSA.IO.Net.TCP;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using System.Threading.Tasks;
+using SCSA.IO.Net.TCP;
+using SCSA.Models;
+using SCSA.Utils;
+using Serilog;
+using Crc32 = SCSA.Utils.Crc32;
 
-namespace SCSA.Client.Test
+namespace SCSA.Models
 {
     public class NetDataPackage : INetDataPackage
     {
@@ -25,9 +30,9 @@ namespace SCSA.Client.Test
 
         public override string ToString()
         {
-            var data = Data != null ? Data.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n) : "null";
+            //var data = Data != null ? Data.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n) : "null";
             return
-                $"CMD: {DeviceCommand} DataLen {DataLen} Data {data} Crc {Crc.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}";
+                $"CMD: {DeviceCommand} DataLen {DataLen} Crc {Crc.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}";
         }
 
         public byte[] RawData { get; set; }
@@ -50,8 +55,10 @@ namespace SCSA.Client.Test
             this.Data = data;
             this.Crc = crc;
 
-            var bytes = Get();
-            //Debug.WriteLine($"Client Recv: {bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
+
+            Log.Debug(this.ToString());
+            //var bytes = Get();
+            //Debug.WriteLine($"Server Recv: {bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
         }
 
         public byte[] Get()
@@ -64,7 +71,8 @@ namespace SCSA.Client.Test
             bytes.Add((byte)DeviceCommand);
             bytes.AddRange(BitConverter.GetBytes(Flag));
             //添加数据区长
-            bytes.AddRange(BitConverter.GetBytes(Data is { Length: > 0 } ? Data.Length : 0));
+            DataLen = Data is { Length: > 0 } ? Data.Length : 0;
+            bytes.AddRange(BitConverter.GetBytes(DataLen));
             if (Data is { Length: > 0 })
             {
                 bytes.AddRange(Data);
@@ -73,8 +81,17 @@ namespace SCSA.Client.Test
             Crc = BitConverter.GetBytes(Crc32.CRC32_Check_T(bytes.ToArray(), (uint)bytes.Count));
             //添加CRC校验
             bytes.AddRange(Crc);
+
+
+            
+
+            //Debug.WriteLine($"Build: {bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
+            Log.Debug(this.ToString());
             return bytes.ToArray();
         }
 
     }
 }
+
+
+

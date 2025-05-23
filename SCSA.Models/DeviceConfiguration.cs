@@ -99,18 +99,8 @@ namespace SCSA.Models
                 }); // 加速度量程
 
 
-            AddParameter("输出接口1配置", "输出类型", (int)ParameterType.AnalogOutputType1, sizeof(byte), typeof(byte), (byte)0x00,
-                typeof(EnumParameter), new List<EnumOption>()
-                {
-                    new("速度", (byte)0x00),
-                    new("位移", (byte)0x01),
-                    new("加速度", (byte)0x02)
-                }); 
-           
-            AddParameter("输出接口1配置", "模拟输出", (int)ParameterType.AnalogOutputSwitch1, sizeof(byte), typeof(byte), (byte)0x00,
-                typeof(BoolParameter));
-
-            AddParameter("输出接口2配置", "输出类型", (int)ParameterType.AnalogOutputType2, sizeof(byte), typeof(byte), (byte)0x00,
+            AddParameter("输出接口1配置", "输出类型", (int)ParameterType.AnalogOutputType1, sizeof(byte), typeof(byte),
+                (byte)0x00,
                 typeof(EnumParameter), new List<EnumOption>()
                 {
                     new("速度", (byte)0x00),
@@ -118,14 +108,28 @@ namespace SCSA.Models
                     new("加速度", (byte)0x02)
                 });
 
-            AddParameter("输出接口2配置", "模拟输出", (int)ParameterType.AnalogOutputSwitch2, sizeof(byte), typeof(byte), (byte)0x00,
+            AddParameter("输出接口1配置", "模拟输出", (int)ParameterType.AnalogOutputSwitch1, sizeof(byte), typeof(byte),
+                (byte)0x00,
+                typeof(BoolParameter));
+
+            AddParameter("输出接口2配置", "输出类型", (int)ParameterType.AnalogOutputType2, sizeof(byte), typeof(byte),
+                (byte)0x00,
+                typeof(EnumParameter), new List<EnumOption>()
+                {
+                    new("速度", (byte)0x00),
+                    new("位移", (byte)0x01),
+                    new("加速度", (byte)0x02)
+                });
+
+            AddParameter("输出接口2配置", "模拟输出", (int)ParameterType.AnalogOutputSwitch2, sizeof(byte), typeof(byte),
+                (byte)0x00,
                 typeof(BoolParameter));
             //AddParameter("算法参数", "参数111", 0x10000000, sizeof(float), typeof(float), (float)0x00000001, typeof(FloatNumberParameter),
             //    min: 0, max: 99999);
             //AddParameter("算法参数", "参数222", 0x10000001, sizeof(float), typeof(float), (float)0x00000001, typeof(FloatNumberParameter),
             //    min: 0, max: 99999);
 
-            AddParameter("算法参数", "前端滤波", (int)ParameterType.FrontFilter, sizeof(byte), typeof(byte), (byte)0x00,
+            AddParameter("算法参数", "前端滤波", (int)ParameterType.FrontendFilter, sizeof(byte), typeof(byte), (byte)0x00,
                 typeof(EnumParameter),
                 new List<EnumOption>()
                 {
@@ -135,7 +139,48 @@ namespace SCSA.Models
                     new("1M", (byte)0x03),
                     new("5M", (byte)0x04),
                     new("8M", (byte)0x05),
-                }); // 加速度量程
+                });
+            AddParameter("算法参数", "前端滤波类型", (int)ParameterType.FrontendFilterType, sizeof(byte), typeof(byte), (byte)0x00,
+                typeof(EnumParameter),
+                new List<EnumOption>()
+                {
+                    new("hamming", (byte)0x00),
+                    new("hann", (byte)0x01),
+                    new("kaiser", (byte)0x02),
+                });
+            AddParameter("算法参数", "前端滤波开关", (int)ParameterType.FrontendFilterSwitch, sizeof(byte), typeof(byte),
+                (byte)0x00,
+                typeof(BoolParameter));
+
+            AddParameter("算法参数", "去直流开关", (int)ParameterType.FrontendDcRemovalSwitch, sizeof(byte), typeof(byte),
+                (byte)0x00,
+                typeof(BoolParameter));
+            AddParameter("算法参数", "正交修正开关", (int)ParameterType.FrontendOrthogonalityCorrectionSwitch, sizeof(byte), typeof(byte),
+                (byte)0x00,
+                typeof(BoolParameter));
+            AddParameter("算法参数", "数据分段长度", (int)ParameterType.DataSegmentLength, sizeof(Int32), typeof(Int32),
+                (Int32)1024,
+                typeof(IntegerNumberParameter), min: 0, max: Int32.MaxValue);
+
+            AddParameter("算法参数", "速度滤波开关", (int)ParameterType.VelocityLowPassFilterSwitch, sizeof(byte), typeof(byte),
+                (byte)0x00,
+                typeof(BoolParameter));
+            AddParameter("算法参数", "位移滤波开关", (int)ParameterType.DisplacementLowPassFilterSwitch, sizeof(byte), typeof(byte),
+                (byte)0x00,
+                typeof(BoolParameter));
+            AddParameter("算法参数", "加速度滤波开关", (int)ParameterType.AccelerationLowPassFilterSwitch, sizeof(byte), typeof(byte),
+                (byte)0x00,
+                typeof(BoolParameter));
+
+            AddParameter("算法参数", "速度振幅修正", (int)ParameterType.VelocityAmpCorrection, sizeof(float), typeof(float),
+                (float)1,
+                typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
+            AddParameter("算法参数", "位移振幅修正", (int)ParameterType.DisplacementAmpCorrection, sizeof(float), typeof(float),
+                (float)1,
+                typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
+            AddParameter("算法参数", "加速度振幅修正", (int)ParameterType.AccelerationAmpCorrection, sizeof(float), typeof(float),
+                (float)1,
+                typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
         }
 
         private readonly List<ParameterCategory> _categories = new();
@@ -255,15 +300,11 @@ namespace SCSA.Models
             {
                 deviceParameter.ValueType = typeof(Int32);
                 deviceParameter.Value = Convert.ToInt32(defaultValue);
-                //((NumberParameter)deviceParameter).MinValue = int32.MinValue;
-                //((NumberParameter)deviceParameter).MaxValue = int32.MaxValue;
             }
-            else if (valueType == typeof(Int32))
+            else if (valueType == typeof(float))
             {
-                deviceParameter.ValueType = typeof(Int32);
-                deviceParameter.Value = Convert.ToInt32(defaultValue);
-                //((NumberParameter)deviceParameter).MinValue = Int32.MinValue;
-                //((NumberParameter)deviceParameter).MaxValue = Int32.MaxValue;
+                deviceParameter.ValueType = typeof(float);
+                deviceParameter.Value = Convert.ToSingle(defaultValue);
             }
 
             return deviceParameter;

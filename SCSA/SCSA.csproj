@@ -8,6 +8,16 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!--<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>-->
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>copyused</TrimMode>
+    <!-- 或 copyused -->
+    <!-- 保留调试符号 -->
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <!-- 生成裁剪报告（可选） -->
+    <TrimmerDumpDependencies>true</TrimmerDumpDependencies>
+
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,6 +44,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SCSA.IO\SCSA.IO.csproj" />
+    <ProjectReference Include="..\SCSA.Models\SCSA.Models.csproj" />
+    <ProjectReference Include="..\SCSA.Utils\SCSA.Utils.csproj" />
   </ItemGroup>
 
 

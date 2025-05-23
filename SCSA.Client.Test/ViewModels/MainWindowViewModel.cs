@@ -12,9 +12,8 @@ using HarfBuzzSharp;
 using System.Threading;
 using System.Diagnostics;
 using System.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.Reflection.Metadata;
-using System.Security.Cryptography;
+using SCSA.Models;
+
 
 namespace SCSA.Client.Test.ViewModels
 {
@@ -45,16 +44,18 @@ namespace SCSA.Client.Test.ViewModels
             ConnectToServerCommand = new RelayCommand(ExecuteConnectToServer, () => true);
 
             _parameters = new ConcurrentDictionary<ParameterType, Parameter>();
-
+           
             foreach (var parameterType in Enum.GetValues<ParameterType>())
             {
-        
-                _parameters.TryAdd(parameterType, new Parameter()
+                var t = Parameter.GetParameterType(parameterType);
+                var v = Activator.CreateInstance(t);
+                var p = new Parameter()
                 {
-                    Value = (byte)0x00,
+                    Value = v,
                     Address = parameterType,
-                    Length = 1
-                });
+                    Length = Parameter.GetParameterLength(parameterType)
+                };
+                _parameters.TryAdd(parameterType, p);
 
             }
 
@@ -252,7 +253,7 @@ namespace SCSA.Client.Test.ViewModels
 
                                 foreach (var parameterType in addressList)
                                 {
-                                    var p = new Parameter() { Address = parameterType, GetResult = false, Length = 1 };
+                                    var p = new Parameter() { Address = parameterType, GetResult = false, Length = Parameter.GetParameterLength(parameterType) };
                                     if (_parameters.ContainsKey(parameterType))
                                     {
                                         p.Value = _parameters[parameterType].Value;

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SCSA.Client.Test
+namespace SCSA.Utils
 {
     public class Crc32
     {

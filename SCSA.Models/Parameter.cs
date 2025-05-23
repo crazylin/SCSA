@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using SCSA.Utils;
@@ -52,8 +53,30 @@ namespace SCSA.Models
                     return [(byte)Value];
                 case ParameterType.AnalogOutputSwitch2:
                     return [(byte)Value];
-                case ParameterType.FrontFilter:
+                case ParameterType.FrontendFilter:
                     return [(byte)Value];
+                case ParameterType.FrontendFilterType:
+                    return [(byte)Value];
+                case ParameterType.FrontendFilterSwitch:
+                    return [(byte)Value];
+                case ParameterType.FrontendDcRemovalSwitch:
+                    return [(byte)Value];
+                case ParameterType.FrontendOrthogonalityCorrectionSwitch:
+                    return [(byte)Value];
+                case ParameterType.DataSegmentLength:
+                    return BitConverter.GetBytes(Convert.ToInt32(Value));
+                case ParameterType.VelocityLowPassFilterSwitch:
+                    return [(byte)Value];
+                case ParameterType.DisplacementLowPassFilterSwitch:
+                    return [(byte)Value];
+                case ParameterType.AccelerationLowPassFilterSwitch:
+                    return [(byte)Value];
+                case ParameterType.VelocityAmpCorrection:
+                    return BitConverter.GetBytes(Convert.ToSingle(Value));
+                case ParameterType.DisplacementAmpCorrection:
+                    return BitConverter.GetBytes(Convert.ToSingle(Value));
+                case ParameterType.AccelerationAmpCorrection:
+                    return BitConverter.GetBytes(Convert.ToSingle(Value));
                 default: return [(byte)0];
             }
 
@@ -102,6 +125,80 @@ namespace SCSA.Models
                 new("1MHz", (byte)0x0D),
                 new("3MHz", (byte)0x0E),
             };
+        }
+
+        public static Type GetParameterType(ParameterType parameterType)
+        {
+            switch (parameterType)
+            {
+                case ParameterType.SamplingRate:
+                    return typeof(byte);
+                case ParameterType.UploadDataType:
+                    return typeof(byte);
+                case ParameterType.LaserPower:
+                    return typeof(byte);
+                case ParameterType.SignalStrength:
+                    return typeof(byte);
+                case ParameterType.LowPassFilter:
+                    return typeof(byte);
+                case ParameterType.HighPassFilter:
+                    return typeof(byte);
+                case ParameterType.VelocityRange:
+                    return typeof(byte);
+                case ParameterType.DisplacementRange:
+                    return typeof(byte);
+                case ParameterType.AccelerationRange:
+                    return typeof(byte);
+                case ParameterType.AnalogOutputType1:
+                    return typeof(byte);
+                case ParameterType.AnalogOutputSwitch1:
+                    return typeof(byte);
+                case ParameterType.AnalogOutputType2:
+                    return typeof(byte);
+                case ParameterType.AnalogOutputSwitch2:
+                    return typeof(byte);
+                case ParameterType.FrontendFilter:
+                    return typeof(byte);
+                case ParameterType.FrontendFilterType:
+                    return typeof(byte);
+                case ParameterType.FrontendFilterSwitch:
+                    return typeof(byte);
+                case ParameterType.FrontendDcRemovalSwitch:
+                    return typeof(byte);
+                case ParameterType.FrontendOrthogonalityCorrectionSwitch:
+                    return typeof(byte);
+                case ParameterType.DataSegmentLength:
+                    return typeof(Int32);
+                case ParameterType.VelocityLowPassFilterSwitch:
+                    return typeof(byte);
+                case ParameterType.DisplacementLowPassFilterSwitch:
+                    return typeof(byte);
+                case ParameterType.AccelerationLowPassFilterSwitch:
+                    return typeof(byte);
+                case ParameterType.VelocityAmpCorrection:
+                    return typeof(float);
+                case ParameterType.DisplacementAmpCorrection:
+                    return typeof(float);
+                case ParameterType.AccelerationAmpCorrection:
+                    return typeof(float);
+                default:
+                    return typeof(byte);
+            }
+        }
+
+        public static int GetParameterLength(ParameterType parameterType)
+        {
+            var t = GetParameterType(parameterType);
+
+            // 验证类型是否为值类型
+            if (!t.IsValueType)
+            {
+                throw new ArgumentException("Type must be a value type.");
+            }
+
+            int size = Marshal.SizeOf(t);
+            return size;
+
         }
         //public static byte[] ToBytes(Parameter parameter,object obj)
         //{
@@ -164,8 +261,30 @@ namespace SCSA.Models
                     return RawValue[0];
                 case ParameterType.AnalogOutputSwitch2:
                     return RawValue[0];
-                case ParameterType.FrontFilter:
+                case ParameterType.FrontendFilter:
                     return RawValue[0];
+                case ParameterType.FrontendFilterType:
+                    return RawValue[0];
+                case ParameterType.FrontendFilterSwitch:
+                    return RawValue[0];
+                case ParameterType.FrontendDcRemovalSwitch:
+                    return RawValue[0];
+                case ParameterType.FrontendOrthogonalityCorrectionSwitch:
+                    return RawValue[0];
+                case ParameterType.DataSegmentLength:
+                    return BitConverter.ToInt32(RawValue);
+                case ParameterType.VelocityLowPassFilterSwitch:
+                    return RawValue[0];
+                case ParameterType.DisplacementLowPassFilterSwitch:
+                    return RawValue[0];
+                case ParameterType.AccelerationLowPassFilterSwitch:
+                    return RawValue[0];
+                case ParameterType.VelocityAmpCorrection:
+                    return BitConverter.ToSingle(RawValue);
+                case ParameterType.DisplacementAmpCorrection:
+                    return BitConverter.ToSingle(RawValue);
+                case ParameterType.AccelerationAmpCorrection:
+                    return BitConverter.ToSingle(RawValue);
                 default:
                     return RawValue[0];
             }

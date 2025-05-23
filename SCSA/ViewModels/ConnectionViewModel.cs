@@ -12,23 +12,20 @@ using SCSA.IO.Net.TCP;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SCSA.ViewModels
 {
-    public class ConnectionViewModel : ViewModelBase
+    public partial class ConnectionViewModel : ViewModelBase
     {
         private readonly ITcpServer<NetDataPackage> _tcpServer;
         public ObservableCollection<NetworkInterfaceInfo> NetworkInterfaces { set; get; }
         public NetworkInterfaceInfo SelectedInterface { get; set; }
 
+        [ObservableProperty]
         // 端口设置
         private int _port = 9123;
-        public int Port
-        {
-            get => _port;
-            set => SetProperty(ref _port, value);
-        }
-
+        
         // 已连接设备
         public ObservableCollection<DeviceConnection> ConnectedDevices { get; } = new();
 

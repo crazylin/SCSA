@@ -3,7 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModels="clr-namespace:SCSA.ViewModels"
-             xmlns:models="clr-namespace:SCSA.Models"
+             xmlns:models="clr-namespace:SCSA.Models;assembly=SCSA.Models"
              xmlns:converters="clr-namespace:SCSA.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              xmlns:prims="clr-namespace:FluentAvalonia.UI.Controls.Primitives;assembly=FluentAvalonia"
@@ -21,9 +21,12 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type models:BoolParameter}">
-      <CheckBox IsChecked="{Binding Value}"
+      <!--<CheckBox IsChecked="{Binding Value}"
                 Content="{Binding Description}"
-                VerticalAlignment="Center"/>
+                VerticalAlignment="Center"/>-->
+      <ToggleSwitch IsChecked="{Binding Value}"
+                    Content="{Binding Description}"
+                    VerticalAlignment="Center" OnContent="开" OffContent="关"></ToggleSwitch>
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type models:NumberParameter}">
@@ -155,9 +158,9 @@
         <ItemsControl ItemsSource="{Binding Parameters}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <Grid ColumnDefinitions="80,Auto,*" Margin="0 2">
+              <Grid ColumnDefinitions="100,100,*" Margin="0 2">
                 <TextBlock Text="{Binding Name}"
-                           VerticalAlignment="Center"/>
+                           VerticalAlignment="Center" FontWeight="Bold"/>
                 <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="5 0"
                            Text="{Binding Address, StringFormat='[0x{0:X8}]'}"/>
                 <ContentControl Grid.Column="2"

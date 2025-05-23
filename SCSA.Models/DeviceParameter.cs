@@ -1,4 +1,5 @@
-﻿using SCSA.ViewModels;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 namespace SCSA.Models
 {
     // ParameterItem.cs
-    public abstract  class DeviceParameter : ViewModelBase
+    public abstract  class DeviceParameter : ObservableObject
     {
         public string Name { get; set; }
         public string Description { get; set; }

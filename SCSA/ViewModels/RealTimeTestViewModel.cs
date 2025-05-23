@@ -30,7 +30,7 @@ namespace SCSA.ViewModels
     public partial class RealTimeTestViewModel : ViewModelBase
     {
         [ObservableProperty]
-        private int _displayPointCount = 10240; // 默认显示点数
+        private int _displayPointCount = 10240;
         [ObservableProperty]
         private Parameter.DataChannelType _selectedSignalType;
         [ObservableProperty]
@@ -536,15 +536,15 @@ namespace SCSA.ViewModels
                     _cacheDatas[i].AddRange(channelData.GetRow(i));
                 }
 
-                if (_cacheDatas[0].Count >= _displayPointCount)
+                if (_cacheDatas[0].Count >= DisplayPointCount)
                 {
                     var resultData = new List<double[]>();
 
 
                     for (var i = 0; i < _cacheDatas.Count; i++)
                     {
-                        resultData.Add(_cacheDatas[i].Take(_displayPointCount).ToArray());
-                        _cacheDatas[i].RemoveRange(0, _displayPointCount);
+                        resultData.Add(_cacheDatas[i].Take(DisplayPointCount).ToArray());
+                        _cacheDatas[i].RemoveRange(0, DisplayPointCount);
                     }
 
                     _concurrentQueue.Enqueue(resultData);
