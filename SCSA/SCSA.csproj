@@ -9,14 +9,8 @@
     <!--<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>-->
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>copyused</TrimMode>
-    <!-- 或 copyused -->
-    <!-- 保留调试符号 -->
-    <DebugType>portable</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-    <!-- 生成裁剪报告（可选） -->
-    <TrimmerDumpDependencies>true</TrimmerDumpDependencies>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 
   </PropertyGroup>
 
