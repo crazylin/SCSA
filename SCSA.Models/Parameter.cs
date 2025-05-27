@@ -357,26 +357,32 @@ namespace SCSA.Models
                 case 0x00:
                     return 2000;
                 case 0x01:
-                    return 50000;
+                    return 5000;
                 case 0x02:
-                    return 100000;
+                    return 10000;
                 case 0x03:
-                    return 200000;
+                    return 20000;
                 case 0x04:
-                    return 400000;
+                    return 50000;
                 case 0x05:
-                    return 800000;
+                    return 100000;
                 case 0x06:
-                    return 1000000;
+                    return 200000;
                 case 0x07:
-                    return 2000000;
+                    return 400000;
                 case 0x08:
-                    return 4000000;
+                    return 800000;
                 case 0x09:
-                    return 8000000;
+                    return 1000000;
                 case 0x0A:
-                    return 16000000;
+                    return 2000000;
                 case 0x0B:
+                    return 4000000;
+                case 0x0C:
+                    return 5000000;
+                case 0x0D:
+                    return 10000000;
+                case 0x0E:
                     return 20000000;
             }
 
