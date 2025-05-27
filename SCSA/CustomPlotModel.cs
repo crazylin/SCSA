@@ -16,6 +16,8 @@ using OxyPlot.Annotations;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Styling;
 using FluentAvalonia.UI.Media;
+using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
 
 
 
@@ -31,7 +33,7 @@ namespace SCSA
         private double _selectStart = double.NaN;
         private RectangleAnnotation _selectRect;
         private TextAnnotation _resultAnnotation;
-        private IconButtonAnnotation _btnZero;
+        private IconButtonAnnotation _btnCopy;
         private IconButtonAnnotation _btnSelect;
         private IconButtonAnnotation _btnLogToggle;
         private Dictionary<Axis, double?> _originalMin = new Dictionary<Axis, double?>();
@@ -46,14 +48,14 @@ namespace SCSA
             //var zeroImg = new OxyImage(File.ReadAllBytes(zeroIconPath));
             //var selectImg = new OxyImage(File.ReadAllBytes(selectIconPath));
             // 初始化按钮
-            _btnZero = new IconButtonAnnotation
-                { Label = "LOCK", Width = 36, ClickAction = ToggleZero, Layer = AnnotationLayer.AboveSeries };
+            _btnCopy = new IconButtonAnnotation
+                { Label = "Copy", Width = 36, ClickAction = ToggleCopy, Layer = AnnotationLayer.AboveSeries };
             _btnSelect = new IconButtonAnnotation
                 { Label = "SEL", Width = 36, ClickAction = ToggleSelection, Layer = AnnotationLayer.AboveSeries };
             _btnLogToggle = new IconButtonAnnotation
-                { Label = "LOG", Width = 36, ClickAction = ToggleLogScale, Layer = AnnotationLayer.AboveSeries };
+            { Label = "LOG", Width = 36, ClickAction = ToggleLogScale, Layer = AnnotationLayer.AboveSeries };
 
-            Annotations.Add(_btnZero);
+            Annotations.Add(_btnCopy);
             Annotations.Add(_btnSelect);
             Annotations.Add(_btnLogToggle);
 
@@ -65,7 +67,7 @@ namespace SCSA
             base.OnMouseUp(sender, e);
             var sp = e.Position;
             // 检测图标按钮点击
-            foreach (var btn in new[] { _btnZero, _btnSelect, _btnLogToggle })
+            foreach (var btn in new[] { _btnCopy, _btnSelect, _btnLogToggle })
             {
                 if (btn.ScreenRectangle.Contains(sp))
                 {
@@ -140,7 +142,7 @@ namespace SCSA
             var sp = e.Position;
 
             // 检测图标按钮点击
-            foreach (var btn in new[] { _btnZero, _btnSelect, _btnLogToggle })
+            foreach (var btn in new[] {_btnCopy, _btnSelect, _btnLogToggle })
             {
                 if (btn.ScreenRectangle.Contains(sp))
                 {
@@ -162,31 +164,10 @@ namespace SCSA
             }
         }
 
-        private void ToggleZero()
+        private void ToggleCopy()
         {
-            if (!_zeroToggled)
-            {
-                // 存储并归零
-                _originalMin.Clear();
-                foreach (var ax in Axes)
-                {
-                    _originalMin[ax] = ax.AbsoluteMinimum;
-                    ax.AbsoluteMinimum = 0;
-                }
-
-                _btnZero.IsToggled = true;
-            }
-            else
-            {
-                // 恢复原值
-                foreach (var kv in _originalMin)
-                    kv.Key.AbsoluteMinimum = kv.Value ?? double.NaN;
-                _btnZero.IsToggled = false;
-            }
-
-            _zeroToggled = !_zeroToggled;
-            this.ResetAllAxes();
-            InvalidatePlot(false);
+            var manWin = ((IClassicDesktopStyleApplicationLifetime)Application.Current.ApplicationLifetime).MainWindow;
+            CopyAlignedSeriesDataToClipboard(manWin);
         }
 
         private void ToggleSelection()
@@ -283,8 +264,8 @@ namespace SCSA
         {
             var area = this.PlotArea;
             var right = area.Right - 150;
-            //_btnZero.X = right - _btnZero.Width - 10;
-            //_btnZero.Y = area.Top + _btnZero.Height / 2 + 10;
+            _btnCopy.X = right - _btnCopy.Width - 10;
+            _btnCopy.Y = area.Top + _btnCopy.Height / 2 + 10;
             _btnSelect.X = right - _btnSelect.Width * 2 - 20;
             _btnSelect.Y = area.Top + _btnSelect.Height / 2 + 10;
             //_btnLogToggle.X = right - _btnLogToggle.Width * 3 - 30;
@@ -323,6 +304,7 @@ namespace SCSA
                 axis.MajorGridlineColor = GetFluentColor("ControlStrokeColorDefault")
                     .WithAlpha(0.4);
             }
+
             // 数据系列颜色
             var accentColor = GetFluentColor("SystemAccentColor");
             int index = 0;
@@ -333,6 +315,7 @@ namespace SCSA
                     line.Color = GenerateSeriesColor(accentColor, index++);
                 }
             }
+
             foreach (var legend in this.Legends)
             {
                 legend.TextColor = this.TextColor;
@@ -340,6 +323,7 @@ namespace SCSA
                 legend.LegendBackground = GetFluentColor("SolidBackgroundFillColorTertiary");
                 legend.LegendBorder = GetFluentColor("ControlElevationBorder");
             }
+
             foreach (var ann in this.Annotations)
             {
                 ann.TextColor = this.TextColor;
@@ -349,13 +333,13 @@ namespace SCSA
                     txAnn.Background = GetFluentColor("SolidBackgroundFillColorTertiary");
                     txAnn.Stroke = GetFluentColor("ControlElevationBorder");
                 }
-              
-               
+
+
             }
 
-            _btnZero.TextColor = this.TextColor;
-            _btnZero.BorderColor = this.PlotAreaBorderColor;
-            _btnZero.FillColor = GetFluentColor("SolidBackgroundFillColorTertiary");
+            _btnCopy.TextColor = this.TextColor;
+            _btnCopy.BorderColor = this.PlotAreaBorderColor;
+            _btnCopy.FillColor = GetFluentColor("SolidBackgroundFillColorTertiary");
 
             _btnSelect.TextColor = this.TextColor;
             _btnSelect.BorderColor = this.PlotAreaBorderColor;
@@ -393,6 +377,7 @@ namespace SCSA
 
             return OxyColor.FromArgb(0xFF, 32, 32, 32);
         }
+
         private OxyColor GenerateSeriesColor(OxyColor baseColor, int index)
         {
             switch (index % 3)
@@ -404,6 +389,50 @@ namespace SCSA
             }
 
             return baseColor;
+        }
+
+
+
+        public void CopyAlignedSeriesDataToClipboard(TopLevel topLevel)
+        {
+            var lineSeriesList = this.Series.OfType<LineSeries>().ToList()
+                .Select(l => l.ItemsSource as IEnumerable<DataPoint>).ToList();
+            var headers = this.Series.OfType<LineSeries>().ToList().Select(l => l.Title).ToList();
+            // 计算最大点数
+            int maxCount = lineSeriesList.Max(s=>s.Count());
+
+            var sb = new StringBuilder();
+
+
+            // 遍历每个点的索引
+            for (int i = 0; i < maxCount; i++)
+            {
+                for (int j = 0; j < lineSeriesList.Count; j++)
+                {
+                    var points = lineSeriesList[j];
+                    if (i < points.Count())
+                    {
+                        var pt = points.ElementAt(i);
+                        sb.Append($"{pt.X}\t{pt.Y}");
+                    }
+                    else
+                    {
+                        sb.Append("\t"); // 空值
+                    }
+
+                    if (j < lineSeriesList.Count - 1)
+                        sb.Append("\t");
+                }
+
+                sb.AppendLine();
+            }
+
+            // 复制到剪贴板
+            var clipboard = topLevel?.Clipboard;
+            if (clipboard != null)
+            {
+                clipboard.SetTextAsync(sb.ToString());
+            }
         }
 
     }
