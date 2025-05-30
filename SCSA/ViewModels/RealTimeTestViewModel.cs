@@ -340,7 +340,7 @@ namespace SCSA.ViewModels
                     _cts.Token);
 
                 _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                //采集数据
+     
                 await ConnectionViewModel.SelectedDevice.DeviceControlApi.Start(_cts.Token);
 
                 _timer = new DispatcherTimer();
