@@ -5,23 +5,23 @@
              xmlns:plot="clr-namespace:QuickMA.Modules.Plot"
              xmlns:avalonia="http://oxyplot.org/avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="SCSA.Plot.CuPlotModelView">
+             x:Class="SCSA.Plot.CuPlotModelView" Background="Transparent">
   <UserControl.Resources>
     <plot:InteractionModeToVisibilityConverter x:Key="InteractionModeToVisibilityConverter" />
   </UserControl.Resources>
-  <Grid>
+  <Grid Margin="5">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="*" />
       <ColumnDefinition Width="Auto" />
     </Grid.ColumnDefinitions>
     <avalonia:PlotView Model="{Binding}" Controller="{Binding Controller}" />
 
-    <DockPanel Name="Container" Grid.Column="1" Width="200"
+    <DockPanel Name="Container" Grid.Column="1" Width="230"
                IsVisible="{Binding SelectedMode, Converter={StaticResource InteractionModeToVisibilityConverter},ConverterParameter={x:Static plot:InteractionMode.RangeSelect}}"
                Margin="0 0 ">
 
 
-      <TabControl ItemsSource="{Binding RangeResults}" BorderThickness="0" SelectedIndex="0">
+      <TabControl ItemsSource="{Binding RangeResults}" BorderThickness="0" SelectedIndex="0" >
         <!-- TabItem标题模板 -->
         <TabControl.ItemTemplate>
           <DataTemplate DataType="{x:Type plot:RangeResult}">
@@ -37,7 +37,7 @@
         <TabControl.ContentTemplate>
           <DataTemplate DataType="{x:Type plot:RangeResult}">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      Padding="10">
+                      Padding="5">
               <Grid>
      
                 <Grid.ColumnDefinitions>

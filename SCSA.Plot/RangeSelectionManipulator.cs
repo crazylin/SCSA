@@ -211,7 +211,11 @@ namespace QuickMA.Modules.Plot
                     };
                     if (!string.IsNullOrWhiteSpace(lineSeries.Title))
                     {
-                        rangeResult.YTitle = $"{lineSeries.Title}-{rangeResult.YTitle}";
+                        rangeResult.YTitle = $"{lineSeries.Title}";
+                    }
+                    else
+                    {
+                        rangeResult.YTitle = rangeResult.YTitle;
                     }
 
                     rangeResults.Add(rangeResult);

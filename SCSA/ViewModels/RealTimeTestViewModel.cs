@@ -148,12 +148,23 @@ namespace SCSA.ViewModels
                     var waveform = new Waveform
                     {
                         DataChannelType = SelectedSignalType,
-                        TimeDomainModel = new CuPlotModel
-                        { Title = $"{SelectedSignalType} - 时域波形", IsLegendVisible = true },
+                        TimeDomainModel = new CuPlotModel(),
                         FrequencyDomainModel = new CuPlotModel
                         { Title = $"{SelectedSignalType} - 频域波形", IsLegendVisible = true }
                     };
-                    waveform.TimeDomainModel.Legends.Add(new Legend());
+
+                    waveform.TimeDomainModel.Title = $"{SelectedSignalType} - 时域波形";
+                    waveform.TimeDomainModel.XTitle = "时间";
+                    waveform.TimeDomainModel.XUint = "s";
+                    waveform.TimeDomainModel.YTitle = SelectedSignalType.ToString();
+                    waveform.TimeDomainModel.YUnit = "mm/s";
+
+                    waveform.FrequencyDomainModel.Title = $"{SelectedSignalType} - 频域波形";
+                    waveform.FrequencyDomainModel.XTitle = "频率";
+                    waveform.FrequencyDomainModel.XUint = "Hz";
+                    waveform.FrequencyDomainModel.YTitle = SelectedSignalType.ToString();
+                    waveform.FrequencyDomainModel.YUnit = "mm/s";
+
                     waveform.TimeDomainModel.Axes.Add(new LinearAxis()
                     {
                         Position = AxisPosition.Left,
@@ -164,10 +175,9 @@ namespace SCSA.ViewModels
                     waveform.TimeDomainModel.Axes.Add(new LinearAxis()
                     {
                         Position = AxisPosition.Bottom,
-                        Unit = "s"
                     });
 
-                    waveform.FrequencyDomainModel.Legends.Add(new Legend());
+
                     waveform.FrequencyDomainModel.Axes.Add(new LinearAxis()
                     {
                         Position = AxisPosition.Left,
@@ -177,7 +187,6 @@ namespace SCSA.ViewModels
                     waveform.FrequencyDomainModel.Axes.Add(new LinearAxis()
                     {
                         Position = AxisPosition.Bottom,
-                        Unit = "Hz"
                     });
                     var timeSeries = new LineSeries { Title = SelectedSignalType.ToString() };
 
@@ -201,12 +210,23 @@ namespace SCSA.ViewModels
                     var waveform = new Waveform
                     {
                         DataChannelType = SelectedSignalType,
-                        TimeDomainModel = new CuPlotModel
-                        { Title = $"{SelectedSignalType} - 时域波形", IsLegendVisible = true },
-                        FrequencyDomainModel = new CuPlotModel
-                        { Title = $"{SelectedSignalType} - 频域波形", IsLegendVisible = true }
+                        TimeDomainModel = new CuPlotModel(),
+                        FrequencyDomainModel = new CuPlotModel()
                     };
-                    waveform.TimeDomainModel.Legends.Add(new Legend());
+
+                    waveform.TimeDomainModel.Title = $"{SelectedSignalType} - 时域波形";
+                    waveform.TimeDomainModel.XTitle = "时间";
+                    waveform.TimeDomainModel.XUint = "s";
+                    waveform.TimeDomainModel.YTitle = SelectedSignalType.ToString();
+                    waveform.TimeDomainModel.YUnit = "mm/s";
+
+                    waveform.FrequencyDomainModel.Title = $"{SelectedSignalType} - 频域波形";
+                    waveform.FrequencyDomainModel.XTitle = "频率";
+                    waveform.FrequencyDomainModel.XUint = "Hz";
+                    waveform.FrequencyDomainModel.YTitle = SelectedSignalType.ToString();
+                    waveform.FrequencyDomainModel.YUnit = "mm/s";
+
+       
                     waveform.TimeDomainModel.Axes.Add(new LinearAxis()
                     {
                         Position = AxisPosition.Left,
@@ -217,7 +237,7 @@ namespace SCSA.ViewModels
                     waveform.TimeDomainModel.Axes.Add(new LinearAxis()
                     {
                         Position = AxisPosition.Bottom,
-                        Unit = "s"
+  
                     });
 
                     waveform.FrequencyDomainModel.Legends.Add(new Legend());
@@ -230,7 +250,7 @@ namespace SCSA.ViewModels
                     waveform.FrequencyDomainModel.Axes.Add(new LinearAxis()
                     {
                         Position = AxisPosition.Bottom,
-                        Unit = "Hz"
+              
                     });
 
                     var timeSeriesI = new LineSeries { Title = "I路" };
