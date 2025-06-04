@@ -40,6 +40,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SCSA.IO\SCSA.IO.csproj" />
     <ProjectReference Include="..\SCSA.Models\SCSA.Models.csproj" />
+    <ProjectReference Include="..\SCSA.Plot\SCSA.Plot.csproj" />
     <ProjectReference Include="..\SCSA.Utils\SCSA.Utils.csproj" />
   </ItemGroup>
 

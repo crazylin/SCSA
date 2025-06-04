@@ -9,14 +9,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SCSA.IO", "SCSA.IO\SCSA.IO.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SCSA.Client.Test", "SCSA.Client.Test\SCSA.Client.Test.csproj", "{60BEE231-29B8-4256-B596-0CEB82BED210}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SCSA.Models", "SCSA.Models\SCSA.Models.csproj", "{73ECA071-44B5-4A33-8BC1-B02AF00911CF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SCSA.Models", "SCSA.Models\SCSA.Models.csproj", "{73ECA071-44B5-4A33-8BC1-B02AF00911CF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SCSA.Utils", "SCSA.Utils\SCSA.Utils.csproj", "{5354E3E9-BB6A-4D9A-B8F8-583D89DD4EFF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SCSA.Utils", "SCSA.Utils\SCSA.Utils.csproj", "{5354E3E9-BB6A-4D9A-B8F8-583D89DD4EFF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{395264E1-BC4B-49EF-9349-CF8F23E8635E}"
 	ProjectSection(SolutionItems) = preProject
 		通讯协议.docx = 通讯协议.docx
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SCSA.Plot", "SCSA.Plot\SCSA.Plot.csproj", "{9B2290D5-06D9-4EC1-9AA8-B8A666F9A78D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -44,6 +46,10 @@ Global
 		{5354E3E9-BB6A-4D9A-B8F8-583D89DD4EFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5354E3E9-BB6A-4D9A-B8F8-583D89DD4EFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5354E3E9-BB6A-4D9A-B8F8-583D89DD4EFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9B2290D5-06D9-4EC1-9AA8-B8A666F9A78D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B2290D5-06D9-4EC1-9AA8-B8A666F9A78D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B2290D5-06D9-4EC1-9AA8-B8A666F9A78D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B2290D5-06D9-4EC1-9AA8-B8A666F9A78D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

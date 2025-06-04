@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:avalonia="http://oxyplot.org/avalonia"
              xmlns:converters="clr-namespace:SCSA.Converters"
+             xmlns:plot="clr-namespace:SCSA.Plot;assembly=SCSA.Plot"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SCSA.RealTimeTestView">
   <UserControl.Resources>
@@ -133,9 +134,9 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate>
             <UniformGrid Rows="2" Width="{Binding Bounds.Width, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type WrapPanel}}}">
-              <avalonia:PlotView MinHeight="200" Model="{Binding TimeDomainModel}"/>
+              <plot:CuPlotModelView MinHeight="200" DataContext="{Binding TimeDomainModel}"/>
               <!-- 频域波形 -->
-              <avalonia:PlotView MinHeight="200" Model="{Binding FrequencyDomainModel}"/>
+              <plot:CuPlotModelView MinHeight="200" DataContext="{Binding FrequencyDomainModel}"/>
             </UniformGrid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

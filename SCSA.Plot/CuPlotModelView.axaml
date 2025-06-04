@@ -1,0 +1,153 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:plot="clr-namespace:QuickMA.Modules.Plot"
+             xmlns:avalonia="http://oxyplot.org/avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="SCSA.Plot.CuPlotModelView">
+  <UserControl.Resources>
+    <plot:InteractionModeToVisibilityConverter x:Key="InteractionModeToVisibilityConverter" />
+  </UserControl.Resources>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="Auto" />
+    </Grid.ColumnDefinitions>
+    <avalonia:PlotView Model="{Binding}" Controller="{Binding Controller}" />
+
+    <DockPanel Name="Container" Grid.Column="1" Width="200"
+               IsVisible="{Binding SelectedMode, Converter={StaticResource InteractionModeToVisibilityConverter},ConverterParameter={x:Static plot:InteractionMode.RangeSelect}}"
+               Margin="0 0 ">
+
+
+      <TabControl ItemsSource="{Binding RangeResults}" BorderThickness="0" SelectedIndex="0">
+        <!-- TabItem标题模板 -->
+        <TabControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type plot:RangeResult}">
+            <TextBlock Text="{Binding YTitle}"
+                   FontWeight="Bold"
+                   Padding="8,4"/>
+          </DataTemplate>
+        </TabControl.ItemTemplate>
+
+
+
+        <!-- TabItem内容模板 -->
+        <TabControl.ContentTemplate>
+          <DataTemplate DataType="{x:Type plot:RangeResult}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      Padding="10">
+              <Grid>
+     
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!--<TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" 
+                                       FontSize="14" FontWeight="Bold" Margin="0,0,0,8">
+                                <Run Text="{Binding YTitle}" />
+                                <Run Text=":" />
+                                </TextBlock>-->
+
+                <!--<Line Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" 
+                                  Stroke="#E0E6ED" StrokeThickness="1" 
+                                  X1="0" Y1="0" Y2="0" 
+                                  X2="{Binding RelativeSource={RelativeSource AncestorType=Grid}, Path=ActualWidth}" 
+                                  Margin="0,0,0,10"/>-->
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" FontWeight="SemiBold">
+                  <Run Text="{Binding XTitle}" />
+                  <Run Text=":" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="1:" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                  <Run Text="{Binding LeftPoint.X, StringFormat={}{0:0.######},Mode=OneWay}" />
+                  <Run Text="{Binding XUint}" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="2:" />
+                <TextBlock Grid.Row="4" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                  <Run Text="{Binding RightPoint.X, StringFormat={}{0:0.######},Mode=OneWay}" />
+                  <Run Text="{Binding XUint}" />
+                </TextBlock>
+
+                <Border Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                        Height="1"
+                        Background="#E0E6ED"
+                        Margin="0,10,0,10"/>
+
+                <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" FontWeight="SemiBold">
+                  <Run Text="幅值" />
+                  <Run Text=":" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="7" Grid.Column="0" Text="1:" />
+                <TextBlock Grid.Row="7" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                  <Run Text="{Binding LeftPoint.Y, StringFormat={}{0:0.######},Mode=OneWay}" />
+                  <Run Text="{Binding YUint}" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="8" Grid.Column="0" Text="2:" />
+                <TextBlock Grid.Row="8" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                  <Run Text="{Binding RightPoint.Y, StringFormat={}{0:0.######},Mode=OneWay}" />
+                  <Run Text="{Binding YUint}" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="9" Grid.Column="0">
+                  <Run Text="最大值" />
+                  <Run Text=":" />
+                </TextBlock>
+                <TextBlock Grid.Row="9" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                  <Run Text="{Binding PeakPoint.X, StringFormat={}{0:0.######},Mode=OneWay}" />
+                  <Run Text="{Binding XUint}" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="10" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                  <Run Text="{Binding PeakPoint.Y, StringFormat={}{0:0.######},Mode=OneWay}" />
+                  <Run Text="{Binding YUint}" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="11" Grid.Column="0">
+                  <Run Text="平均值" />
+                  <Run Text=":" />
+                </TextBlock>
+                <TextBlock Grid.Row="11" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                  <Run Text="{Binding MeanValue, StringFormat={}{0:0.######},Mode=OneWay}" />
+                  <Run Text="{Binding YUint}" />
+                </TextBlock>
+
+                <TextBlock Grid.Row="12" Grid.Column="0">
+                  <Run Text="均方根值" />
+                  <Run Text=":" />
+                </TextBlock>
+                <TextBlock Grid.Row="12" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                  <Run Text="{Binding RmsValue, StringFormat={}{0:0.######},Mode=OneWay}" />
+                  <Run Text="{Binding YUint}" />
+                </TextBlock>
+              </Grid>
+            </ScrollViewer>
+          </DataTemplate>
+        </TabControl.ContentTemplate>
+      </TabControl>
+    </DockPanel>
+
+  </Grid>
+</UserControl>

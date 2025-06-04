@@ -24,6 +24,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Runtime.Intrinsics.X86;
 using OxyPlot.Legends;
 using Timer = System.Timers.Timer;
+using QuickMA.Modules.Plot;
 
 namespace SCSA.ViewModels
 {
@@ -147,10 +148,10 @@ namespace SCSA.ViewModels
                     var waveform = new Waveform
                     {
                         DataChannelType = SelectedSignalType,
-                        TimeDomainModel = new CustomPlotModel
-                            { Title = $"{SelectedSignalType} - 时域波形", IsLegendVisible = true },
-                        FrequencyDomainModel = new CustomPlotModel
-                            { Title = $"{SelectedSignalType} - 频域波形", IsLegendVisible = true }
+                        TimeDomainModel = new CuPlotModel
+                        { Title = $"{SelectedSignalType} - 时域波形", IsLegendVisible = true },
+                        FrequencyDomainModel = new CuPlotModel
+                        { Title = $"{SelectedSignalType} - 频域波形", IsLegendVisible = true }
                     };
                     waveform.TimeDomainModel.Legends.Add(new Legend());
                     waveform.TimeDomainModel.Axes.Add(new LinearAxis()
@@ -200,10 +201,10 @@ namespace SCSA.ViewModels
                     var waveform = new Waveform
                     {
                         DataChannelType = SelectedSignalType,
-                        TimeDomainModel = new CustomPlotModel
-                            { Title = $"{SelectedSignalType} - 时域波形", IsLegendVisible = true },
-                        FrequencyDomainModel = new CustomPlotModel
-                            { Title = $"{SelectedSignalType} - 频域波形", IsLegendVisible = true }
+                        TimeDomainModel = new CuPlotModel
+                        { Title = $"{SelectedSignalType} - 时域波形", IsLegendVisible = true },
+                        FrequencyDomainModel = new CuPlotModel
+                        { Title = $"{SelectedSignalType} - 频域波形", IsLegendVisible = true }
                     };
                     waveform.TimeDomainModel.Legends.Add(new Legend());
                     waveform.TimeDomainModel.Axes.Add(new LinearAxis()
@@ -246,6 +247,7 @@ namespace SCSA.ViewModels
 
                     waveform.TimeDomainModel.ApplyTheme();
                     waveform.FrequencyDomainModel.ApplyTheme();
+
                     waveform.InvalidatePlot(true);
                 }
                     break;
@@ -273,8 +275,8 @@ namespace SCSA.ViewModels
         public class Waveform
         {
             public Parameter.DataChannelType DataChannelType { get; set; }
-            public CustomPlotModel TimeDomainModel { get; set; }
-            public CustomPlotModel FrequencyDomainModel { get; set; }
+            public CuPlotModel TimeDomainModel { get; set; }
+            public CuPlotModel FrequencyDomainModel { get; set; }
 
             public void InvalidatePlot(bool t)
             {
