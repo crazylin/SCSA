@@ -41,6 +41,8 @@ namespace SCSA.Client.Test.ViewModels
 
         public MainWindowViewModel()
         {
+
+            //var len =BitConverter.ToInt32(new byte[] { 0x06, 0x20, 0x03, 0x00 }.Reverse().ToArray());
             ConnectToServerCommand = new RelayCommand(ExecuteConnectToServer, () => true);
 
             _parameters = new ConcurrentDictionary<ParameterType, Parameter>();
@@ -92,16 +94,18 @@ namespace SCSA.Client.Test.ViewModels
             }
 
             //var str =
-            //    "4e5a435300045f017d050000005e010000000000000a4880e100000000aa8a08e8000000002a80288800000000a8a8088a000000000228a82a0000000040a2028800000000a022200000000000982822a0000000008981a00a000000002802080a00000000aa24a2000000000000223a02000000000022000a0000000001eaa2820000000028a238aa0000000001c40880000000008a920700000000008020a1080000000020a10a000000000022020080000000001220008200000000a8860008000000000a0020280000000000c0a42800000000982a2caa0000000083808a29000000003838288a000000000028888200000000de22a8a30000000082282a0000000000882ea202000000000188aaea00000000a62a08aa0000000080842382000000008982222a000000000802a0a8000000008082210200000000a2820a0200000000a2a820a8000000000220a20800000000a228420600000000a800a23a0000000098a28a2800000000222020820000000083228a2300000000aa02a222000000008a02aa2a00000000a88a0006000000008a80322a00000000a228420800000000a8820a2a000000008aaba2a00000000088880a8a00000000c008aa3a00000000aa88882a00000000b8a2a08200000000a0082080000000004880002000000000a28a808800000000802a80220000000022a20a000000000000a8828a00000000a82888a800000000a08228b2000000002068410600000000828a028a000000002820a1220000000082202080000000002022281e000000000ba8c23200000000a288c880000000000a80a88a00000000018a08aa000000006a086d380000000082888008000000002880a82200000000a228ab920000000020a202aa00000000a822882a00000000040a2222000000000808862a000000002802822c00000000800280a00000000080880282000000000a828aa000000000a80a2a2800000000aa2aa0aa00000000880a08220000000080809028000000000282a02800000000008a388800000000408810a200000000a80a208000000000a888aa02000000000aaaa0a800000000822808800000000082208a2800000000a880a022000000008aa88882000000000800482a0000000008288808000000000000aa000000000020aa9a22000000002a203080000000000222022a00000000080aa22a000000008822308a0000000022aaa888000000000a2a08020000000082822222000000000a8b8b8000000000a24002c800000000080820a000000000a8a022000000000088832aa0000000008c00b0000000000029008082000000008aa8a8c800000000aa22a05a000000002a228802000000008e0088a0000000000a8a202a00000000a28022800000000020a028a0000000008aa208280000000008000020000000000280283a000000002080a8000000000022888a260000000002a022140000000028a82680000000002082ab0000000000100802b000000000a222da0800000000288a42a200000000a8408a88000000000882808a0000000069288a000000000002a0080200000000a2a00808000000003aa2a0c800000000880a8602000000000a292b82000000003308220a0000000028ac208e000000001208000a000000008a22222800000000a888288a00000000a080200800000000268ab00a0000000082a80a8a0000000082a8a8a800000000422a0a8a0000000082aa088800000000baa2008000000000a2882ae800000000880a8822000000008a08828a00000000a02aa92800000000828000a2000000000a21022000000000188b8208000000000a82020c00000000000a202a0000000080a82a2000000000a8a2a80200000000aa8880a0000000008008002a0000000018068a8000000000284008a200000000222a082a000000002808888a00000000008480a200000000280208000000000002a23a2a4f0cc91f";
+            //    "53435a4e000400000620030000080000ddfe58ffdbfe59ffdbfe5bffddfe55ffdafe57ffdbfe57ffdefe58ffdefe58ffdffe59ffdcfe58ffdbfe57ffdbfe5affdbfe5affddfe57ffe0fe57ffdffe57ffdcfe58ffdafe5cffdbfe5cffdcfe5bffdbfe5affdefe57ffd8fe59ffdafe56ffd8fe59ffddfe57ffdafe5dffdcfe57ffddfe54ffdbfe55ffdafe5affdcfe55ffdafe59ffdafe5affdbfe5affdbfe58ffdcfe59ffdcfe59ffdafe58ffdcfe57ffdbfe58ffddfe59ffdcfe58ffd9fe59ffdbfe5affdcfe58ffdcfe59ffddfe59ffdcfe59ffddfe58ffe0fe56ffd6fe56ffddfe57ffdcfe56ffddfe5effdafe5bffdafe59ffddfe5cffdcfe58ffddfe58ffd9fe52ffddfe58ffddfe5bffdafe5cffdefe58ffddfe57ffddfe57ffdefe5bffdefe5affdafe58ffdafe5affd7fe59ffdbfe58ffdbfe59ffdffe57ffdbfe59ffdafe54ffd7fe56ffddfe58ffdbfe57ffd9fe54ffdbfe58ffdafe56ffddfe57ffdcfe59ffd9fe5bffd9fe59ffd8fe56ffdcfe5bffdbfe59ffddfe58ffe0fe5affdafe57ffdbfe56ffdcfe57ffd9fe58ffdcfe5cffdafe57ffdefe59ffddfe57ffdefe59ffdffe5bffd8fe58ffdcfe55ffddfe58ffd8fe57ffdcfe57ffdafe56ffddfe58ffdefe5bffddfe59ffdbfe58ffdcfe57ffd8fe59ffdffe5affdafe58ffddfe56ffddfe58ffdbfe55ffdafe5affdcfe5affdffe58ffdffe56ffdbfe5affdbfe5affdcfe5bffddfe57ffd9fe59ffdefe59ffdafe59ffddfe5bffdcfe55ffdbfe5bffe0fe55ffdbfe53ffdcfe5affdbfe58ffddfe59ffdbfe5bffddfe58ffd9fe59ffe0fe57ffdefe57ffddfe58ffddfe5affdffe5bffdcfe56ffdffe54ffdbfe58ffdcfe58ffddfe55ffdbfe5bffddfe59ffdefe5bffdbfe5bffdafe56ffdefe58ffdcfe57ffdcfe5dffdafe57ffe0fe57ffddfe5affdcfe5affddfe58ffdefe58ffdcfe5affdefe58ffdbfe59ffdbfe58ffd8fe59ffdbfe58ffe2fe59ffdcfe5affddfe59ffdafe54ffdbfe57ffd8fe56ffdcfe57ffddfe5affddfe5affdafe58ffdafe5affdbfe59ffdcfe5affdcfe5affdffe57ffdafe57ffdefe5affdefe5affdbfe58ffdffe59ffdbfe5bffdffe58ffdefe57ffdbfe59ffd9fe59ffdafe57ffdcfe59ffdafe57ffddfe56ffd9fe58ffd7fe58ffdcfe58ffdffe59ffd9fe56ffdbfe59ffdafe58ffdbfe5affddfe58ffdcfe56ffddfe57ffddfe5affdcfe57ffe0fe57ffdefe58ffd8fe59ffd9fe5affd9fe58ffd9fe5affddfe5bffdbfe58ffd9fe59ffdefe5effdbfe58ffd9fe5bffdbfe55ffdbfe56ffdffe56ffdbfe56ffdcfe56ffd9fe5dffd9fe58ffdafe58ffdafe59ffdcfe5affddfe54ffdafe56ffdbfe59ffdbfe5affd9fe5bffdcfe57ffddfe54ffdbfe57ffdbfe5affdefe5affe0fe59ffdffe58ffdefe5dffdbfe55ffd9fe59ffdbfe57ffdefe58ffd9fe54ffdefe5affddfe55ffddfe57ffd9fe5dffdefe5fffd9fe5affddfe54ffdafe59ffdbfe58ffd9fe59ffdafe56ffd9fe57ffdbfe5dffddfe55ffdcfe58ffd9fe59ffd8fe59ffe0fe59ffdffe5affe0fe54ffddfe56ffd5fe59ffdcfe58ffdafe55ffe1fe59ffdafe58ffd8fe59ffddfe59ffdbfe5affdcfe58ffd8fe5bffdcfe5bffd9fe5affe0fe57ffdcfe5affdcfe56ffe0fe5affd9fe5bffdafe59ffddfe58ffdbfe54ffd9fe59ffdafe56ffdbfe59ffdcfe58ffdbfe57ffe0fe5affdcfe5affddfe58ffdcfe58ffdafe57ffdcfe59ffdffe5bffdcfe58ffdcfe57ffdffe58ffddfe56ffddfe59ffdefe59ffdbfe54ffddfe57ffdbfe5dffdefe55ffdcfe58ffddfe57ffdefe58ffd9fe54ffdbfe56ffddfe55ffdcfe5affd9fe59ffdafe5affdcfe5affdcfe59ffdafe58ffdffe58ffdefe5affddfe5bffdbfe58ffdbfe59ffddfe57ffdbfe57ffdcfe56ffdffe56ffdafe59ffdafe53ffdcfe56ffd8fe58ffdafe56ffdafe56ffdcfe55ffdcfe59ffddfe53ffdafe58ffe0fe57ffe0fe59ffdefe57ffddfe59ffddfe57ffdefe57ffdcfe59ffdafe5affdcfe57ffd8fe5affdbfe";
             //var bytes = HexStringToByteArray(str);
             //Task.Factory.StartNew(() =>
             //{
             //    while (true)
             //    {
             //        _tcpClient.Send(bytes);
+            //        break;
             //        Thread.Sleep(0);
             //    }
             //});
+            //return;
             AppendLog("连接成功");
             _recvTask = Task.Factory.StartNew(() =>
             {
@@ -142,8 +146,8 @@ namespace SCSA.Client.Test.ViewModels
                                                     var returnNetPackage = new NetDataPackage();
                                                     returnNetPackage.DeviceCommand = DeviceCommand.ReplyUploadData;
                                                     var list = new List<byte>();
-                                                    list.AddRange(_parameters[ParameterType.UploadDataType]
-                                                        .GetParameterData());
+                                                    list.AddRange(BitConverter.GetBytes((int)Convert.ToInt32(_parameters[ParameterType.UploadDataType].Value))
+                                                       );
                                                     list.AddRange(BitConverter.GetBytes(buffer.Length));
 
                                                     // 生成正弦波数据
