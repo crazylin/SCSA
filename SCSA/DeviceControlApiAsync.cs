@@ -210,7 +210,7 @@ namespace SCSA
             using var stream = new MemoryStream(data);
             using var reader = new BinaryReader(stream);
 
-            var channelType = (Parameter.DataChannelType)reader.ReadInt16();
+            var channelType = (Parameter.DataChannelType)reader.ReadInt32();
             var dataLength = reader.ReadInt32();
             var result = new Dictionary<Parameter.DataChannelType, double[,]>();
 
