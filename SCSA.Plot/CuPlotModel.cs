@@ -9,6 +9,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FluentAvalonia.UI.Media;
 using OxyPlot;
 using OxyPlot.Annotations;
@@ -131,7 +133,6 @@ namespace QuickMA.Modules.Plot
             get => _showToolBar;
         }
 
-
         public CuPlotModel(bool showToolBar = true)
         {
             Application.Current.ActualThemeVariantChanged += (s, e) => ApplyTheme();
@@ -139,6 +140,7 @@ namespace QuickMA.Modules.Plot
             PlotMargins = new OxyThickness(40, 20, 0, double.NaN);
 
             this.IsLegendVisible = true;
+
             var legend = new Legend()
             {
                 LegendBorder = OxyColors.Black,
@@ -377,6 +379,30 @@ namespace QuickMA.Modules.Plot
                 TextColor = TextColor,
             };
             btnCopy.Pressed += (s, e) => CopyAlignedSeriesDataToClipboard();
+            var btnScreenShot = new ButtonAnnotation()
+            {
+                Text = "S",
+                Height = new PlotLength(20, PlotLengthUnit.ScreenUnits),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                IconFontSize = 24,
+                IconText = char.ConvertFromUtf32(0xE642),
+                Tag = "SystemAnnotation"
+
+            };
+
+            btnScreenShot.Pressed += (s, e) =>
+            {
+                var parentUc = ((OxyPlot.Avalonia.PlotView)this.PlotView).FindAncestorOfType<UserControl>();
+                var manWin = ((IClassicDesktopStyleApplicationLifetime)Application.Current.ApplicationLifetime).MainWindow;
+              
+                Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                   await ScreenshotHelper.CaptureAndSaveControlAsync(parentUc, manWin);
+                });
+     
+
+            };
             var btnReset = new ButtonAnnotation()
             {
                 Text = "R",
@@ -409,6 +435,7 @@ namespace QuickMA.Modules.Plot
             container.Add(btnLog);
             container.Add(btnLock);
             container.Add(btnCopy);
+            container.Add(btnScreenShot);
             container.Add(btnReset);
 
             container.Apply(this);
@@ -421,6 +448,17 @@ namespace QuickMA.Modules.Plot
             this.PlotAreaBackground = GetFluentColor("SolidBackgroundFillColorQuarternary");
             this.TextColor = GetFluentColor("TextFillColorPrimary");
 
+
+
+            // 数据系列颜色
+            var accentColor = GetFluentColor("SystemAccentColor");
+
+            foreach (var legend in this.Legends)
+            {
+                legend.LegendBackground = Background;
+                legend.LegendBorder = PlotAreaBorderColor;
+                legend.TextColor = TextColor;
+            }
             // 坐标轴样式
             foreach (var axis in this.Axes)
             {
@@ -431,8 +469,6 @@ namespace QuickMA.Modules.Plot
                     .WithAlpha(0.4);
             }
 
-            // 数据系列颜色
-            var accentColor = GetFluentColor("SystemAccentColor");
             int index = 0;
             foreach (var series in this.Series)
             {
@@ -464,6 +500,8 @@ namespace QuickMA.Modules.Plot
             }
 
             TextAnnotation.IconCache.Clear();
+
+            this.PlotAreaBackground = OxyColors.Transparent;
             InvalidatePlot(true);
 
         }

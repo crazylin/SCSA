@@ -5,7 +5,7 @@
              xmlns:plot="clr-namespace:QuickMA.Modules.Plot"
              xmlns:avalonia="http://oxyplot.org/avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="SCSA.Plot.CuPlotModelView" Background="Transparent">
+             x:Class="SCSA.Plot.CuPlotModelView">
   <UserControl.Resources>
     <plot:InteractionModeToVisibilityConverter x:Key="InteractionModeToVisibilityConverter" />
   </UserControl.Resources>
@@ -14,9 +14,9 @@
       <ColumnDefinition Width="*" />
       <ColumnDefinition Width="Auto" />
     </Grid.ColumnDefinitions>
-    <avalonia:PlotView Model="{Binding}" Controller="{Binding Controller}" />
+    <avalonia:PlotView x:Name="PlotView" Model="{Binding}" Controller="{Binding Controller}" />
 
-    <DockPanel Name="Container" Grid.Column="1" Width="230"
+    <DockPanel Name="Container" Grid.Column="1" Width="230" Background="{Binding Background,ElementName=PlotView}"
                IsVisible="{Binding SelectedMode, Converter={StaticResource InteractionModeToVisibilityConverter},ConverterParameter={x:Static plot:InteractionMode.RangeSelect}}"
                Margin="0 0 ">
 
@@ -78,13 +78,13 @@
                 </TextBlock>
 
                 <TextBlock Grid.Row="3" Grid.Column="0" Text="1:" />
-                <TextBlock Grid.Row="3" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                <TextBlock Grid.Row="3" Grid.Column="1" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right">
                   <Run Text="{Binding LeftPoint.X, StringFormat={}{0:0.######},Mode=OneWay}" />
                   <Run Text="{Binding XUint}" />
                 </TextBlock>
 
                 <TextBlock Grid.Row="4" Grid.Column="0" Text="2:" />
-                <TextBlock Grid.Row="4" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                <TextBlock Grid.Row="4" Grid.Column="1" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right">
                   <Run Text="{Binding RightPoint.X, StringFormat={}{0:0.######},Mode=OneWay}" />
                   <Run Text="{Binding XUint}" />
                 </TextBlock>
@@ -100,13 +100,13 @@
                 </TextBlock>
 
                 <TextBlock Grid.Row="7" Grid.Column="0" Text="1:" />
-                <TextBlock Grid.Row="7" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                <TextBlock Grid.Row="7" Grid.Column="1" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right">
                   <Run Text="{Binding LeftPoint.Y, StringFormat={}{0:0.######},Mode=OneWay}" />
                   <Run Text="{Binding YUint}" />
                 </TextBlock>
 
                 <TextBlock Grid.Row="8" Grid.Column="0" Text="2:" />
-                <TextBlock Grid.Row="8" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                <TextBlock Grid.Row="8" Grid.Column="1" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right">
                   <Run Text="{Binding RightPoint.Y, StringFormat={}{0:0.######},Mode=OneWay}" />
                   <Run Text="{Binding YUint}" />
                 </TextBlock>
@@ -115,12 +115,12 @@
                   <Run Text="最大值" />
                   <Run Text=":" />
                 </TextBlock>
-                <TextBlock Grid.Row="9" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                <TextBlock Grid.Row="9" Grid.Column="1" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right">
                   <Run Text="{Binding PeakPoint.X, StringFormat={}{0:0.######},Mode=OneWay}" />
                   <Run Text="{Binding XUint}" />
                 </TextBlock>
 
-                <TextBlock Grid.Row="10" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                <TextBlock Grid.Row="10" Grid.Column="1" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right">
                   <Run Text="{Binding PeakPoint.Y, StringFormat={}{0:0.######},Mode=OneWay}" />
                   <Run Text="{Binding YUint}" />
                 </TextBlock>
@@ -129,7 +129,7 @@
                   <Run Text="平均值" />
                   <Run Text=":" />
                 </TextBlock>
-                <TextBlock Grid.Row="11" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                <TextBlock Grid.Row="11" Grid.Column="1" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right">
                   <Run Text="{Binding MeanValue, StringFormat={}{0:0.######},Mode=OneWay}" />
                   <Run Text="{Binding YUint}" />
                 </TextBlock>
@@ -138,7 +138,7 @@
                   <Run Text="均方根值" />
                   <Run Text=":" />
                 </TextBlock>
-                <TextBlock Grid.Row="12" Grid.Column="1" Foreground="#1E90FF" HorizontalAlignment="Right">
+                <TextBlock Grid.Row="12" Grid.Column="1" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right">
                   <Run Text="{Binding RmsValue, StringFormat={}{0:0.######},Mode=OneWay}" />
                   <Run Text="{Binding YUint}" />
                 </TextBlock>

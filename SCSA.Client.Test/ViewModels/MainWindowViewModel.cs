@@ -43,6 +43,10 @@ namespace SCSA.Client.Test.ViewModels
         {
 
             //var len =BitConverter.ToInt32(new byte[] { 0x06, 0x20, 0x03, 0x00 }.Reverse().ToArray());
+            var bytes = BitConverter.GetBytes(0x12345678);
+            var bb = BitConverter.IsLittleEndian;
+
+            var cc = BitConverter.ToInt32(bytes);
             ConnectToServerCommand = new RelayCommand(ExecuteConnectToServer, () => true);
 
             _parameters = new ConcurrentDictionary<ParameterType, Parameter>();
