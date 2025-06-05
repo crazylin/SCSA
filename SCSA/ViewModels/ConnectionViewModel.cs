@@ -18,7 +18,7 @@ namespace SCSA.ViewModels
 {
     public partial class ConnectionViewModel : ViewModelBase
     {
-        private readonly ITcpServer<NetDataPackage> _tcpServer;
+        private readonly PipelineTcpServer<PipelineNetDataPackage> _tcpServer;
         public ObservableCollection<NetworkInterfaceInfo> NetworkInterfaces { set; get; }
         public NetworkInterfaceInfo SelectedInterface { get; set; }
 
@@ -61,16 +61,49 @@ namespace SCSA.ViewModels
             set => SetProperty(ref _statusMessage, value);
         }
         public ParameterViewModel ParameterViewModel { set; get; } 
-        public ConnectionViewModel(ITcpServer<NetDataPackage> tcpServer, ParameterViewModel parameterViewModel)
+        public ConnectionViewModel(PipelineTcpServer<PipelineNetDataPackage> tcpServer, ParameterViewModel parameterViewModel)
         {
             _tcpServer = tcpServer;
             ParameterViewModel = parameterViewModel;
-            _tcpServer.SessionConnected += _tcpServer_SessionConnected;
-            _tcpServer.SessionClosed += _tcpServer_SessionClosed;
+            _tcpServer.ClientConnected += _tcpServer_ClientConnected;
+            _tcpServer.ClientDisconnected += _tcpServer_ClientDisconnected;
             InitializeNetworkInterfaces();
 
             ParameterViewModel.ConnectionViewModel = this;
 
+        }
+
+        private void _tcpServer_ClientDisconnected(object? sender, PipelineTcpClient<PipelineNetDataPackage> e)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                var device = ConnectedDevices.FirstOrDefault(d => Equals(d.EndPoint, e.RemoteEndPoint));
+                if (device != null)
+                {
+                    ConnectedDevices.Remove(device);
+                }
+            });
+        }
+
+        private void _tcpServer_ClientConnected(object? sender, PipelineTcpClient<PipelineNetDataPackage> e)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                ConnectedDevices.Add(new DeviceConnection
+                {
+                    //DeviceId = string.Empty,
+                    //FirmwareVersion = string.Empty,
+                    EndPoint = e.RemoteEndPoint,
+                    ConnectTime = DateTime.Now,
+                    Client = e,
+                    DeviceParameters = new List<DeviceParameter>(),
+                    DeviceControlApi = new PipelineDeviceControlApiAsync(e)
+                });
+                e.Start();
+
+                if (SelectedDevice == null && ConnectedDevices.Count > 0)
+                    SelectedDevice = ConnectedDevices.First();
+            });
         }
 
         private void InitializeNetworkInterfaces()
@@ -105,38 +138,6 @@ namespace SCSA.ViewModels
                    networkInterface.NetworkInterfaceType == NetworkInterfaceType.Fddi;
         }
 
-        private void _tcpServer_SessionClosed(object? sender, ITcpClient<NetDataPackage> e)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                var device = ConnectedDevices.FirstOrDefault(d => Equals(d.EndPoint, e.IpEndPoint));
-                if (device != null)
-                {
-                    ConnectedDevices.Remove(device);
-                }
-            });
-        }
-
-        private void _tcpServer_SessionConnected(object? sender, ITcpClient<NetDataPackage> e)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                ConnectedDevices.Add(new DeviceConnection
-                {
-                    //DeviceId = string.Empty,
-                    //FirmwareVersion = string.Empty,
-                    EndPoint = e.IpEndPoint,
-                    ConnectTime = DateTime.Now,
-                    Client = e,
-                    DeviceParameters = new List<DeviceParameter>(),
-                    DeviceControlApi = new DeviceControlApiAsync(e)
-                });
-                e.Start();
-
-                if (SelectedDevice == null && ConnectedDevices.Count>0)
-                    SelectedDevice = ConnectedDevices.First();
-            });
-        }
 
 
    
@@ -170,7 +171,7 @@ namespace SCSA.ViewModels
 
         public ICommand DisconnectCommand => new RelayCommand<DeviceConnection>(device =>
         {
-            device.Client.Stop();
+            device.Client.Close();
             ConnectedDevices.Remove(device);
             //_tcpServer.DisconnectDevice(device.DeviceId);
 

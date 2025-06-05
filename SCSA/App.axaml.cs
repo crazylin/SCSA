@@ -70,12 +70,12 @@ namespace SCSA
             services.AddSingleton<ParameterViewModel>();
             services.AddSingleton<RealTimeTestViewModel>();
             services.AddSingleton<FirmwareUpdateViewModel>();
- 
+
             // зЂВс Services
             // services.AddSingleton<ITcpServer, TcpServer>();
 
-            services.AddSingleton<ITcpServer<NetDataPackage>, EasyTcpServer<NetDataPackage>>();
-            
+            //services.AddSingleton<ITcpServer<NetDataPackage>, EasyTcpServer<NetDataPackage>>();
+            services.AddSingleton<PipelineTcpServer<PipelineNetDataPackage>>();
             // зЂВс Views
             services.AddTransient<MainWindow>();
             services.AddTransient<ConnectionView>();

@@ -18,10 +18,10 @@ namespace SCSA.Models
         public IPEndPoint EndPoint { get; set; }
         public DateTime ConnectTime { get; set; }
 
-        public ITcpClient<NetDataPackage> Client { set; get; }
+        public PipelineTcpClient<PipelineNetDataPackage> Client { set; get; }
 
         public List<DeviceParameter> DeviceParameters { set; get; }
 
-        public DeviceControlApiAsync DeviceControlApi { set; get; }
+        public PipelineDeviceControlApiAsync DeviceControlApi { set; get; }
     }
 }
