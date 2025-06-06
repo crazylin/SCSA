@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Avalonia;
@@ -15,6 +16,9 @@ using SCSA.Utils;
 using SCSA.ViewModels;
 using SCSA.Views;
 using Serilog;
+using Serilog.Core;
+using Serilog.Enrichers.CallerInfo;
+using Serilog.Events;
 
 namespace SCSA
 {
@@ -32,8 +36,23 @@ namespace SCSA
 
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()
-                .WriteTo.Async(a => a.File("logs/SCSA.log", rollingInterval: RollingInterval.Day))
-                .CreateLogger();
+                .Enrich.WithCallerInfo(
+                    includeFileInfo: true,
+                    assemblyPrefix: "SCSA",
+                    prefix: "",             // 不加前缀
+                    filePathDepth: 1,       // 只显示文件名
+                    excludedPrefixes: new List<string>
+                        {
+                            "System",
+                            "Microsoft",
+                            "Serilog",
+                        })
+                .Enrich.With(new CallerEnricher())
+                .WriteTo.Async(a => a.File(
+                    "logs/SCSA.log",
+                    rollingInterval: RollingInterval.Day,
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] <{Module}>::{Method} {Message:lj}{NewLine}{Exception}"
+                )).CreateLogger();
 
             // 设置主窗口或主视图的 DataContext
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -85,5 +104,44 @@ namespace SCSA
 
 
         }
+
+
+        // 自定义丰富器捕获方法名和类名
+        public class CallerEnricher : ILogEventEnricher
+        {
+            public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+            {
+                // 跳过框架本身的堆栈帧
+                var skipFrames = 3;
+                while (true)
+                {
+                    var stackFrame = new StackFrame(skipFrames);
+                    if (!stackFrame.HasMethod())
+                    {
+                        logEvent.AddPropertyIfAbsent(
+                            new LogEventProperty("Module", new ScalarValue("<unknown>")));
+                        logEvent.AddPropertyIfAbsent(
+                            new LogEventProperty("Method", new ScalarValue("<unknown>")));
+                        return;
+                    }
+
+                    var method = stackFrame.GetMethod();
+                    if (method.DeclaringType.Assembly != typeof(Log).Assembly)
+                    {
+                        var moduleName = method.DeclaringType?.FullName ?? "<unknown>";
+                        var methodName = method.Name;
+
+                        logEvent.AddPropertyIfAbsent(
+                            propertyFactory.CreateProperty("Module", moduleName));
+                        logEvent.AddPropertyIfAbsent(
+                            propertyFactory.CreateProperty("Method", methodName));
+                        return;
+                    }
+
+                    skipFrames++;
+                }
+            }
+        }
+
     }
 }
