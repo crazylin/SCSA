@@ -12,7 +12,7 @@ namespace QuickMA.Modules.Plot
     /// </summary>
     public class ButtonAnnotationContainer
     {
-        private readonly List<ButtonAnnotation> _buttons = new List<ButtonAnnotation>();
+        private readonly List<TextAnnotation> _buttons = new List<TextAnnotation>();
 
         /// <summary>Spacing between buttons in screen units.</summary>
         public double Spacing { get; set; } = 5;
@@ -36,7 +36,7 @@ namespace QuickMA.Modules.Plot
         }
 
         /// <summary>Adds a button to the container.</summary>
-        public void Add(ButtonAnnotation btn)
+        public void Add(TextAnnotation btn)
         {
             _buttons.Add(btn);
         }

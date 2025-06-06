@@ -77,6 +77,8 @@ namespace QuickMA.Modules.Plot
         private string _xTitle;
         private string _yTitle;
         private bool _showToolBar;
+        private string _subTitle;
+        private TextAnnotation _subTitleAnnotation;
 
 
         public new string Title
@@ -95,6 +97,12 @@ namespace QuickMA.Modules.Plot
         {
             set => SetField(ref _titleAnnotation, value);
             get => _titleAnnotation;
+        }
+
+        public TextAnnotation SubTitleAnnotation
+        {
+            set => SetField(ref _subTitleAnnotation, value);
+            get => _subTitleAnnotation;
         }
 
         public string XUint
@@ -133,6 +141,14 @@ namespace QuickMA.Modules.Plot
             get => _showToolBar;
         }
 
+
+        public string SubTitle
+        {
+            set => SetField(ref _subTitle, value);
+            get => _subTitle;
+        }
+
+
         public CuPlotModel(bool showToolBar = true)
         {
             Application.Current.ActualThemeVariantChanged += (s, e) => ApplyTheme();
@@ -154,8 +170,7 @@ namespace QuickMA.Modules.Plot
             SetupControllers();
             SetupButtons();
             SetupTitle();
-            //SetupRangeResult();
-            //SetupUint();
+
 
             this.PropertyChanged += CuPlotModel_PropertyChanged;
 
@@ -173,6 +188,10 @@ namespace QuickMA.Modules.Plot
                     axise.Unit = XUint;
                 }
             }
+            else if (e.PropertyName == nameof(Title))
+                TitleAnnotation.Text = Title;
+            else if (e.PropertyName == nameof(SubTitle))
+                SubTitleAnnotation.Text = SubTitle;
         }
 
         private void SetupTitle()
@@ -189,11 +208,19 @@ namespace QuickMA.Modules.Plot
                 Tag = "SystemAnnotation"
             };
             this.Annotations.Add(TitleAnnotation);
-            this.PropertyChanged += (s, e) =>
+
+            SubTitleAnnotation = new TextAnnotation()
             {
-                if (e.PropertyName == nameof(Title))
-                    TitleAnnotation.Text = Title;
+                X = new PlotLength(1, PlotLengthUnit.RelativeToViewport),
+                Y = new PlotLength(0, PlotLengthUnit.RelativeToViewport),
+                OffsetX = new PlotLength(-130, PlotLengthUnit.ScreenUnits),
+                HorizontalAlignment = OxyPlot.HorizontalAlignment.Right,
+                VerticalAlignment = OxyPlot.VerticalAlignment.Top,
+                Text = "",
+                Tag = "SystemAnnotation"
             };
+
+            this.Annotations.Add(SubTitleAnnotation);
         }
         private void SetupButtons()
         {
@@ -429,6 +456,8 @@ namespace QuickMA.Modules.Plot
                 InvalidatePlot(false);
             };
 
+
+
             container.Add(btnPan);
             container.Add(btnZoom);
             container.Add(btnRange);
@@ -437,6 +466,7 @@ namespace QuickMA.Modules.Plot
             container.Add(btnCopy);
             container.Add(btnScreenShot);
             container.Add(btnReset);
+
 
             container.Apply(this);
         }

@@ -43,7 +43,7 @@ namespace QuickMA.Modules.Plot
             {
                 //border = 0;
             }
-            //rc.DrawRectangle(actualBounds, fill, Stroke, border, EdgeRenderingMode.Automatic);
+            rc.DrawRectangle(actualBounds, fill, Stroke, border, EdgeRenderingMode.Automatic);
 
             // draw icon or text
 
