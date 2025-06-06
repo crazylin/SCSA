@@ -174,7 +174,7 @@ namespace SCSA.Client.Test.ViewModels
                                                     var targetTime = TimeSpan.FromSeconds(buffer.Length / sampleRate);
                                                     if (elapsed < targetTime)
                                                     {
-                                                        await Task.Delay(targetTime - elapsed, _cts.Token);
+                                                        //await Task.Delay(targetTime - elapsed, _cts.Token);
                                                     }
 
                                                     stopwatch.Restart();
@@ -201,11 +201,11 @@ namespace SCSA.Client.Test.ViewModels
 
                             case DeviceCommand.RequestStopCollection:
                             {
-                                    _cts.Cancel();
-                                    _dataUploadTask?.Wait();
-                                    _dataUploadTask = null;
+                                _cts.Cancel();
+                                _dataUploadTask?.Wait();
+                                _dataUploadTask = null;
 
-                                    var returnNetPackage = new NetDataPackage();
+                                var returnNetPackage = new NetDataPackage();
                                 returnNetPackage.DeviceCommand = DeviceCommand.ReplyStopCollection;
                                 returnNetPackage.Data = BitConverter.GetBytes((short)0);
                                 Send(returnNetPackage);
