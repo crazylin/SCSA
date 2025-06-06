@@ -495,13 +495,16 @@ namespace SCSA.ViewModels
                             }
                         }
 
-
+                        var timePeakResult = CalculateTimePeakResult(timeDatas);
+                        var freqPeakResult = CalculateFreqPeakResult(freqDatas);
                         Dispatcher.UIThread.Invoke(() =>
                         {
 
                             var timeSeries = waveform.TimeDomainModel.Series[i] as LineSeries;
                             lock (waveform.TimeDomainModel.SyncRoot)
                             {
+                                waveform.TimeDomainModel.SubTitle =
+                                    $"平均值：{timePeakResult.AveragePeak:0.#####} 均方根值：{timePeakResult.EffectivePeak:0.#####} 峰峰值：{timePeakResult.PeakToPeak:0.#####}";
                                 timeSeries.ItemsSource = timeDatas;
                                 waveform.TimeDomainModel.InvalidatePlot(true);
                             }
@@ -511,6 +514,8 @@ namespace SCSA.ViewModels
                                 ax.Position == AxisPosition.Bottom);
                             lock (waveform.FrequencyDomainModel.SyncRoot)
                             {
+                                waveform.FrequencyDomainModel.SubTitle =
+                                    $"频率：{freqPeakResult.Position:0.#####} 幅值：{freqPeakResult.Peak:0.#####}";
                                 freqSeries.ItemsSource = freqDatas;
                                 xAxis.Minimum = minimum;
                                 xAxis.Maximum = maximum;
@@ -635,5 +640,40 @@ namespace SCSA.ViewModels
             return outData;
         }
 
+        public static TimePeakResult CalculateTimePeakResult(DataPoint[] sourceData)
+        {
+            var inData = sourceData.Select(sd => sd.Y).ToArray();
+            var peakResult = new TimePeakResult();
+            double sum01 = 0.0, sum02 = 0.0;
+            peakResult.MaxPeak = inData[0];
+            peakResult.MinPeak = inData[0];
+            for (int i = 0; i < inData.Length; ++i)
+            {
+                sum01 += inData[i];
+                sum02 += inData[i] * inData[i];
+                if (peakResult.MaxPeak < inData[i])
+                {
+                    peakResult.MaxPeak = inData[i];
+                }
+
+                if (peakResult.MinPeak > inData[i])
+                {
+                    peakResult.MinPeak = inData[i];
+                }
+            }
+
+            peakResult.PeakToPeak = peakResult.MaxPeak - peakResult.MinPeak;
+
+            peakResult.AveragePeak = sum01 / inData.Length;
+            peakResult.EffectivePeak = Math.Sqrt(sum02 / inData.Length);
+
+            return peakResult;
+        }
+
+        public static FreqPeakResult CalculateFreqPeakResult(DataPoint[] data)
+        {
+            var dp = data.OrderByDescending(d => d.Y).First();
+            return new FreqPeakResult() { Position = dp.X,Peak = dp.Y };
+        }
     }
 }
