@@ -7,9 +7,11 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO.Pipelines;
-using PipeOptions = System.IO.Pipelines.PipeOptions;
 using System.Diagnostics;
 using System.Threading.Channels;
+using Serilog;
+using PipeOptions = System.IO.Pipelines.PipeOptions;
+
 
 namespace SCSA.IO.Net.TCP
 {
@@ -33,13 +35,13 @@ namespace SCSA.IO.Net.TCP
 
         public IPEndPoint RemoteEndPoint { set; get; }
 
-        private readonly Channel<T> _processingChannel = Channel.CreateUnbounded<T>();
+        private Channel<T> _processingChannel;
         public PipelineTcpClient(Socket socket)
         {
             _socket = socket ?? throw new ArgumentNullException(nameof(socket));
             _socket.NoDelay = false;
-            _socket.ReceiveBufferSize = 512 * 1024; // 512 KB
-            _socket.SendBufferSize = 512 * 1024;    // 512 KB
+            _socket.ReceiveBufferSize = 1024 * 1024;
+            _socket.SendBufferSize = 1024 * 1024;
 
             RemoteEndPoint = socket.RemoteEndPoint as IPEndPoint;
 
@@ -48,7 +50,7 @@ namespace SCSA.IO.Net.TCP
                 readerScheduler: PipeScheduler.ThreadPool,
                 writerScheduler: PipeScheduler.ThreadPool,
                 pauseWriterThreshold: 1 << 20,   // 1 MB
-                resumeWriterThreshold: 512 << 10 // 512 KB
+                resumeWriterThreshold: 1 << 19 // 512 KB
             ));
 
             _parserPrototype = new T();
@@ -61,6 +63,11 @@ namespace SCSA.IO.Net.TCP
         {
             _running = true;
 
+            _processingChannel = Channel.CreateBounded<T>(
+                new BoundedChannelOptions(10000)
+                {
+                    FullMode = BoundedChannelFullMode.DropOldest
+                });
 
             _ = Task.Run(async () =>
             {
@@ -88,27 +95,35 @@ namespace SCSA.IO.Net.TCP
                         {
                             bytesRead = await _socket.ReceiveAsync(memory, SocketFlags.None);
                         }
-                        catch
+                        // socket 异常或断开
+                        catch (SocketException e) when (e.SocketErrorCode == SocketError.ConnectionReset)
                         {
-                            // socket 异常或断开
+                            Log.Debug(e.Message);
                             break;
                         }
-
+                        catch (Exception e)
+                        {
+                            Log.Debug(e.Message);
+                        
+                            break;
+                        }
+                        // 客户端已断开
                         if (bytesRead == 0)
-                            break; // 客户端已断开
+                            break; 
 
                         // 通知管道本次写入了 bytesRead 字节
                         _pipe.Writer.Advance(bytesRead);
 
                         // 刷新到管道
                         var result = await _pipe.Writer.FlushAsync();
-                        if (result.IsCompleted)
+
+                        if (result.IsCompleted || result.IsCanceled)
                             break;
                     }
                 }
                 catch(Exception e)
                 {
-                    Debug.WriteLine(e);
+                    Log.Debug(e.Message);
                 }
                 finally
                 {
@@ -125,26 +140,32 @@ namespace SCSA.IO.Net.TCP
                     var readResult = await _pipe.Reader.ReadAsync();
                     var buffer = readResult.Buffer;
                     SequencePosition consumed = buffer.Start;
-                    SequencePosition examined = buffer.End;
+                    SequencePosition examined = buffer.End; // 默认都从 buffer.Start 开始
 
                     try
                     {
-                        // 不断拆帧，直到拆不出完整帧再跳出
+                        // 不断拆帧
                         while (_parserPrototype.TryParse(buffer, out var packet, out var frameEnd))
                         {
-                            // 触发 DataReceived，并立刻把事件分发到线程池，避免阻塞拆包循环
-                            await _processingChannel.Writer.WriteAsync(packet);
-                            // 消耗掉这一帧所有字节
-                            consumed = frameEnd;
+                      
+                            if (!_processingChannel.Writer.TryWrite(packet))
+                            {
+                                // 处理积压过多的情况（如丢弃旧数据）
+                            }
 
+                            // 标记已经消费到 frameEnd
+                            consumed = frameEnd;
                             buffer = buffer.Slice(frameEnd);
                         }
 
-                        // 没有更多完整帧可以拆，需要等下次 ReadAsync，那么这里只把 "检查到的最前" 标记给 examined
+                        // 拆不出完整帧时，把“检查到的最前”标记给 examined
                         examined = buffer.Start;
+ 
+                      
                     }
-                    catch
+                    catch(Exception e)
                     {
+                        Log.Debug(e.Message);
                         break;
                     }
 
@@ -184,8 +205,9 @@ namespace SCSA.IO.Net.TCP
                     int sent = await _socket.SendAsync(data, SocketFlags.None);
                     return sent == data.Length;
                 }
-                catch
+                catch(Exception e)
                 {
+                    Log.Debug(e.Message);
                     return false;
                 }
             }
@@ -206,14 +228,5 @@ namespace SCSA.IO.Net.TCP
         }
     }
 
-    /// <summary>
-    /// 仅用于 SendAsync 时，把 T 转成字节数组发出
-    /// </summary>
-    public interface IPacketWritable
-    {
-        /// <summary>
-        /// 返回一个完整的字节数组，包含 Magic/Ver/Cmd/CmdId/Len/Body/CRC
-        /// </summary>
-        byte[] GetBytes();
-    }
+
 }

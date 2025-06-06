@@ -13,6 +13,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Serilog;
 
 namespace SCSA.ViewModels
 {
@@ -75,6 +76,7 @@ namespace SCSA.ViewModels
 
         private void _tcpServer_ClientDisconnected(object? sender, PipelineTcpClient<PipelineNetDataPackage> e)
         {
+            Log.Debug($"Client Disconnected {e.RemoteEndPoint}");
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 var device = ConnectedDevices.FirstOrDefault(d => Equals(d.EndPoint, e.RemoteEndPoint));
@@ -87,6 +89,9 @@ namespace SCSA.ViewModels
 
         private void _tcpServer_ClientConnected(object? sender, PipelineTcpClient<PipelineNetDataPackage> e)
         {
+
+            Log.Debug($"Client Connected {e.RemoteEndPoint}");
+
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 ConnectedDevices.Add(new DeviceConnection
@@ -99,7 +104,7 @@ namespace SCSA.ViewModels
                     DeviceParameters = new List<DeviceParameter>(),
                     DeviceControlApi = new PipelineDeviceControlApiAsync(e)
                 });
-                e.Start();
+                //e.Start();
 
                 if (SelectedDevice == null && ConnectedDevices.Count > 0)
                     SelectedDevice = ConnectedDevices.First();
@@ -156,10 +161,15 @@ namespace SCSA.ViewModels
                 var endPoint = GetEndPoint(SelectedInterface, Port);
                 _tcpServer.Start(endPoint);
                 StatusMessage = $"正在监听 {SelectedInterface.Name}:{Port}";
+
+                Log.Debug("Server Started");
             }
             catch (Exception ex)
             {
                 StatusMessage = $"启动失败: {ex.Message}";
+
+
+                Log.Debug($"Server Started Error {ex.Message}");
             }
         });
 
@@ -167,6 +177,8 @@ namespace SCSA.ViewModels
         {
             _tcpServer.Stop();
             StatusMessage = "已停止监听";
+
+            Log.Debug("Server Stopped");
         });
 
         public ICommand DisconnectCommand => new RelayCommand<DeviceConnection>(device =>

@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace SCSA.IO.Net.TCP
 {
-    public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, new()
+    public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPacketWritable, new()
     {
         private IPEndPoint _localEndPoint;
         private Socket _listener;
@@ -44,6 +44,7 @@ namespace SCSA.IO.Net.TCP
         {
             if(_running)
                 return;
+
             _localEndPoint = localEndPoint;
 
             _listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -109,7 +110,7 @@ namespace SCSA.IO.Net.TCP
                     ClientConnected?.Invoke(this, pipelineClient);
 
                     // 5) 启动它的拆包/接收循环
-                    //pipelineClient.Start();
+                    pipelineClient.Start();
                 }
             });
         }

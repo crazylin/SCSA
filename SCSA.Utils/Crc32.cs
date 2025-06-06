@@ -84,5 +84,13 @@ namespace SCSA.Utils
                 crc = crc32tab[(crc ^ buf[i]) & 0xff] ^ (crc >> 8);
             return crc ^ 0xFFFFFFFF;
         }
+        public static uint CRC32_Check_T(Span<byte> buf, uint size)
+        {
+            uint crc;
+            crc = 0xFFFFFFFF;
+            for (int i = 0; i < size; i++)
+                crc = crc32tab[(crc ^ buf[i]) & 0xff] ^ (crc >> 8);
+            return crc ^ 0xFFFFFFFF;
+        }
     }
 }

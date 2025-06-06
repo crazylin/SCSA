@@ -14,6 +14,11 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using SCSA.Utils;
 using OxyPlot.Avalonia;
+using Avalonia.Controls.Shapes;
+using Serilog;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Data;
+using Serilog.Events;
 
 namespace SCSA
 {
@@ -38,9 +43,18 @@ namespace SCSA
         private void TcpClient_DataReceived(object? sender, PipelineNetDataPackage e)
         {
             var netDataPackage = e;
-            if (netDataPackage == null)
-                return;
-
+            
+            if (netDataPackage.DeviceCommand != DeviceCommand.ReplyUploadData)
+            {
+                var hexData = netDataPackage.GetBytes().Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n);
+                Log.Debug(
+                $"CMD: {netDataPackage.DeviceCommand} DataLen {netDataPackage.DataLen} Data {hexData} Crc {netDataPackage.Crc.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
+            }
+            else
+            {
+                Log.Debug(
+                    $"CMD: {netDataPackage.DeviceCommand} DataLen {netDataPackage.DataLen} Crc {netDataPackage.Crc.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
+            }
             var deviceCommand = netDataPackage.DeviceCommand;
 
             switch (deviceCommand)
@@ -99,12 +113,18 @@ namespace SCSA
             //    return null;
 
             var netPackage = new PipelineNetDataPackage();
+            netPackage.DeviceCommand = command;
             netPackage.CmdId = _flag++;
             if (_flag > 2048)
                 _flag = 0;
             netPackage.Data = data;
-            netPackage.DeviceCommand = command;
-            //var bytes = netPackage.GetBytes();
+            netPackage.DataLen = data.Length;
+
+            var bytes = netPackage.GetBytes();
+
+            var hexData = bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n);
+            Log.Debug(
+                $"CMD: {netPackage.DeviceCommand} DataLen {netPackage.DataLen} Data {hexData} Crc {netPackage.Crc.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
 
             //Debug.WriteLine($"Server Send: {bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
 

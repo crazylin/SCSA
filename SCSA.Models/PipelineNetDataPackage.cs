@@ -5,6 +5,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SCSA.IO.Net.TCP;
+using SCSA.Utils;
+using Serilog;
 
 namespace SCSA.Models
 {
@@ -20,14 +22,12 @@ namespace SCSA.Models
 
         public byte[] Crc { set; get; }
 
+        const uint EXPECTED_MAGIC = ('S') | ('C' << 8) | ('Z' << 16) | ('N' << 24);
 
-        //public byte Version { get; private set; }
-        //public byte Command { get; private set; }
-        //public ushort CmdId { get; private set; }
-        //public byte[] Body { get; private set; }
 
         public PipelineNetDataPackage()
         {
+           
         }
 
         /// <summary>
@@ -49,11 +49,11 @@ namespace SCSA.Models
 
             // 1) Magic (UInt32)，数值 0xAABBCCDD，小端写：低位先写
             //    0xAABBCCDD 拆成四字节： 0xDD, 0xCC, 0xBB, 0xAA
-           
-            buffer[idx++] = 0x53;
-            buffer[idx++] = 0x43;
-            buffer[idx++] = 0x5A;
-            buffer[idx++] = 0x4E;
+
+            buffer[idx++] = (byte)(EXPECTED_MAGIC & 0xFF);
+            buffer[idx++] = (byte)((EXPECTED_MAGIC >> 8) & 0xFF);
+            buffer[idx++] = (byte)((EXPECTED_MAGIC >> 16) & 0xFF);
+            buffer[idx++] = (byte)((EXPECTED_MAGIC >> 24) & 0xFF);
 
             // 2) Version (1 byte)
             buffer[idx++] = Version;
@@ -79,153 +79,110 @@ namespace SCSA.Models
             }
 
             // 7) CRC32 (UInt32，小端)，CRC 计算范围为“从第 0 个字节到 Body 末尾”共 (totalLen-4) 字节
-            uint crc = Crc32Helper.Compute(buffer, 0, idx);
-            buffer[idx++] = (byte)(crc & 0xFF);
-            buffer[idx++] = (byte)((crc >> 8) & 0xFF);
-            buffer[idx++] = (byte)((crc >> 16) & 0xFF);
-            buffer[idx++] = (byte)((crc >> 24) & 0xFF);
+            //uint crc = Crc32Helper.Compute(buffer, 0, idx);
+            Crc = BitConverter.GetBytes(Crc32.CRC32_Check_T(buffer.ToArray(), (uint)buffer.Length));
+            buffer[idx++] = Crc[0];
+            buffer[idx++] = Crc[1];
+            buffer[idx++] = Crc[2];
+            buffer[idx++] = Crc[3];
 
             return buffer;
         }
 
-        /// <summary>
-        /// 解析
-        /// </summary>
         public bool TryParse(ReadOnlySequence<byte> buffer, out PipelineNetDataPackage packet, out SequencePosition frameEnd)
         {
             packet = null;
             frameEnd = buffer.Start;
 
-            // 1) 最少要 16 字节：4B Magic + 1B Ver + 1B Cmd + 2B CmdId + 4B BodyLen + 4B CRC
+            // 1) 检查“最少整体长度” （Magic 4 + Ver1 + Cmd1 + CmdId2 + BodyLen4 + CRC4 = 16 字节）
             if (buffer.Length < 16)
                 return false;
 
-            // 2) 为简化，对“跨 segment”情况先不专门处理头 12 字节，
-            //    只在 buffer.First.Span 长度 >=12 时再尝试解析头部。否则返回 false 等下次。
-            var firstSpan = buffer.First.Span;
-            if (firstSpan.Length < 12)
-                return false;
+            // 2) 用 SequenceReader 来跨段读取头部字段
+            var reader = new SequenceReader<byte>(buffer);
 
-            // 3) 读取 Magic（UInt32，小端）
-            //    firstSpan[0] 是最低位；[3] 是最高位
-            uint magicInBuf = (uint)(
-                (firstSpan[0] << 24)
-                | (firstSpan[1] << 16)
-                | (firstSpan[2] << 8)
-                | (firstSpan[3])
-            );
-            const uint EXPECTED_MAGIC = 0x53435A4E;
+            // 2.1) 先读 Magic（UInt32，小端），如果不够 4 字节会返回 false
+            if (!reader.TryReadLittleEndian(out int magicInBuf))
+                return false; // 虽然 buffer.Length >= 16，但可能第一笔数据不足 4 字节先退出，下次继续
+
             if (magicInBuf != EXPECTED_MAGIC)
             {
-                // Magic 不匹配：跳过 1 字节，重试
-                buffer = buffer.Slice(1);
-                return TryParse(buffer, out packet, out frameEnd);
+                // 找不到 Magic，就要跳过 1 字节，然后重试
+                // 注意：SequenceReader.PrefixLength 是当前 Segment 开始到 reader.Consumed 的偏移
+                var nextPosition = buffer.GetPosition(1, buffer.Start);
+                return TryParse(buffer.Slice(nextPosition), out packet, out frameEnd);
             }
 
-            // 4) 读取 Version(1B)、Command(1B)、CmdId(2B, 小端)、BodyLength(4B, 小端)
-            byte version = firstSpan[4];
-            byte command = firstSpan[5];
+            // 2.2) 读 Version (1 字节)
+            if (!reader.TryRead(out byte version))
+                return false;
 
-            short cmdId = (short)(
-                 (firstSpan[6])
-               | (firstSpan[7] << 8)
-            );
+            // 2.3) 读 Command (1 字节)
+            if (!reader.TryRead(out byte command))
+                return false;
 
-            int bodyLen =
-                 (firstSpan[8])
-               | (firstSpan[9] << 8)
-               | (firstSpan[10] << 16)
-               | (firstSpan[11] << 24);
+            // 2.4) 读 CmdId (UInt16，小端)
+            if (!reader.TryReadLittleEndian(out short cmdIdUShort))
+                return false;
+            short cmdId = (short)cmdIdUShort;
+
+            // 2.5) 读 BodyLen (Int32，小端)
+            if (!reader.TryReadLittleEndian(out int bodyLen))
+                return false;
             if (bodyLen < 0 || bodyLen > 8 * 1024 * 1024)
             {
-                // 长度异常：跳过 1 字节重试
-                buffer = buffer.Slice(1);
-                return TryParse(buffer, out packet, out frameEnd);
+                // 长度异常，跳过一个字节重新拆
+                var nextPosition = buffer.GetPosition(1, buffer.Start);
+                return TryParse(buffer.Slice(nextPosition), out packet, out frameEnd);
             }
 
-            // 5) 计算整帧长度：12（头） + bodyLen + 4（CRC）
-            long totalFrameLen = 12L + bodyLen + 4L;
+            // 3) 计算整帧长度
+            long totalFrameLen = 12L + bodyLen + 4L; // 12 = 4(Magic)+1+1+2+4
             if (buffer.Length < totalFrameLen)
-                return false; // 半包，等下次
+                return false; // 整帧还没完全到齐，下次再来
 
-            // 6) 拆 Payload 和 CRC
-            //    6.1) Payload 部分可能跨多个 segment，直接用 Slice
-            var payloadSeq = buffer.Slice(12, bodyLen);
+            // 4) 拆出 Payload：从头部结束位置往后  bodyLen 字节
+            //    注意 SequenceReader 已经走到了“读完 BodyLen 字段”的位置
+            //    但我们需要一个方便的方式直接用原始 buffer 来切片：
+            var payloadStart = buffer.GetPosition(12, buffer.Start); // 从帧头开始算，偏移 12 就是 payload 起点
+            var payloadSeq = buffer.Slice(payloadStart, bodyLen);
 
-            //    6.2) 读取对端发来的 CRC（4B，小端）
+            // 5) 读 CRC：再向后 4 字节
+            var crcStart = buffer.GetPosition(12 + bodyLen, buffer.Start);
             Span<byte> crcSpan = stackalloc byte[4];
-            buffer.Slice(12 + bodyLen, 4).CopyTo(crcSpan);
+            buffer.Slice(crcStart, 4).CopyTo(crcSpan);
             uint receivedCrc = (uint)(
-                 (crcSpan[0])
-               | (crcSpan[1] << 8)
-               | (crcSpan[2] << 16)
-               | (crcSpan[3] << 24)
+                crcSpan[0]
+              | (crcSpan[1] << 8)
+              | (crcSpan[2] << 16)
+              | (crcSpan[3] << 24)
             );
 
-            // 7) 计算 CRC32（针对“Magic 到 Payload 末尾”这 12+bodyLen 字节，都是小端排列下的原始数据）
-            int headerPlusBody = 12 + bodyLen;
-            Span<byte> checkSpan = stackalloc byte[headerPlusBody];
-            buffer.Slice(0, headerPlusBody).CopyTo(checkSpan);
-            uint computedCrc = Crc32Helper.Compute(checkSpan, 0, checkSpan.Length);
-
-            //暂时不判断
+            // 6) 计算 CRC 校验（小端），针对“Magic 到 payload 末尾”这 12 + bodyLen 字节
+            //Span<byte> checkSpan = stackalloc byte[(int)(12 + bodyLen)];
+            //buffer.Slice(0, 12 + bodyLen).CopyTo(checkSpan);
+            //uint computedCrc = Crc32.CRC32_Check_T(checkSpan, (uint)checkSpan.Length);
             //if (computedCrc != receivedCrc)
             //{
-            //    // CRC 校验失败：跳过整个“totalFrameLen”字节后，递归重试
-            //    buffer = buffer.Slice(totalFrameLen);
-            //    return TryParse(buffer, out packet, out frameEnd);
+            //    // CRC 校验失败：跳过这一整帧长度后重试
+            //    var skipPos = buffer.GetPosition(totalFrameLen, buffer.Start);
+            //    return TryParse(buffer.Slice(skipPos), out packet, out frameEnd);
             //}
 
-            // 8) 校验通过，构造一个 PipelineNetDataPackage
+            // 7) 构造数据包
             packet = new PipelineNetDataPackage
             {
                 Version = version,
                 DeviceCommand = (DeviceCommand)command,
                 CmdId = cmdId,
-                Data = payloadSeq.ToArray() // 如果不想拷贝，可以把 Sequence<byte> 传给业务层；这里简化用 ToArray()
+                DataLen = bodyLen,
+                Data = payloadSeq.ToArray(),
+                Crc = BitConverter.GetBytes(receivedCrc)
             };
 
-            // 9) 计算出本帧“结束位置”的 SequencePosition
-            frameEnd = buffer.GetPosition(totalFrameLen);
-
+            // 8) 计算帧结束的 SequencePosition（相对于原 buffer.Start 偏移 totalFrameLen）
+            frameEnd = buffer.GetPosition(totalFrameLen, buffer.Start);
             return true;
-        }
-
-        private static class Crc32Helper
-        {
-            private static readonly uint[] Table;
-
-            static Crc32Helper()
-            {
-                uint poly = 0x04C11DB7;
-                Table = new uint[256];
-                for (uint i = 0; i < 256; i++)
-                {
-                    uint crc = i << 24;
-                    for (int j = 0; j < 8; j++)
-                    {
-                        if ((crc & 0x80000000) != 0)
-                            crc = (crc << 1) ^ poly;
-                        else
-                            crc <<= 1;
-                    }
-
-                    Table[i] = crc;
-                }
-            }
-
-            public static uint Compute(ReadOnlySpan<byte> data, int offset, int length)
-            {
-                uint crc = 0xFFFFFFFF;
-                for (int i = 0; i < length; i++)
-                {
-                    byte b = data[offset + i];
-                    byte idx = (byte)((crc >> 24) ^ b);
-                    crc = (crc << 8) ^ Table[idx];
-                }
-
-                return crc ^ 0xFFFFFFFF;
-            }
         }
 
     }

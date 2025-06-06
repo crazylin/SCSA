@@ -25,4 +25,15 @@ namespace SCSA.IO.Net.TCP
         /// </summary>
         bool TryParse(ReadOnlySequence<byte> buffer, out T packet, out SequencePosition frameEnd);
     }
+
+    /// <summary>
+    /// 仅用于 SendAsync 时，把 T 转成字节数组发出
+    /// </summary>
+    public interface IPacketWritable
+    {
+        /// <summary>
+        /// 返回一个完整的字节数组，包含 Magic/Ver/Cmd/CmdId/Len/Body/CRC
+        /// </summary>
+        byte[] GetBytes();
+    }
 }
