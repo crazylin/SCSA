@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="SCSA.SettingsView">
+  <DockPanel>
+    <ScrollViewer>
+      <StackPanel Orientation="Vertical" Spacing="5" Margin="10">
+        <TextBlock Text="采样方式"  FontSize="14" FontWeight="Bold"></TextBlock>
+        <ComboBox ItemsSource="{Binding TriggerTypes}" SelectedItem="{Binding SelectedTriggerType}" MinWidth="200"></ComboBox>
+        <CheckBox Content="启用数据存储" IsChecked="{Binding EnableDataStorage}"></CheckBox>
+        <TextBlock Text="数据存储位置"  FontSize="14" FontWeight="Bold"></TextBlock>
+        <StackPanel Orientation="Horizontal">
+
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBox Grid.Column="0"
+                     Text="{Binding DataStoragePath}"
+                     IsReadOnly="True"
+                     Width="400"
+                     Watermark="请选择数据存储位置"
+                       />
+            <Button Grid.Column="1"
+                    Content="浏览..."
+                    Command="{Binding BrowseStoragePathCommand}"
+                    Margin="15,0,0,0"
+                      />
+          </Grid>
+        </StackPanel>
+        <TextBlock Text="存储数据长度"  FontSize="14" FontWeight="Bold"></TextBlock>
+        <NumericUpDown AllowSpin="False" ParsingNumberStyle="Integer" FormatString="0" Value="{Binding DataLength}" Width="400" HorizontalAlignment="Left"></NumericUpDown>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+
+</UserControl>

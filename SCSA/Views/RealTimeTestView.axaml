@@ -2,49 +2,78 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:avalonia="http://oxyplot.org/avalonia"
-             xmlns:converters="clr-namespace:SCSA.Converters"
+             xmlns:converters="using:SCSA.Converters"
              xmlns:plot="clr-namespace:SCSA.Plot;assembly=SCSA.Plot"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SCSA.RealTimeTestView">
   <UserControl.Resources>
     <converters:EnumToBooleanConverter x:Key="EnumConverter"></converters:EnumToBooleanConverter>
+    <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"></converters:BooleanToVisibilityConverter>
+    <converters:GreaterThanOrEqualZeroToVisibilityConverter x:Key="GreaterThanOrEqualZeroToVisibilityConverter"></converters:GreaterThanOrEqualZeroToVisibilityConverter>
+    <converters:InverseBoolConverter x:Key="InverseBoolConverter"></converters:InverseBoolConverter>
   </UserControl.Resources>
   <Grid ColumnDefinitions="220,5,*"  IsEnabled="{Binding ControlEnable}">
     <StackPanel Orientation="Vertical" Spacing="5" Margin="10">
         <!-- 按钮区域 -->
-        <UniformGrid  Columns="2" >
-            <Button Content="开始测试" Command="{Binding StartTestCommand}" FontSize="14" Padding="10,5"/>
-            <Button Content="停止测试" Command="{Binding StopTestCommand}" FontSize="14" Padding="10,5"/>
-        </UniformGrid>
-      <!-- 信号类型选择 -->
-      <StackPanel Orientation="Vertical" Spacing="5">
+        <StackPanel  >
+            <StackPanel Orientation="Horizontal" Spacing="5">
+                <Button Content="开始测试" Command="{Binding StartTestCommand}" 
+                        IsEnabled="{Binding IsTestRunning, Converter={StaticResource InverseBoolConverter}}"/>
+                <Button Content="停止测试" Command="{Binding StopTestCommand}" 
+                        IsEnabled="{Binding IsTestRunning}"/>
+            </StackPanel>
+
+        </StackPanel>
+
+        <!-- 进度显示区域 -->
+        <StackPanel Spacing="5" Margin="0,10,0,0">
+            <ProgressBar Minimum="0" Maximum="100"
+                         Value="{Binding SaveProgress}"
+                         IsVisible="{Binding ShowDataStorageInfo}"
+                         Height="25" />
+            <TextBlock
+                Foreground="{Binding StatusColor}"
+                Margin="0,5,0,0"
+                IsVisible="{Binding SettingsViewModel.SelectedTriggerType, 
+                               Converter={StaticResource EnumConverter}, 
+                               ConverterParameter=DebugTrigger}">
+                <Run Text="触发状态："></Run>
+                <Run Text="{Binding TriggerStatus}"></Run>
+            </TextBlock>
+            <StackPanel Orientation="Vertical" Margin="0 5">
+                <TextBlock Text="{Binding SaveStatus}"
+                           Foreground="{Binding StatusColor}"/>
+                <TextBlock Text="{Binding ReceivedPoints, StringFormat='已接收数据点：{0}'}"
+                           Foreground="{Binding StatusColor}"
+                           IsVisible="{Binding ShowDataStorageInfo}"/>
+                <TextBlock Text="{Binding SaveProgress, StringFormat='数据接收进度：{0}%'}"
+                           Foreground="{Binding StatusColor}"
+                           IsVisible="{Binding ShowDataStorageInfo}"/>
+            </StackPanel>
+        </StackPanel>
+      
+      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
         <TextBlock Text="选择信号类型：" FontSize="14" FontWeight="Bold"/>
-        <!--<ListBox Name="ListBox" ItemsSource="{Binding SignalTypes}" SelectionMode="Single" SelectedItem="{Binding SelectedSignalType}" IsEnabled="{Binding SelectedSignalTypeEnable}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <RadioButton Content="{Binding }"
-                           GroupName="SignalType"
-                           IsChecked="{Binding IsSelected, Mode=TwoWay,
-                                   RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ListBox>-->
-        <ComboBox ItemsSource="{Binding SignalTypes}" SelectedItem="{Binding SelectedSignalType}" IsEnabled="{Binding SelectedSignalTypeEnable}" HorizontalAlignment="Stretch"></ComboBox>
+        <ComboBox ItemsSource="{Binding SignalTypes}" 
+                  SelectedItem="{Binding SelectedSignalType}" 
+                  IsEnabled="{Binding SelectedSignalTypeEnable}" 
+                  HorizontalAlignment="Stretch"/>
       </StackPanel>
 
-
-      <StackPanel Orientation="Vertical" Margin="0,10,0,0">
+      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
         <TextBlock Text="采样率：" FontSize="14" FontWeight="Bold"/>
-        <!--<TextBox Text="{Binding SampleRate}"/>-->
-
-        <ComboBox ItemsSource="{Binding SampleRateList}" SelectedItem="{Binding SelectedSampleRate}" IsEnabled="{Binding SelectedSignalTypeEnable}"
-                  DisplayMemberBinding="{Binding DisplayName}" HorizontalAlignment="Stretch" ></ComboBox>
+        <ComboBox ItemsSource="{Binding SampleRateList}" 
+                  SelectedItem="{Binding SelectedSampleRate}" 
+                  IsEnabled="{Binding SelectedSignalTypeEnable}"
+                  DisplayMemberBinding="{Binding DisplayName}" 
+                  HorizontalAlignment="Stretch"/>
       </StackPanel>
+      
       <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
         <TextBlock Text="显示点数：" FontSize="14" FontWeight="Bold"/>
         <TextBox Text="{Binding DisplayPointCount}"/>
       </StackPanel>
+      
       <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
         <TextBlock Text="直流：" FontSize="14" FontWeight="Bold"/>
         <CheckBox Content="启用去直流" FontSize="14" IsChecked="{Binding RemoveDc}"/>
@@ -122,13 +151,13 @@
       </StackPanel>
 
     </StackPanel>
-    <GridSplitter Grid.Column="1"></GridSplitter>
+    <GridSplitter Grid.Column="1"/>
     <!-- 动态生成波形图 -->
     <ScrollViewer Grid.Column="2">
       <ItemsControl ItemsSource="{Binding Waveforms}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
-            <Grid></Grid>
+            <Grid/>
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>

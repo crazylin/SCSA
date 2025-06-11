@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using SCSA.IO.Net.TCP;
 using SCSA.Utils;
 using Serilog;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SCSA.Models
 {
@@ -20,7 +21,7 @@ namespace SCSA.Models
 
         public byte[] Data { set; get; }
 
-        public byte[] Crc { set; get; }
+        public uint Crc { set; get; }
 
         const uint EXPECTED_MAGIC = ('S') | ('C' << 8) | ('Z' << 16) | ('N' << 24);
 
@@ -80,11 +81,13 @@ namespace SCSA.Models
 
             // 7) CRC32 (UInt32，小端)，CRC 计算范围为“从第 0 个字节到 Body 末尾”共 (totalLen-4) 字节
             //uint crc = Crc32Helper.Compute(buffer, 0, idx);
-            Crc = BitConverter.GetBytes(Crc32.CRC32_Check_T(buffer.ToArray(), (uint)buffer.Length));
-            buffer[idx++] = Crc[0];
-            buffer[idx++] = Crc[1];
-            buffer[idx++] = Crc[2];
-            buffer[idx++] = Crc[3];
+            //Crc = Crc32.CRC32_Check_T(buffer, (uint)buffer.Length);
+            Crc = System.IO.Hashing.Crc32.HashToUInt32(buffer.Take(idx).ToArray());
+
+            buffer[idx++] = (byte)(Crc & 0xFF);
+            buffer[idx++] = (byte)((Crc >> 8) & 0xFF);
+            buffer[idx++] = (byte)((Crc >> 16) & 0xFF);
+            buffer[idx++] = (byte)((Crc >> 24) & 0xFF);
 
             return buffer;
         }
@@ -177,7 +180,7 @@ namespace SCSA.Models
                 CmdId = cmdId,
                 DataLen = bodyLen,
                 Data = payloadSeq.ToArray(),
-                Crc = BitConverter.GetBytes(receivedCrc)
+                Crc = receivedCrc
             };
 
             // 8) 计算帧结束的 SequencePosition（相对于原 buffer.Start 偏移 totalFrameLen）

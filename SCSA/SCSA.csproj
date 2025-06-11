@@ -46,5 +46,11 @@
     <ProjectReference Include="..\SCSA.Utils\SCSA.Utils.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Update="Views\SettingsView.axaml.cs">
+      <DependentUpon>SettingsView.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 
 </Project>

@@ -37,5 +37,12 @@ namespace SCSA.Models
         VelocityAmpCorrection = 0x10000009,
         DisplacementAmpCorrection = 0x1000000A,
         AccelerationAmpCorrection = 0x1000000B,
+        // 触发采样相关
+        TriggerSampleEnable = 0x0000000E, // 触发采样使能
+        TriggerSampleMode = 0x0000000F,   // 触发采样模式
+        TriggerSampleLevel = 0x00000010,  // 触发电平
+        TriggerSampleChannel = 0x00000011,  // 触发通道
+        TriggerSampleLength = 0x00000012, // 触发采样长度
+        TriggerSampleDelay = 0x00000013, // 触发前置点数
     }
 }

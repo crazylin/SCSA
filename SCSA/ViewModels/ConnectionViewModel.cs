@@ -189,22 +189,27 @@ namespace SCSA.ViewModels
 
         });
 
-        public AsyncRelayCommand<DeviceConnection> ReadParameterCommand => new AsyncRelayCommand<DeviceConnection>(async device =>
-        {
-            if(device==null)
-                return;
-            CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var parameters = Enum.GetValues<ParameterType>().Select(p => new Parameter() { Address = p }).ToList();
-            var result = await device.DeviceControlApi.ReadParameters(parameters, cts.Token);
-            if (result.success)
+        public AsyncRelayCommand<DeviceConnection> ReadParameterCommand => new AsyncRelayCommand<DeviceConnection>(
+            async device =>
             {
-                ParameterViewModel.SetParameters(result.result);
-                ParameterChanged();
-            }
+                if (device == null)
+                    return;
+                ;
+                CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                //var parameters = Enum.GetValues<ParameterType>().Select(p => new Parameter() { Address = p }).ToList();
 
-         
-            //await device.DeviceControlApi.SetParameters(new List<Parameter>() { new Parameter() { Address = 0x00000000, Length = 0x01, Value = (byte)1 } }, cts.Token);
-        });
+                var parameters = ParameterViewModel.Categories.SelectMany(c => c.Parameters.Select(p => p.Address))
+                    .Select(p => new Parameter() { Address = (ParameterType)p }).ToList();
+                var result = await device.DeviceControlApi.ReadParameters(parameters, cts.Token);
+                if (result.success)
+                {
+                    ParameterViewModel.SetParameters(result.result);
+                    ParameterChanged();
+                }
+
+
+                //await device.DeviceControlApi.SetParameters(new List<Parameter>() { new Parameter() { Address = 0x00000000, Length = 0x01, Value = (byte)1 } }, cts.Token);
+            });
 
 
         public void ParameterChanged()

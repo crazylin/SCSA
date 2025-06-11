@@ -80,7 +80,7 @@ namespace SCSA
                             ex));
                         return false;
                     }
-                    await Task.Delay(1000, cancellationToken);
+                    await Task.Delay(100, cancellationToken);
                 }
             }
             return false;
@@ -98,7 +98,6 @@ namespace SCSA
             for (var packetId = 1; packetId <= totalPackets; packetId++)
             {
                 var chunk = GetDataChunk(firmwareData, packetId);
-
                 var transferSuccess = await TransferSinglePacket(
                     packetId,
                     chunk,
@@ -113,15 +112,6 @@ namespace SCSA
 
             StatusChanged?.Invoke(UpgradeStatus.Completed);
             return true;
-        }
-
-        private byte[] GetDataChunk(byte[] fullData, int packetId)
-        {
-            var startIndex = (packetId - 1) * ChunkSize;
-            var length = Math.Min(ChunkSize, fullData.Length - startIndex);
-            var chunk = new byte[length];
-            Array.Copy(fullData, startIndex, chunk, 0, length);
-            return chunk;
         }
 
         private async Task<bool> TransferSinglePacket(
@@ -145,7 +135,7 @@ namespace SCSA
                     {
                         ErrorOccurred?.Invoke(new FirmwareTransferException(
                             $"包{packetId}/{totalPackets}传输失败，已达最大重试次数"));
-                        StatusChanged?.Invoke(UpgradeStatus.Failed); // 新增状态通知
+                        StatusChanged?.Invoke(UpgradeStatus.Failed);
                     }
                 }
                 catch (OperationCanceledException)
@@ -160,9 +150,18 @@ namespace SCSA
                         ex));
                 }
 
-                await Task.Delay(500 * (retry + 1), cancellationToken);
+                await Task.Delay(50 * (retry + 1), cancellationToken);
             }
             return false;
+        }
+
+        private byte[] GetDataChunk(byte[] fullData, int packetId)
+        {
+            var startIndex = (packetId - 1) * ChunkSize;
+            var length = Math.Min(ChunkSize, fullData.Length - startIndex);
+            var chunk = new byte[length];
+            Array.Copy(fullData, startIndex, chunk, 0, length);
+            return chunk;
         }
 
         private void UpdateProgress(int current, int total)
@@ -193,5 +192,4 @@ namespace SCSA
         public FirmwareTransferException(string message, Exception inner = null)
             : base(message, inner) { }
     }
-
 }

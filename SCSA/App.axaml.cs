@@ -12,6 +12,7 @@ using Avalonia.Platform.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using SCSA.IO.Net.TCP;
 using SCSA.Models;
+using SCSA.Services;
 using SCSA.Utils;
 using SCSA.ViewModels;
 using SCSA.Views;
@@ -89,18 +90,24 @@ namespace SCSA
             services.AddSingleton<ParameterViewModel>();
             services.AddSingleton<RealTimeTestViewModel>();
             services.AddSingleton<FirmwareUpdateViewModel>();
+            services.AddSingleton<SettingsViewModel>();
 
             // зЂВс Services
             // services.AddSingleton<ITcpServer, TcpServer>();
-
             //services.AddSingleton<ITcpServer<NetDataPackage>, EasyTcpServer<NetDataPackage>>();
+
             services.AddSingleton<PipelineTcpServer<PipelineNetDataPackage>>();
+
+            //services.AddSingleton<RecorderService>();
+            
             // зЂВс Views
             services.AddTransient<MainWindow>();
             services.AddTransient<ConnectionView>();
             services.AddTransient<RealTimeTestView>();
             services.AddTransient<FirmwareUpdateView>();
             services.AddTransient<ParameterView>();
+            services.AddTransient<SettingsView>();
+            
 
 
         }

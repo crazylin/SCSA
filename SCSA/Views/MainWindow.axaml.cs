@@ -62,7 +62,7 @@ namespace SCSA.Views
         }
         private void TryEnableMicaEffect()
         {
-            return;
+           //return;
             // TransparencyBackgroundFallback = Brushes.Transparent;
             // TransparencyLevelHint = WindowTransparencyLevel.Mica;
 
@@ -127,6 +127,7 @@ namespace SCSA.Views
                     "0" => new ConnectionView { DataContext = vm.ConnectionViewModel },
                     "1" => new RealTimeTestView { DataContext = vm.RealTimeTestViewModel },
                     "2" => new FirmwareUpdateView { DataContext = vm.FirmwareUpdateViewModel },
+                    "3" => new SettingsView() { DataContext = vm.SettingsViewModel },
                     _ => new UserControl()
                 };
                 _viewCache[tag] = view;

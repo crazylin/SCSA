@@ -31,6 +31,9 @@
     <DataTemplate DataType="vm:FirmwareUpdateViewModel">
       <scsa:FirmwareUpdateView />
     </DataTemplate>
+      <DataTemplate DataType="vm:SettingsViewModel">
+          <scsa:FirmwareUpdateView />
+      </DataTemplate>
   </Window.DataTemplates>
   <Grid RowDefinitions="Auto,*">
     <Grid Name="TitleBarHost" Grid.Row="0"
@@ -66,25 +69,34 @@
 
     <controls:NavigationView Grid.Row="1" SelectedItem="{Binding SelectedItem}" 
                              PaneDisplayMode="Left" IsPaneOpen="False" OpenPaneLength="150"
+                             IsSettingsVisible="False"
                              Loaded="Control_OnLoaded">
         <controls:NavigationView.MenuItems>
           <controls:NavigationViewItem Content="设备管理"  IconSource="ViewAll" Tag="0">
-            
-
           </controls:NavigationViewItem>
           <controls:NavigationViewItem Content="实时测试" IconSource="Play" Tag="1" >
-
           </controls:NavigationViewItem>
           <controls:NavigationViewItem Content="固件升级" IconSource="Sync" Tag="2" >
-
           </controls:NavigationViewItem>
         </controls:NavigationView.MenuItems>
         <controls:NavigationView.Content>
             <ContentControl x:Name="ContentControl" Content="{Binding ContentView}"/>
         </controls:NavigationView.Content>
+
+      <controls:NavigationView.FooterMenuItems>
+          <controls:NavigationViewItem
+              Content="主题"
+              IconSource="DarkTheme"
+              Tag="4" ></controls:NavigationViewItem>
+        <controls:NavigationViewItem
+            Content="设置"
+            IconSource="Setting"
+            Tag="3" ></controls:NavigationViewItem>
+
+      </controls:NavigationView.FooterMenuItems>
     </controls:NavigationView>
     <!--<StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Spacing="10" Margin="5">
-        <Button Content="设备管理" Command="{Binding SwitchTabCommand}" CommandParameter="0"/>
+        <Butto Content="设备管理" Command="{Binding SwitchTabCommand}" CommandParameter="0"/>
         <Button Content="实时测试" Command="{Binding SwitchTabCommand}" CommandParameter="1"/>
         <Button Content="固件升级" Command="{Binding SwitchTabCommand}" CommandParameter="2"/>
     </StackPanel>-->

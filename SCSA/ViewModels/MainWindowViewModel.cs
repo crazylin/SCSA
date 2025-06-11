@@ -7,13 +7,15 @@ namespace SCSA.ViewModels
     public partial class MainWindowViewModel(
         ConnectionViewModel connectionViewModel,
         RealTimeTestViewModel realTimeTestViewModel,
-        FirmwareUpdateViewModel firmwareUpdateViewModel)
+        FirmwareUpdateViewModel firmwareUpdateViewModel,
+        SettingsViewModel settingsViewModel)
         : ViewModelBase
     {
 
         public FirmwareUpdateViewModel FirmwareUpdateViewModel { set; get; } = firmwareUpdateViewModel;
         public ConnectionViewModel ConnectionViewModel { set; get; } = connectionViewModel;
         public RealTimeTestViewModel RealTimeTestViewModel { set; get; } = realTimeTestViewModel;
+        public SettingsViewModel SettingsViewModel { set; get; } = settingsViewModel;
 
         [ObservableProperty] private object _contentView;
         [ObservableProperty]

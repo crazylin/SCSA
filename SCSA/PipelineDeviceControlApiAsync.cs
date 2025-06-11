@@ -48,12 +48,12 @@ namespace SCSA
             {
                 var hexData = netDataPackage.GetBytes().Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n);
                 Log.Debug(
-                $"CMD: {netDataPackage.DeviceCommand} DataLen {netDataPackage.DataLen} Data {hexData} Crc {netDataPackage.Crc.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
+                $"CMD: {netDataPackage.DeviceCommand} DataLen {netDataPackage.DataLen} Data {hexData} Crc {BitConverter.GetBytes(netDataPackage.Crc).Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
             }
             else
             {
                 Log.Debug(
-                    $"CMD: {netDataPackage.DeviceCommand} DataLen {netDataPackage.DataLen} Crc {netDataPackage.Crc.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
+                    $"CMD: {netDataPackage.DeviceCommand} DataLen {netDataPackage.DataLen} Crc {BitConverter.GetBytes(netDataPackage.Crc).Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
             }
             var deviceCommand = netDataPackage.DeviceCommand;
 
@@ -124,7 +124,7 @@ namespace SCSA
 
             var hexData = bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n);
             Log.Debug(
-                $"CMD: {netPackage.DeviceCommand} DataLen {netPackage.DataLen} Data {hexData} Crc {netPackage.Crc.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
+                $"CMD: {netPackage.DeviceCommand} DataLen {netPackage.DataLen} Data {hexData} Crc {BitConverter.GetBytes(netPackage.Crc).Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
 
             //Debug.WriteLine($"Server Send: {bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
 
@@ -291,6 +291,7 @@ namespace SCSA
             var dataLength = reader.ReadInt32();
             var result = new Dictionary<Parameter.DataChannelType, double[,]>();
 
+            var type = typeof(float);
             switch (channelType)
             {
                 case Parameter.DataChannelType.Velocity:

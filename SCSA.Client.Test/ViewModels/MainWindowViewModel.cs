@@ -13,6 +13,7 @@ using System.Threading;
 using System.Diagnostics;
 using System.Linq;
 using SCSA.Models;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace SCSA.Client.Test.ViewModels
@@ -43,10 +44,29 @@ namespace SCSA.Client.Test.ViewModels
         {
 
             //var len =BitConverter.ToInt32(new byte[] { 0x06, 0x20, 0x03, 0x00 }.Reverse().ToArray());
-            var bytes = BitConverter.GetBytes(0x12345678);
-            var bb = BitConverter.IsLittleEndian;
 
-            var cc = BitConverter.ToInt32(bytes);
+            //var netPackage = new PipelineNetDataPackage();
+            //netPackage.DeviceCommand = DeviceCommand.ReplyStartCollection;
+            //netPackage.CmdId = 0;
+            //netPackage.Data = [];
+            //netPackage.DataLen = 0;
+
+            //var bytes = netPackage.GetBytes();
+
+            //var str = bytes.Select(b => b.ToString("x2")).Aggregate((p, n) => p + " " + n);
+
+            //Debug.WriteLine(str);
+
+            //var buffer = HexStringToByteArray("53435a4e0001000000000000");
+
+            //uint crc32 = System.IO.Hashing.Crc32.HashToUInt32(buffer);
+
+            //var idx = 0;
+            //buffer[idx++] = (byte)(crc32 & 0xFF);
+            //buffer[idx++] = (byte)((crc32 >> 8) & 0xFF);
+            //buffer[idx++] = (byte)((crc32 >> 16) & 0xFF);
+            //buffer[idx++] = (byte)((crc32 >> 24) & 0xFF);
+
             ConnectToServerCommand = new RelayCommand(ExecuteConnectToServer, () => true);
 
             _parameters = new ConcurrentDictionary<ParameterType, Parameter>();
@@ -135,6 +155,9 @@ namespace SCSA.Client.Test.ViewModels
                                     {
                                         _dataUploadTask = new Task(async () =>
                                         {
+                                            var p = _parameters.First(pp => pp.Key == ParameterType.TriggerSampleMode);
+                                            if ((byte)p.Value.Value == (byte)TriggerType.DebugTrigger)
+                                                await Task.Delay(TimeSpan.FromSeconds(5));
                                             double sampleRate = 20000000;
                                             double frequency = 160000;
                                             var buffer = new byte[10240];
@@ -277,8 +300,9 @@ namespace SCSA.Client.Test.ViewModels
                                 list.AddRange(BitConverter.GetBytes(returnParameters.Count));
                                 foreach (var returnParameter in returnParameters)
                                 {
-                                    list.AddRange(
-                                        BitConverter.GetBytes((int)returnParameter.Address));
+                                    var bytes = BitConverter.GetBytes((uint)returnParameter.Address);
+                                    list.AddRange(bytes
+                                        );
                                     list.AddRange(
                                         BitConverter.GetBytes(returnParameter.GetResult
                                             ? (short)0

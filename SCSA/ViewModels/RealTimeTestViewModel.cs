@@ -25,6 +25,11 @@ using System.Runtime.Intrinsics.X86;
 using OxyPlot.Legends;
 using Timer = System.Timers.Timer;
 using QuickMA.Modules.Plot;
+using SCSA.Services;
+using System.IO;
+using Avalonia.Controls;
+using Avalonia;
+using Avalonia.Media;
 
 namespace SCSA.ViewModels
 {
@@ -62,37 +67,64 @@ namespace SCSA.ViewModels
         [ObservableProperty] private double _bandPassFirst = 100;
         [ObservableProperty] private double _bandPassSecond = 500;
 
+        // 新增数据保存相关属性
+        [ObservableProperty]
+        private bool _isSaving = false;
+        [ObservableProperty]
+        private double _saveProgress;
+        [ObservableProperty]
+        private string _saveStatus = "";
+        [ObservableProperty]
+        private bool _isTestRunning = false;
+        [ObservableProperty]
+        private string _receivedPoints = "0";
+        [ObservableProperty]
+        private SolidColorBrush _statusColor = new(Colors.Black);
+        [ObservableProperty]
+        private bool _showDataStorageInfo;
+        [ObservableProperty]
+        private string _triggerStatus = "准备就绪";
 
         private CancellationTokenSource _cts;
         private DispatcherTimer _timer;
         private List<List<double>> _cacheDatas;
         private ConcurrentQueue<List<double[]>> _concurrentQueue;
-
-
+        private RecorderService _recorderService;
         
-      
         public ConnectionViewModel ConnectionViewModel { get; set; }
+        public SettingsViewModel SettingsViewModel { set; get; }
 
-        public RealTimeTestViewModel(ConnectionViewModel connectionViewModel)
+        public RealTimeTestViewModel(ConnectionViewModel connectionViewModel,SettingsViewModel settingsViewModel)
         {
             ConnectionViewModel = connectionViewModel;
+            SettingsViewModel = settingsViewModel;
 
             this.PropertyChanged += RealTimeTestViewModel_PropertyChanged;
             connectionViewModel.PropertyChanged += ConnectionViewModel_PropertyChanged;
 
-            SignalTypes = new(Enum
-                .GetValues<Parameter.DataChannelType>());
-
+            SignalTypes = new(Enum.GetValues<Parameter.DataChannelType>());
             SelectedSignalType = SignalTypes.FirstOrDefault();
-
             SetChannelType();
 
-
             WindowFunctions = new ObservableCollection<WindowFunction>(Enum.GetValues<WindowFunction>());
-
             SampleRateList = Parameter.GetSampleOptions();
 
+            // 初始化数据保存服务
+            _recorderService = new RecorderService(SettingsViewModel.DataStoragePath, new Progress<int>(progress => 
+            {
+                SaveProgress = progress;
+                SaveStatus = $"保存中... {progress}%";
+            }));
+
             ConnectionViewModel.ParameterChanged();
+
+            settingsViewModel.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(SettingsViewModel.EnableDataStorage))
+                {
+                    ShowDataStorageInfo = settingsViewModel.EnableDataStorage && IsTestRunning;
+                }
+            };
         }
 
         private void ConnectionViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -310,66 +342,107 @@ namespace SCSA.ViewModels
         {
             if (ConnectionViewModel.SelectedDevice != null)
             {
-
-
-
-                foreach (var waveform in Waveforms)
+                try
                 {
-                    foreach (var series in waveform.TimeDomainModel.Series)
+                    IsTestRunning = true;
+                    SaveStatus = "测试运行中";
+                    ReceivedPoints = "0";
+                    SaveProgress = -1;
+                    TriggerStatus = SettingsViewModel.SelectedTriggerType == TriggerType.DebugTrigger ? "等待触发中..." : "准备就绪";
+                 
+                    // 启动数据记录
+                    if (SettingsViewModel.EnableDataStorage)
                     {
-                        if (series is LineSeries lineSeries)
-                            lineSeries.Points.Clear();
+                        await _recorderService.StartRecordingAsync(
+                            SelectedSignalType,
+                            SampleRate,
+                            SettingsViewModel.DataLength
+                        );
                     }
 
-                    foreach (var series in waveform.FrequencyDomainModel.Series)
+                    foreach (var waveform in Waveforms)
                     {
-                        if (series is LineSeries lineSeries)
-                            lineSeries.Points.Clear();
+                        foreach (var series in waveform.TimeDomainModel.Series)
+                        {
+                            if (series is LineSeries lineSeries)
+                                lineSeries.Points.Clear();
+                        }
+
+                        foreach (var series in waveform.FrequencyDomainModel.Series)
+                        {
+                            if (series is LineSeries lineSeries)
+                                lineSeries.Points.Clear();
+                        }
+
+                        waveform.InvalidatePlot(true);
                     }
 
-                    waveform.InvalidatePlot(true);
+                    SelectedSignalTypeEnable = false;
+                    SampleRate = Parameter.GetSampleRate((byte)SelectedSampleRate.RealValue);
+
+                    _concurrentQueue = new ConcurrentQueue<List<double[]>>();
+                    _cacheDatas = new List<List<double>>();
+
+                    ConnectionViewModel.SelectedDevice.DeviceControlApi.DataReceived += DeviceControlApi_DataReceived;
+
+                    _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    //设置上传数据类型
+                    await ConnectionViewModel.SelectedDevice.DeviceControlApi.SetParameters(
+                        [
+                            new()
+                            {
+                                Address = ParameterType.UploadDataType, Length = sizeof(Parameter.DataChannelType),
+                                Value = SelectedSignalType
+                            }
+                        ],
+                        _cts.Token);
+                    _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    //设置采样率
+                    await ConnectionViewModel.SelectedDevice.DeviceControlApi.SetParameters(
+                        [
+                            new()
+                            {
+                                Address = ParameterType.SamplingRate, Length = sizeof(byte),
+                                Value = SelectedSampleRate.RealValue
+                            },
+                            //增加采样率的设置
+                            new()
+                            {
+                                Address = ParameterType.LowPassFilter, Length = sizeof(byte),
+                                Value = SelectedSampleRate.RealValue
+                            }
+                        ],
+                        _cts.Token);
+
+
+
+                    //设置触发类型
+                    _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await ConnectionViewModel.SelectedDevice.DeviceControlApi.SetParameters(
+                        [
+                            new()
+                            {
+                                Address = ParameterType.TriggerSampleMode, Length = sizeof(byte),
+                                Value = SettingsViewModel.SelectedTriggerType
+                            },
+       
+                        ],
+                        _cts.Token);
+
+
+                    _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await ConnectionViewModel.SelectedDevice.DeviceControlApi.Start(_cts.Token);
+
+                    _timer = new DispatcherTimer();
+                    _timer.Tick += _timer_Tick;
+                    _timer.Interval = TimeSpan.FromMilliseconds(30);
+                    _timer.Start();
                 }
-
-                SelectedSignalTypeEnable = false;
-                SampleRate = Parameter.GetSampleRate((byte)SelectedSampleRate.RealValue);
-
-                _concurrentQueue = new ConcurrentQueue<List<double[]>>();
-                _cacheDatas = new List<List<double>>();
-
-                ConnectionViewModel.SelectedDevice.DeviceControlApi.DataReceived += DeviceControlApi_DataReceived;
-
-                _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                //设置上传数据类型
-                await ConnectionViewModel.SelectedDevice.DeviceControlApi.SetParameters(
-                    [
-                        new()
-                        {
-                            Address = ParameterType.UploadDataType, Length = sizeof(Parameter.DataChannelType),
-                            Value = SelectedSignalType
-                        }
-                    ],
-                    _cts.Token);
-                _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                //设置采样率
-                await ConnectionViewModel.SelectedDevice.DeviceControlApi.SetParameters(
-                    [
-                        new()
-                        {
-                            Address = ParameterType.SamplingRate, Length = sizeof(byte),
-                            Value = SelectedSampleRate.RealValue
-                        }
-                    ],
-                    _cts.Token);
-
-                _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-     
-                await ConnectionViewModel.SelectedDevice.DeviceControlApi.Start(_cts.Token);
-
-                _timer = new DispatcherTimer();
-                _timer.Tick += _timer_Tick;
-                _timer.Interval = TimeSpan.FromMilliseconds(30);
-                _timer.Start();
-
+                catch (Exception ex)
+                {
+                    SaveStatus = $"启动测试失败: {ex.Message}";
+                    IsTestRunning = false;
+                }
             }
         });
 
@@ -539,20 +612,141 @@ namespace SCSA.ViewModels
         {
             if (ConnectionViewModel.SelectedDevice != null)
             {
-                _timer?.Stop();
-                ConnectionViewModel.SelectedDevice.DeviceControlApi.DataReceived -= DeviceControlApi_DataReceived;
-                _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                await ConnectionViewModel.SelectedDevice.DeviceControlApi.Stop(_cts.Token);
-                SelectedSignalTypeEnable = true;
+                try
+                {
+                    _timer?.Stop();
+                    ConnectionViewModel.SelectedDevice.DeviceControlApi.DataReceived -= DeviceControlApi_DataReceived;
+                    _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await ConnectionViewModel.SelectedDevice.DeviceControlApi.Stop(_cts.Token);
+                    SelectedSignalTypeEnable = true;
+                    IsTestRunning = false;
+                    TriggerStatus = "准备就绪";
+                    
+                    // 停止数据记录
+                    if (SettingsViewModel.EnableDataStorage)
+                    {
+                        await _recorderService.StopRecordingAsync();
+                        SaveStatus = "测试已停止";
+                    }
+                    else
+                    {
+                        SaveStatus = "测试已停止";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SaveStatus = $"停止测试失败: {ex.Message}";
+                }
             }
         });
-
-
 
         private void DeviceControlApi_DataReceived(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
         {
             if (channelDatas.TryGetValue(SelectedSignalType, out var channelData))
             {
+              
+                // 直接保存原始数据
+                if (IsTestRunning && SettingsViewModel.EnableDataStorage)
+                {
+                    try
+                    {
+                        var remainingPoints = SettingsViewModel.DataLength - _recorderService.GetTotalDataPoints();
+                        
+                        // 如果剩余点数小于当前数据包的点数，只取需要的部分
+                        if (remainingPoints < channelData.GetLength(1))
+                        {
+                         
+                            if (SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal)
+                            {
+                                var dataList = new List<Int16[]>();
+                                for (int i = 0; i < channelData.GetLength(0); i++)
+                                {
+                                    var row = channelData.GetRow(i);
+                                    dataList.Add(row.Take((int)remainingPoints).Select(d=>(Int16)d).ToArray());
+                                }
+                                _recorderService.WriteData(dataList);
+                            }
+                            else
+                            {
+                                var dataList = new List<float[]>();
+                                for (int i = 0; i < channelData.GetLength(0); i++)
+                                {
+                                    var row = channelData.GetRow(i);
+                                    dataList.Add(row.Take((int)remainingPoints).Select(d => (float)d).ToArray());
+                                }
+                                _recorderService.WriteData(dataList);
+                            }
+                        }
+                        else
+                        {
+                            if (SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal)
+                            {
+                                var dataList = new List<Int16[]>();
+                                for (int i = 0; i < channelData.GetLength(0); i++)
+                                {
+                                    dataList.Add(channelData.GetRow(i).Select(d=>(Int16)d).ToArray());
+                                }
+                                _recorderService.WriteData(dataList);
+                            }
+                            else
+                            {
+                                var dataList = new List<float[]>();
+                                for (int i = 0; i < channelData.GetLength(0); i++)
+                                {
+                                    dataList.Add(channelData.GetRow(i).Select(d=>(float)d).ToArray());
+                                }
+                                _recorderService.WriteData(dataList);
+                            }
+                  
+                        }
+
+                      
+                        ReceivedPoints = _recorderService.GetTotalDataPoints().ToString();
+                        SaveStatus = "数据保存中";
+                        SaveProgress = (int)((double)_recorderService.GetTotalDataPoints() / SettingsViewModel.DataLength * 100);
+
+                        // 检查是否达到设定长度
+                        if (_recorderService.GetTotalDataPoints() >= SettingsViewModel.DataLength)
+                        {
+                            // 停止记录和测试
+                            Dispatcher.UIThread.InvokeAsync(async () =>
+                            {
+                            
+                                try
+                                {
+                                    _timer?.Stop();
+                                    ConnectionViewModel.SelectedDevice.DeviceControlApi.DataReceived -= DeviceControlApi_DataReceived;
+                                    _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                                    await ConnectionViewModel.SelectedDevice.DeviceControlApi.Stop(_cts.Token);
+                                    SelectedSignalTypeEnable = true;
+                                    IsTestRunning = false;
+                                    TriggerStatus = "准备就绪";
+                                    // 停止数据记录
+                                    await _recorderService.StopRecordingAsync();
+                                    SaveStatus = "测试完成";
+                                    ReceivedPoints = SettingsViewModel.DataLength.ToString();
+                                    SaveProgress = 100;
+                                }
+                                catch (Exception ex)
+                                {
+                                    SaveStatus = $"停止测试失败: {ex.Message}";
+                                }
+                            });
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        SaveStatus = $"保存数据失败: {ex.Message}";
+                    }
+                }
+                else if (IsTestRunning)
+                {
+                    SaveStatus = "测试运行中";
+                    SaveProgress = -1;
+                }
+
+                // 处理显示数据
                 while (_cacheDatas.Count < channelData.GetLength(0))
                 {
                     _cacheDatas.Add(new List<double>());
@@ -567,7 +761,6 @@ namespace SCSA.ViewModels
                 {
                     var resultData = new List<double[]>();
 
-
                     for (var i = 0; i < _cacheDatas.Count; i++)
                     {
                         resultData.Add(_cacheDatas[i].Take(DisplayPointCount).ToArray());
@@ -576,9 +769,13 @@ namespace SCSA.ViewModels
 
                     _concurrentQueue.Enqueue(resultData);
                 }
+
+                // 更新触发状态
+                if (SettingsViewModel.SelectedTriggerType == TriggerType.DebugTrigger)
+                {
+                    TriggerStatus = "数据采集中...";
+                }
             }
-
-
         }
 
         private double[] ComputeFFT(double[] d)
@@ -674,6 +871,11 @@ namespace SCSA.ViewModels
         {
             var dp = data.OrderByDescending(d => d.Y).First();
             return new FreqPeakResult() { Position = dp.X,Peak = dp.Y };
+        }
+
+        partial void OnIsTestRunningChanged(bool value)
+        {
+            ShowDataStorageInfo = value && SettingsViewModel.EnableDataStorage;
         }
     }
 }

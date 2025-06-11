@@ -181,6 +181,23 @@ namespace SCSA.Models
             AddParameter("算法参数", "加速度振幅修正", (int)ParameterType.AccelerationAmpCorrection, sizeof(float), typeof(float),
                 (float)1,
                 typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
+
+            //// 增加触发采样相关参数
+            //AddParameter("触发采样", "触发采样使能", (int)ParameterType.TriggerSampleEnable, sizeof(byte), typeof(byte), (byte)0x00, typeof(BoolParameter));
+            //AddParameter("触发采样", "触发采样模式", (int)ParameterType.TriggerSampleMode, sizeof(byte), typeof(byte), (byte)0x00, typeof(EnumParameter), new List<EnumOption>
+            //{
+            //    new("边沿触发", (byte)0x00),
+            //    new("电平触发", (byte)0x01)
+            //});
+            //AddParameter("触发采样", "触发电平", (int)ParameterType.TriggerSampleLevel, sizeof(float), typeof(float), 0.0f, typeof(FloatNumberParameter), min: -10000, max: 10000);
+            //AddParameter("触发采样", "触发边沿", (int)ParameterType.TriggerSampleEdge, sizeof(byte), typeof(byte), (byte)0x00, typeof(EnumParameter), new List<EnumOption>
+            //{
+            //    new("上升沿", (byte)0x00),
+            //    new("下降沿", (byte)0x01)
+            //});
+            //AddParameter("触发采样", "采样长度", (int)ParameterType.TriggerSampleLength, sizeof(int), typeof(int), 1024, typeof(IntegerNumberParameter), min: 1, max: 1000000);
+
+
         }
 
         private readonly List<ParameterCategory> _categories = new();

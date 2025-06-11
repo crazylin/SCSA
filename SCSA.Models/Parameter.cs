@@ -28,59 +28,49 @@ namespace SCSA.Models
             switch (Address)
             {
                 case ParameterType.SamplingRate:
-                    return [(byte)Value];
                 case ParameterType.UploadDataType:
                     return [(byte)Value];
                 case ParameterType.LaserPower:
                     return [Convert.ToByte(Value)];
                 case ParameterType.SignalStrength:
-                    return [(byte)Value];
                 case ParameterType.LowPassFilter:
-                    return [(byte)Value];
                 case ParameterType.HighPassFilter:
-                    return [(byte)Value];
                 case ParameterType.VelocityRange:
-                    return [(byte)Value];
                 case ParameterType.DisplacementRange:
-                    return [(byte)Value];
                 case ParameterType.AccelerationRange:
-                    return [(byte)Value];
                 case ParameterType.AnalogOutputType1:
-                    return [(byte)Value];
                 case ParameterType.AnalogOutputSwitch1:
-                    return [(byte)Value];
                 case ParameterType.AnalogOutputType2:
-                    return [(byte)Value];
                 case ParameterType.AnalogOutputSwitch2:
-                    return [(byte)Value];
                 case ParameterType.FrontendFilter:
-                    return [(byte)Value];
                 case ParameterType.FrontendFilterType:
-                    return [(byte)Value];
                 case ParameterType.FrontendFilterSwitch:
-                    return [(byte)Value];
                 case ParameterType.FrontendDcRemovalSwitch:
-                    return [(byte)Value];
                 case ParameterType.FrontendOrthogonalityCorrectionSwitch:
                     return [(byte)Value];
                 case ParameterType.DataSegmentLength:
                     return BitConverter.GetBytes(Convert.ToInt32(Value));
                 case ParameterType.VelocityLowPassFilterSwitch:
-                    return [(byte)Value];
                 case ParameterType.DisplacementLowPassFilterSwitch:
-                    return [(byte)Value];
                 case ParameterType.AccelerationLowPassFilterSwitch:
                     return [(byte)Value];
                 case ParameterType.VelocityAmpCorrection:
-                    return BitConverter.GetBytes(Convert.ToSingle(Value));
                 case ParameterType.DisplacementAmpCorrection:
-                    return BitConverter.GetBytes(Convert.ToSingle(Value));
                 case ParameterType.AccelerationAmpCorrection:
                     return BitConverter.GetBytes(Convert.ToSingle(Value));
-                default: return [(byte)0];
+                case ParameterType.TriggerSampleEnable:
+                case ParameterType.TriggerSampleMode:
+                    return [(byte)Value];
+                case ParameterType.TriggerSampleLevel:
+                    return BitConverter.GetBytes(Convert.ToSingle(Value));
+                case ParameterType.TriggerSampleChannel:
+                    return [(byte)Value];
+                case ParameterType.TriggerSampleLength:
+                case ParameterType.TriggerSampleDelay:
+                    return BitConverter.GetBytes(Convert.ToInt32(Value));
+                default:
+                    return [(byte)0];
             }
-
-           
         }
 
         public static List<EnumOption> GetSampleOptions()
@@ -132,55 +122,44 @@ namespace SCSA.Models
             switch (parameterType)
             {
                 case ParameterType.SamplingRate:
-                    return typeof(byte);
                 case ParameterType.UploadDataType:
-                    return typeof(byte);
                 case ParameterType.LaserPower:
-                    return typeof(byte);
                 case ParameterType.SignalStrength:
-                    return typeof(byte);
                 case ParameterType.LowPassFilter:
-                    return typeof(byte);
                 case ParameterType.HighPassFilter:
-                    return typeof(byte);
                 case ParameterType.VelocityRange:
-                    return typeof(byte);
                 case ParameterType.DisplacementRange:
-                    return typeof(byte);
                 case ParameterType.AccelerationRange:
-                    return typeof(byte);
                 case ParameterType.AnalogOutputType1:
-                    return typeof(byte);
                 case ParameterType.AnalogOutputSwitch1:
-                    return typeof(byte);
                 case ParameterType.AnalogOutputType2:
-                    return typeof(byte);
                 case ParameterType.AnalogOutputSwitch2:
-                    return typeof(byte);
                 case ParameterType.FrontendFilter:
-                    return typeof(byte);
                 case ParameterType.FrontendFilterType:
-                    return typeof(byte);
                 case ParameterType.FrontendFilterSwitch:
-                    return typeof(byte);
                 case ParameterType.FrontendDcRemovalSwitch:
-                    return typeof(byte);
                 case ParameterType.FrontendOrthogonalityCorrectionSwitch:
                     return typeof(byte);
                 case ParameterType.DataSegmentLength:
-                    return typeof(Int32);
+                    return typeof(int);
                 case ParameterType.VelocityLowPassFilterSwitch:
-                    return typeof(byte);
                 case ParameterType.DisplacementLowPassFilterSwitch:
-                    return typeof(byte);
                 case ParameterType.AccelerationLowPassFilterSwitch:
                     return typeof(byte);
                 case ParameterType.VelocityAmpCorrection:
-                    return typeof(float);
                 case ParameterType.DisplacementAmpCorrection:
-                    return typeof(float);
                 case ParameterType.AccelerationAmpCorrection:
                     return typeof(float);
+                case ParameterType.TriggerSampleEnable:
+                case ParameterType.TriggerSampleMode:
+                    return typeof(byte);
+                case ParameterType.TriggerSampleLevel:
+                    return typeof(float);
+                case ParameterType.TriggerSampleChannel:
+                    return typeof(byte);
+                case ParameterType.TriggerSampleLength:
+                case ParameterType.TriggerSampleDelay:
+                    return typeof(int);
                 default:
                     return typeof(byte);
             }
@@ -236,55 +215,44 @@ namespace SCSA.Models
             switch (Address)
             {
                 case ParameterType.SamplingRate:
-                    return RawValue[0];
                 case ParameterType.UploadDataType:
-                    return RawValue[0];
                 case ParameterType.LaserPower:
-                    return RawValue[0];
                 case ParameterType.SignalStrength:
-                    return RawValue[0];
                 case ParameterType.LowPassFilter:
-                    return RawValue[0];
                 case ParameterType.HighPassFilter:
-                    return RawValue[0];
                 case ParameterType.VelocityRange:
-                    return RawValue[0];
                 case ParameterType.DisplacementRange:
-                    return RawValue[0];
                 case ParameterType.AccelerationRange:
-                    return RawValue[0];
                 case ParameterType.AnalogOutputType1:
-                    return RawValue[0];
                 case ParameterType.AnalogOutputSwitch1:
-                    return RawValue[0];
                 case ParameterType.AnalogOutputType2:
-                    return RawValue[0];
                 case ParameterType.AnalogOutputSwitch2:
-                    return RawValue[0];
                 case ParameterType.FrontendFilter:
-                    return RawValue[0];
                 case ParameterType.FrontendFilterType:
-                    return RawValue[0];
                 case ParameterType.FrontendFilterSwitch:
-                    return RawValue[0];
                 case ParameterType.FrontendDcRemovalSwitch:
-                    return RawValue[0];
                 case ParameterType.FrontendOrthogonalityCorrectionSwitch:
                     return RawValue[0];
                 case ParameterType.DataSegmentLength:
                     return BitConverter.ToInt32(RawValue);
                 case ParameterType.VelocityLowPassFilterSwitch:
-                    return RawValue[0];
                 case ParameterType.DisplacementLowPassFilterSwitch:
-                    return RawValue[0];
                 case ParameterType.AccelerationLowPassFilterSwitch:
                     return RawValue[0];
                 case ParameterType.VelocityAmpCorrection:
-                    return BitConverter.ToSingle(RawValue);
                 case ParameterType.DisplacementAmpCorrection:
-                    return BitConverter.ToSingle(RawValue);
                 case ParameterType.AccelerationAmpCorrection:
                     return BitConverter.ToSingle(RawValue);
+                case ParameterType.TriggerSampleEnable:
+                case ParameterType.TriggerSampleMode:
+                    return RawValue[0];
+                case ParameterType.TriggerSampleLevel:
+                    return BitConverter.ToSingle(RawValue);
+                case ParameterType.TriggerSampleChannel:
+                    return RawValue[0];
+                case ParameterType.TriggerSampleLength:
+                case ParameterType.TriggerSampleDelay:
+                    return BitConverter.ToInt32(RawValue);
                 default:
                     return RawValue[0];
             }
@@ -314,11 +282,13 @@ namespace SCSA.Models
             for (int i = 0; i < len; i++)
             {
                 var parameter = new Parameter();
-                parameter.Address = (ParameterType)reader.ReadInt32();
+                var bytes = reader.ReadBytes(4);
+                parameter.Address = (ParameterType)BitConverter.ToInt32(bytes);
                 parameter.GetResult = reader.ReadInt16() == 0;
                 parameter.Length = reader.ReadInt32();
                 parameter.RawValue = reader.ReadBytes(parameter.Length);
                 parameters.Add(parameter);
+     
             }
 
             return parameters;
