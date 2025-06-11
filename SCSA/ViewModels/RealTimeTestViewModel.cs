@@ -30,6 +30,7 @@ using System.IO;
 using Avalonia.Controls;
 using Avalonia;
 using Avalonia.Media;
+using SCSA.Services.Filter;
 
 namespace SCSA.ViewModels
 {
@@ -100,7 +101,7 @@ namespace SCSA.ViewModels
             SettingsViewModel = settingsViewModel;
 
             this.PropertyChanged += RealTimeTestViewModel_PropertyChanged;
-            connectionViewModel.PropertyChanged += ConnectionViewModel_PropertyChanged;
+            connectionViewModel.ParametersChanged += ConnectionViewModel_ParametersChanged;
 
             SignalTypes = new(Enum.GetValues<Parameter.DataChannelType>());
             SelectedSignalType = SignalTypes.FirstOrDefault();
@@ -116,8 +117,7 @@ namespace SCSA.ViewModels
                 SaveStatus = $"保存中... {progress}%";
             }));
 
-            ConnectionViewModel.ParameterChanged();
-
+   
             settingsViewModel.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(SettingsViewModel.EnableDataStorage))
@@ -127,38 +127,35 @@ namespace SCSA.ViewModels
             };
         }
 
-        private void ConnectionViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void ConnectionViewModel_ParametersChanged(object? sender, DeviceConnection e)
         {
-            if (e.PropertyName == nameof(ConnectionViewModel.SelectedDevice))
+            ControlEnable = ConnectionViewModel.SelectedDevice != null;
+
+            if (ConnectionViewModel.SelectedDevice != null)
             {
-                ControlEnable = ConnectionViewModel.SelectedDevice != null;
+                var parameter =
+                    ConnectionViewModel.SelectedDevice.DeviceParameters.FirstOrDefault(d =>
+                        d.Address == (int)ParameterType.SamplingRate);
 
-                if (ConnectionViewModel.SelectedDevice != null)
+
+                if (parameter != null)
                 {
-                    var parameter =
-                        ConnectionViewModel.SelectedDevice.DeviceParameters.FirstOrDefault(d =>
-                            d.Address == (int)ParameterType.SamplingRate);
-
-
-                    if (parameter != null)
-                    {
-                        SelectedSampleRate = SampleRateList.FirstOrDefault(sr => (byte)sr.RealValue == (byte)parameter.Value);
-                        SampleRate = Parameter.GetSampleRate((byte)SelectedSampleRate.RealValue);
-                    }
-                    
-                    
-                    parameter =
-                        ConnectionViewModel.SelectedDevice.DeviceParameters.FirstOrDefault(d =>
-                            d.Address == (int)ParameterType.UploadDataType);
-
-                    if (parameter != null)
-                        SelectedSignalType =
-                            SignalTypes.FirstOrDefault(sf => sf == (Parameter.DataChannelType)parameter.Value);
-
+                    SelectedSampleRate = SampleRateList.FirstOrDefault(sr => (byte)sr.RealValue == (byte)parameter.Value);
+                    SampleRate = Parameter.GetSampleRate((byte)SelectedSampleRate.RealValue);
                 }
+
+
+                parameter =
+                    ConnectionViewModel.SelectedDevice.DeviceParameters.FirstOrDefault(d =>
+                        d.Address == (int)ParameterType.UploadDataType);
+
+                if (parameter != null)
+                    SelectedSignalType =
+                        SignalTypes.FirstOrDefault(sf => sf == (Parameter.DataChannelType)parameter.Value);
 
             }
         }
+
 
         private void RealTimeTestViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
@@ -353,10 +350,14 @@ namespace SCSA.ViewModels
                     // 启动数据记录
                     if (SettingsViewModel.EnableDataStorage)
                     {
+                        _recorderService.StoragePath = SettingsViewModel.DataStoragePath;
+
                         await _recorderService.StartRecordingAsync(
                             SelectedSignalType,
                             SampleRate,
-                            SettingsViewModel.DataLength
+                            SettingsViewModel.SelectedStorageType == StorageType.ByLength ? SettingsViewModel.DataLength : 0,
+                            SettingsViewModel.SelectedStorageType == StorageType.ByTime ? SettingsViewModel.StorageTime : 0,
+                            SettingsViewModel.SelectedStorageType
                         );
                     }
 
@@ -422,7 +423,7 @@ namespace SCSA.ViewModels
                         [
                             new()
                             {
-                                Address = ParameterType.TriggerSampleMode, Length = sizeof(byte),
+                                Address = ParameterType.TriggerSampleType, Length = sizeof(byte),
                                 Value = SettingsViewModel.SelectedTriggerType
                             },
        
@@ -644,74 +645,44 @@ namespace SCSA.ViewModels
         {
             if (channelDatas.TryGetValue(SelectedSignalType, out var channelData))
             {
-              
                 // 直接保存原始数据
                 if (IsTestRunning && SettingsViewModel.EnableDataStorage)
                 {
                     try
                     {
-                        var remainingPoints = SettingsViewModel.DataLength - _recorderService.GetTotalDataPoints();
+                        _ = _recorderService.WriteDataAsync(channelDatas);
                         
-                        // 如果剩余点数小于当前数据包的点数，只取需要的部分
-                        if (remainingPoints < channelData.GetLength(1))
+                        if (SettingsViewModel.SelectedStorageType == StorageType.ByLength)
                         {
-                         
-                            if (SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal)
-                            {
-                                var dataList = new List<Int16[]>();
-                                for (int i = 0; i < channelData.GetLength(0); i++)
-                                {
-                                    var row = channelData.GetRow(i);
-                                    dataList.Add(row.Take((int)remainingPoints).Select(d=>(Int16)d).ToArray());
-                                }
-                                _recorderService.WriteData(dataList);
-                            }
-                            else
-                            {
-                                var dataList = new List<float[]>();
-                                for (int i = 0; i < channelData.GetLength(0); i++)
-                                {
-                                    var row = channelData.GetRow(i);
-                                    dataList.Add(row.Take((int)remainingPoints).Select(d => (float)d).ToArray());
-                                }
-                                _recorderService.WriteData(dataList);
-                            }
+                            ReceivedPoints = _recorderService.GetTotalDataPoints().ToString();
                         }
                         else
                         {
-                            if (SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal)
-                            {
-                                var dataList = new List<Int16[]>();
-                                for (int i = 0; i < channelData.GetLength(0); i++)
-                                {
-                                    dataList.Add(channelData.GetRow(i).Select(d=>(Int16)d).ToArray());
-                                }
-                                _recorderService.WriteData(dataList);
-                            }
-                            else
-                            {
-                                var dataList = new List<float[]>();
-                                for (int i = 0; i < channelData.GetLength(0); i++)
-                                {
-                                    dataList.Add(channelData.GetRow(i).Select(d=>(float)d).ToArray());
-                                }
-                                _recorderService.WriteData(dataList);
-                            }
-                  
+                            var elapsedTime = (DateTime.Now - _recorderService.GetStartTime()).TotalSeconds;
+                            ReceivedPoints = $"{elapsedTime:F1}秒";
+                        }
+                        
+                        SaveStatus = "数据保存中";
+                        
+                        if (SettingsViewModel.SelectedStorageType == StorageType.ByLength)
+                        {
+                            SaveProgress = (int)((double)_recorderService.GetTotalDataPoints() / SettingsViewModel.DataLength * 100);
+                        }
+                        else
+                        {
+                            var elapsedTime = (DateTime.Now - _recorderService.GetStartTime()).TotalSeconds;
+                            SaveProgress = (int)((elapsedTime / SettingsViewModel.StorageTime) * 100);
                         }
 
-                      
-                        ReceivedPoints = _recorderService.GetTotalDataPoints().ToString();
-                        SaveStatus = "数据保存中";
-                        SaveProgress = (int)((double)_recorderService.GetTotalDataPoints() / SettingsViewModel.DataLength * 100);
-
-                        // 检查是否达到设定长度
-                        if (_recorderService.GetTotalDataPoints() >= SettingsViewModel.DataLength)
+                        // 检查是否达到设定长度或时间
+                        if ((SettingsViewModel.SelectedStorageType == StorageType.ByLength && 
+                             _recorderService.GetTotalDataPoints() >= SettingsViewModel.DataLength) ||
+                            (SettingsViewModel.SelectedStorageType == StorageType.ByTime && 
+                             (DateTime.Now - _recorderService.GetStartTime()).TotalSeconds >= SettingsViewModel.StorageTime))
                         {
                             // 停止记录和测试
                             Dispatcher.UIThread.InvokeAsync(async () =>
                             {
-                            
                                 try
                                 {
                                     _timer?.Stop();
@@ -724,7 +695,9 @@ namespace SCSA.ViewModels
                                     // 停止数据记录
                                     await _recorderService.StopRecordingAsync();
                                     SaveStatus = "测试完成";
-                                    ReceivedPoints = SettingsViewModel.DataLength.ToString();
+                                    ReceivedPoints = SettingsViewModel.SelectedStorageType == StorageType.ByLength ? 
+                                        SettingsViewModel.DataLength.ToString() : 
+                                        $"{SettingsViewModel.StorageTime}秒";
                                     SaveProgress = 100;
                                 }
                                 catch (Exception ex)

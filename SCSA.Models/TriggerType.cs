@@ -1,24 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace SCSA.Models;
 
-namespace SCSA.Models
+public enum TriggerType : byte
 {
-    public enum TriggerType:byte
-    {
-        /// <summary>自由触发模式</summary>
-        FreeTrigger,
+    /// <summary>自由触发模式</summary>
+    FreeTrigger,
 
-        /// <summary>软件触发模式</summary>
-        SoftwareTrigger,
+    /// <summary>软件触发模式</summary>
+    SoftwareTrigger,
 
-        /// <summary>硬件触发模式</summary>
-        HardwareTrigger,
+    /// <summary>硬件触发模式</summary>
+    HardwareTrigger,
 
-        /// <summary>调试触发模式</summary>
-        DebugTrigger
-    }
-
+    /// <summary>调试触发模式</summary>
+    DebugTrigger
 }

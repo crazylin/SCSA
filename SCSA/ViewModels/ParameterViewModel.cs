@@ -8,13 +8,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using Newtonsoft.Json;
 using SCSA.Models;
+using FluentAvalonia.UI.Controls;
 
 namespace SCSA.ViewModels
 {
-    // ParameterViewModel.cs
+
     public class ParameterViewModel : ViewModelBase
     {
         public DeviceConfiguration Config { get; }
@@ -22,6 +26,7 @@ namespace SCSA.ViewModels
         public ConnectionViewModel ConnectionViewModel { set; get; }
 
         private readonly IStorageProvider _storageProvider;
+
         public ParameterViewModel(IStorageProvider storageProvider)
         {
             _storageProvider = storageProvider;
@@ -47,27 +52,52 @@ namespace SCSA.ViewModels
 
             ConnectionViewModel.SelectedDevice.DeviceParameters =
                 Config.Categories.SelectMany(c => c.Parameters).ToList();
+            
+
         }
+
         public ICommand ReadParametersFromDeviceCommand => new RelayCommand(async () =>
         {
             if (ConnectionViewModel.SelectedDevice==null)
+            {
+                ShowNotification("请先选择设备", InfoBarSeverity.Warning);
                 return;
+            }
 
+            ShowNotification("正在读取参数...", InfoBarSeverity.Informational);
             CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var parameters = Enum.GetValues<ParameterType>().Select(p => new Parameter() { Address = p }).ToList();
-            var result = await ConnectionViewModel.SelectedDevice.DeviceControlApi.ReadParameters(parameters, cts.Token);
-            if (result.success)
+            try
             {
-                SetParameters(result.result);
-                ConnectionViewModel.ParameterChanged();
+                var result = await ConnectionViewModel.SelectedDevice.DeviceControlApi.ReadParameters(parameters, cts.Token);
+                if (result.success)
+                {
+                    SetParameters(result.result);
+                    // 修改事件调用方式
+                    ConnectionViewModel.OnParametersChanged(ConnectionViewModel.SelectedDevice);
+
+                    ShowNotification("参数读取成功", InfoBarSeverity.Success);
+                }
+                else
+                {
+                    ShowNotification("参数读取失败", InfoBarSeverity.Error);
+                }
             }
-      
+            catch (Exception ex)
+            {
+                ShowNotification($"参数读取出错: {ex.Message}", InfoBarSeverity.Error);
+            }
         });
 
         public ICommand SaveCommand => new RelayCommand(async () =>
         {
             if (ConnectionViewModel.SelectedDevice == null)
+            {
+                ShowNotification("请先选择设备", InfoBarSeverity.Warning);
                 return;
+            }
+
+            ShowNotification("正在保存参数...", InfoBarSeverity.Informational);
             CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
             var parameters = new List<Parameter>();
@@ -75,20 +105,34 @@ namespace SCSA.ViewModels
             {
                 parameters.Add(new Parameter()
                 {
-                    Address = (ParameterType)deviceParameter.Address, Length = deviceParameter.DataLength,
+                    Address = (ParameterType)deviceParameter.Address, 
+                    Length = deviceParameter.DataLength,
                     Value = deviceParameter.Value is bool b ? b ? (byte)1 : (byte)0 : deviceParameter.Value
                 });
             }
 
-            var result = await ConnectionViewModel.SelectedDevice.DeviceControlApi.SetParameters(parameters, cts.Token);
-            if (result)
+            try
             {
-               ConnectionViewModel.ParameterChanged();
+                var result = await ConnectionViewModel.SelectedDevice.DeviceControlApi.SetParameters(parameters, cts.Token);
+                if (result)
+                {
+                    // 修改为使用新的事件触发方法
+                    ConnectionViewModel.OnParametersChanged(ConnectionViewModel.SelectedDevice);
+                    ShowNotification("参数保存成功", InfoBarSeverity.Success);
+                }
+                else
+                {
+                    ShowNotification("参数保存失败", InfoBarSeverity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowNotification($"参数保存出错: {ex.Message}", InfoBarSeverity.Error);
             }
         });
+
         public ICommand SaveAsCommand => new RelayCommand(async () =>
         {
-            
             var options = new FilePickerSaveOptions
             {
                 Title = "保存配置文件",
@@ -102,14 +146,24 @@ namespace SCSA.ViewModels
                 }
             };
 
-            // 显示对话框并获取用户选择的路径
-            var result = await _storageProvider.SaveFilePickerAsync(options);
-            if (result == null) return; // 用户取消
+            try
+            {
+                // 显示对话框并获取用户选择的路径
+                var result = await _storageProvider.SaveFilePickerAsync(options);
+                if (result == null)
+                {
+                    ShowNotification("已取消保存", InfoBarSeverity.Informational);
+                    return;
+                }
 
-            var json = JsonConvert.SerializeObject(Config.Categories, Formatting.Indented);
-
-            File.WriteAllText(result.Path.AbsolutePath, json);
+                var json = JsonConvert.SerializeObject(Config.Categories, Formatting.Indented);
+                File.WriteAllText(result.Path.AbsolutePath, json);
+                ShowNotification("配置文件保存成功", InfoBarSeverity.Success);
+            }
+            catch (Exception ex)
+            {
+                ShowNotification($"保存配置文件失败: {ex.Message}", InfoBarSeverity.Error);
+            }
         });
     }
-
 }

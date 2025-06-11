@@ -3,13 +3,18 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Channels;
 using SCSA.Models;
+using Avalonia.Threading;
+using SCSA.Utils;
+using SCSA.ViewModels;
 
 namespace SCSA.Services
 {
     public class RecorderService
     {
-        private readonly string _storagePath;
+        public string StoragePath { set; get; }
         private readonly IProgress<int> _progress;
         private CancellationTokenSource _cancellationTokenSource;
         private List<FileStream> _currentFileStreams;
@@ -17,17 +22,31 @@ namespace SCSA.Services
         private List<string> _currentFileNames;
         private long _totalDataPoints = 0;
         private long _targetDataLength = 0;
+        private int _targetTimeSeconds = 0;
+        private DateTime _startTime;
+        private Channel<Dictionary<Parameter.DataChannelType, double[,]>> _dataChannel;
+        private Task _processingTask;
+        private Parameter.DataChannelType _currentSignalType;
+        private bool _isRecording = false;
+        private StorageType _storageType;
+
+        // 添加数据采集完成事件
+        public event EventHandler DataCollectionCompleted;
 
         public RecorderService(string storagePath, IProgress<int> progress = null)
         {
-            _storagePath = storagePath;
+            StoragePath = storagePath;
             _progress = progress;
+            _dataChannel = Channel.CreateUnbounded<Dictionary<Parameter.DataChannelType, double[,]>>(
+                new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         }
 
-        public async Task StartRecordingAsync(Parameter.DataChannelType signalType, double sampleRate, long targetDataLength = 0)
+        public async Task StartRecordingAsync(Parameter.DataChannelType signalType, double sampleRate, long targetDataLength = 0, int targetTimeSeconds = 0, StorageType storageType = StorageType.ByLength)
         {
             try
             {
+                _currentSignalType = signalType;
+                _storageType = storageType;
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 _currentFileStreams = new List<FileStream>();
                 _currentWriters = new List<BinaryWriter>();
@@ -36,8 +55,8 @@ namespace SCSA.Services
                 if (signalType == Parameter.DataChannelType.ISignalAndQSignal)
                 {
                     // IQ信号需要两个文件
-                    var iFileName = Path.Combine(_storagePath, $"I_Signal_{timestamp}.bin");
-                    var qFileName = Path.Combine(_storagePath, $"Q_Signal_{timestamp}.bin");
+                    var iFileName = Path.Combine(StoragePath, $"I_Signal_{sampleRate}_{timestamp}.bin");
+                    var qFileName = Path.Combine(StoragePath, $"Q_Signal_{sampleRate}_{timestamp}.bin");
                     
                     _currentFileNames.Add(iFileName);
                     _currentFileNames.Add(qFileName);
@@ -47,13 +66,6 @@ namespace SCSA.Services
                         Directory.CreateDirectory(Path.GetDirectoryName(fileName));
                         var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write);
                         var writer = new BinaryWriter(fileStream);
-                        
-                        // 写入文件头信息
-                        //writer.Write((int)signalType); // 信号类型 (4字节)
-                        //writer.Write(sampleRate); // 采样率 (8字节)
-                        //writer.Write(0L); // 预留总数据点数位置 (8字节)
-                        //writer.Write(targetDataLength); // 目标数据长度 (8字节)
-                        
                         _currentFileStreams.Add(fileStream);
                         _currentWriters.Add(writer);
                     }
@@ -61,26 +73,26 @@ namespace SCSA.Services
                 else
                 {
                     // 其他信号类型只需要一个文件
-                    var fileName = Path.Combine(_storagePath, $"{signalType}_{timestamp}.bin");
+                    var fileName = Path.Combine(StoragePath, $"{signalType}_{sampleRate}_{timestamp}.bin");
                     _currentFileNames.Add(fileName);
                     
                     Directory.CreateDirectory(Path.GetDirectoryName(fileName));
                     var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write);
                     var writer = new BinaryWriter(fileStream);
-                    
-                    // 写入文件头信息
-                    //writer.Write((int)signalType); // 信号类型 (4字节)
-                    //writer.Write(sampleRate); // 采样率 (8字节)
-                    //writer.Write(0L); // 预留总数据点数位置 (8字节)
-                    //writer.Write(targetDataLength); // 目标数据长度 (8字节)
-                    
                     _currentFileStreams.Add(fileStream);
                     _currentWriters.Add(writer);
                 }
                 
                 _totalDataPoints = 0;
                 _targetDataLength = targetDataLength;
+                _targetTimeSeconds = targetTimeSeconds;
+                _startTime = DateTime.Now;
                 _progress?.Report(0);
+                _isRecording = true;
+
+                // 启动数据处理任务
+                _cancellationTokenSource = new CancellationTokenSource();
+                _processingTask = ProcessDataAsync(_cancellationTokenSource.Token);
             }
             catch (Exception ex)
             {
@@ -93,16 +105,20 @@ namespace SCSA.Services
         {
             try
             {
+                _isRecording = false;
+                _cancellationTokenSource?.Cancel();
+                
+                if (_processingTask != null)
+                {
+                    await _processingTask;
+                }
+
                 if (_currentWriters != null)
                 {
                     foreach (var writer in _currentWriters)
                     {
                         if (writer != null)
                         {
-                            // 写入总数据点数 (跳过信号类型4字节和采样率8字节)
-                            writer.Seek(12, SeekOrigin.Begin);
-                            writer.Write(_totalDataPoints);
-                            
                             writer.Close();
                         }
                     }
@@ -129,6 +145,146 @@ namespace SCSA.Services
             }
         }
 
+        public async Task WriteDataAsync(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
+        {
+            if (!_isRecording)
+            {
+                throw new InvalidOperationException("记录未启动");
+            }
+
+            await _dataChannel.Writer.WriteAsync(channelDatas);
+        }
+
+        private async Task ProcessDataAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    var channelDatas = await _dataChannel.Reader.ReadAsync(cancellationToken);
+                    
+                    if (channelDatas.TryGetValue(_currentSignalType, out var channelData))
+                    {
+                        // 检查是否达到目标
+                        bool shouldStop = false;
+                        if (_storageType == StorageType.ByLength)
+                        {
+                            var remainingPoints = _targetDataLength - _totalDataPoints;
+                            if (remainingPoints <= 0)
+                            {
+                                shouldStop = true;
+                            }
+                            else if (remainingPoints < channelData.GetLength(1))
+                            {
+                                if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
+                                {
+                                    var dataList = new List<Int16[]>();
+                                    for (int i = 0; i < channelData.GetLength(0); i++)
+                                    {
+                                        var row = channelData.GetRow(i);
+                                        dataList.Add(row.Take((int)remainingPoints).Select(d=>(Int16)d).ToArray());
+                                    }
+                                    WriteData(dataList);
+                                }
+                                else
+                                {
+                                    var dataList = new List<float[]>();
+                                    for (int i = 0; i < channelData.GetLength(0); i++)
+                                    {
+                                        var row = channelData.GetRow(i);
+                                        dataList.Add(row.Take((int)remainingPoints).Select(d => (float)d).ToArray());
+                                    }
+                                    WriteData(dataList);
+                                }
+                            }
+                            else
+                            {
+                                if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
+                                {
+                                    var dataList = new List<Int16[]>();
+                                    for (int i = 0; i < channelData.GetLength(0); i++)
+                                    {
+                                        dataList.Add(channelData.GetRow(i).Select(d=>(Int16)d).ToArray());
+                                    }
+                                    WriteData(dataList);
+                                }
+                                else
+                                {
+                                    var dataList = new List<float[]>();
+                                    for (int i = 0; i < channelData.GetLength(0); i++)
+                                    {
+                                        dataList.Add(channelData.GetRow(i).Select(d=>(float)d).ToArray());
+                                    }
+                                    WriteData(dataList);
+                                }
+                            }
+                        }
+                        else // ByTime
+                        {
+                            var elapsedTime = (DateTime.Now - _startTime).TotalSeconds;
+                            if (elapsedTime >= _targetTimeSeconds)
+                            {
+                                shouldStop = true;
+                            }
+                            else
+                            {
+                                if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
+                                {
+                                    var dataList = new List<Int16[]>();
+                                    for (int i = 0; i < channelData.GetLength(0); i++)
+                                    {
+                                        dataList.Add(channelData.GetRow(i).Select(d=>(Int16)d).ToArray());
+                                    }
+                                    WriteData(dataList);
+                                }
+                                else
+                                {
+                                    var dataList = new List<float[]>();
+                                    for (int i = 0; i < channelData.GetLength(0); i++)
+                                    {
+                                        dataList.Add(channelData.GetRow(i).Select(d=>(float)d).ToArray());
+                                    }
+                                    WriteData(dataList);
+                                }
+                            }
+                        }
+
+                        // 更新进度
+                        if (_storageType == StorageType.ByLength && _targetDataLength > 0)
+                        {
+                            var progress = (int)((double)_totalDataPoints / _targetDataLength * 100);
+                            _progress?.Report(Math.Min(progress, 100));
+                        }
+                        else if (_storageType == StorageType.ByTime && _targetTimeSeconds > 0)
+                        {
+                            var elapsedTime = (DateTime.Now - _startTime).TotalSeconds;
+                            var progress = (int)((elapsedTime / _targetTimeSeconds) * 100);
+                            _progress?.Report(Math.Min(progress, 100));
+                        }
+
+                        if (shouldStop)
+                        {
+                            // 触发数据采集完成事件
+                            DataCollectionCompleted?.Invoke(this, EventArgs.Empty);
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // 正常取消，不需要处理
+            }
+            catch (Exception ex)
+            {
+                // 处理其他异常
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    throw new Exception($"数据处理失败: {ex.Message}", ex);
+                });
+            }
+        }
+
         public void WriteData(List<double[]> channelData)
         {
             if (_currentWriters == null || _currentWriters.Count == 0)
@@ -152,19 +308,13 @@ namespace SCSA.Services
                 }
                 
                 _totalDataPoints += channelData[0].Length;
-
-                // 更新进度
-                if (_targetDataLength > 0)
-                {
-                    var progress = (int)((double)_totalDataPoints / _targetDataLength * 100);
-                    _progress?.Report(Math.Min(progress, 100));
-                }
             }
             catch (Exception ex)
             {
                 throw new Exception($"写入数据失败: {ex.Message}", ex);
             }
         }
+
         public void WriteData(List<float[]> channelData)
         {
             if (_currentWriters == null || _currentWriters.Count == 0)
@@ -188,13 +338,6 @@ namespace SCSA.Services
                 }
 
                 _totalDataPoints += channelData[0].Length;
-
-                // 更新进度
-                if (_targetDataLength > 0)
-                {
-                    var progress = (int)((double)_totalDataPoints / _targetDataLength * 100);
-                    _progress?.Report(Math.Min(progress, 100));
-                }
             }
             catch (Exception ex)
             {
@@ -225,19 +368,13 @@ namespace SCSA.Services
                 }
 
                 _totalDataPoints += channelData[0].Length;
-
-                // 更新进度
-                if (_targetDataLength > 0)
-                {
-                    var progress = (int)((double)_totalDataPoints / _targetDataLength * 100);
-                    _progress?.Report(Math.Min(progress, 100));
-                }
             }
             catch (Exception ex)
             {
                 throw new Exception($"写入数据失败: {ex.Message}", ex);
             }
         }
+
         public List<string> GetCurrentFileNames()
         {
             return _currentFileNames;
@@ -250,12 +387,17 @@ namespace SCSA.Services
 
         public bool IsRecording()
         {
-            return _currentWriters != null && _currentWriters.Count > 0;
+            return _isRecording;
         }
 
         public bool HasReachedTargetLength()
         {
             return _targetDataLength > 0 && _totalDataPoints >= _targetDataLength;
+        }
+
+        public DateTime GetStartTime()
+        {
+            return _startTime;
         }
     }
 } 

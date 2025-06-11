@@ -5,40 +5,40 @@
              xmlns:viewModels="clr-namespace:SCSA.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SCSA.FirmwareUpdateView">
-  <Design.DataContext>
-    <viewModels:FirmwareUpdateViewModel/>
-  </Design.DataContext>
-  <StackPanel Margin="10" Spacing="10" IsEnabled="{Binding ControlEnable}">
-      <!-- 新增文件选择区域 -->
-      <DockPanel>
-          <Button DockPanel.Dock="Right" Margin="10 0 0 0"
-                  Content="浏览"
-                  Command="{Binding BrowseCommand}"
-                  CommandParameter="{Binding RelativeSource={RelativeSource Self}}"/>
-          <TextBox 
-                   Watermark="选择固件文件..."
-                   Text="{Binding SelectedFilePath}"/>
-        
-      </DockPanel>
-      <TextBlock Text="当前版本：" FontSize="16"/>
-      <TextBlock Text="{Binding CurrentVersion}" FontWeight="Bold"/>
-      <TextBlock Text="新版本：" FontSize="16" />
-      <TextBlock Text="{Binding NewVersion}" FontWeight="Bold"/>
+    <Design.DataContext>
+        <viewModels:FirmwareUpdateViewModel />
+    </Design.DataContext>
+    <StackPanel Margin="10" Spacing="10" IsEnabled="{Binding ControlEnable}">
+        <!-- 新增文件选择区域 -->
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Margin="10 0 0 0"
+                    Content="浏览"
+                    Command="{Binding BrowseCommand}"
+                    CommandParameter="{Binding RelativeSource={RelativeSource Self}}" />
+            <TextBox
+                Watermark="选择固件文件..."
+                Text="{Binding SelectedFilePath}" />
+
+        </DockPanel>
+        <TextBlock Text="当前版本：" FontSize="16" />
+        <TextBlock Text="{Binding CurrentVersion}" FontWeight="Bold" />
+        <TextBlock Text="新版本：" FontSize="16" />
+        <TextBlock Text="{Binding NewVersion}" FontWeight="Bold" />
 
 
-    <ProgressBar Minimum="0" Maximum="{Binding MaxPercentage}"
-                 Value="{Binding ProgressPercentage}"
-                 
-                 Height="25" />
+        <ProgressBar Minimum="0" Maximum="{Binding MaxPercentage}"
+                     Value="{Binding ProgressPercentage}"
 
-    <TextBlock Text="{Binding StatusMessage}"
-               Foreground="{Binding StatusColor}"
-               HorizontalAlignment="Center"/>
+                     Height="25" />
 
-    <Button Content="{Binding ButtonText}"
-            Command="{Binding StartUpgradeCommand}"
-            IsEnabled="{Binding CanExecute}"
-            Width="120" HorizontalAlignment="Center"
-            Margin="0 20"/>
-  </StackPanel>
+        <TextBlock Text="{Binding StatusMessage}"
+                   Foreground="{Binding StatusColor}"
+                   HorizontalAlignment="Center" />
+
+        <Button Content="{Binding ButtonText}"
+                Command="{Binding StartUpgradeCommand}"
+                IsEnabled="{Binding CanExecute}"
+                Width="120" HorizontalAlignment="Center"
+                Margin="0 20" />
+    </StackPanel>
 </UserControl>

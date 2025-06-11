@@ -1,35 +1,33 @@
-﻿using Avalonia.Data.Converters;
-using Avalonia.Data;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Data.Converters;
 
-namespace SCSA.Converters
+namespace SCSA.Converters;
+
+public class EnumToBooleanConverter : IValueConverter
 {
-
-    public class EnumToBooleanConverter : IValueConverter
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            // 检查枚举值与参数是否匹配
-            return value?.ToString() == parameter?.ToString();
-        }
+        if (value == null || parameter == null)
+            return false;
 
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            if (value is bool isChecked && isChecked)
-            {
-                // 返回对应的枚举值
-                return Enum.Parse(targetType, parameter.ToString());
-            }
-            // 取消更新绑定源
-            return AvaloniaProperty.UnsetValue; // 或返回 new BindingNotification(AvaloniaProperty.UnsetValue, BindingNotificationType.DoNothing);
-        }
+        string enumValue = value.ToString();
+        string targetValue = parameter.ToString();
+
+        return enumValue.Equals(targetValue);
     }
 
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value == null || parameter == null)
+            return null;
 
+        bool useValue = (bool)value;
+        string targetValue = parameter.ToString();
+        if (useValue)
+            return Enum.Parse(targetType, targetValue);
+
+        return null;
+    }
 }

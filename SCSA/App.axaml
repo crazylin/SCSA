@@ -1,33 +1,32 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="SCSA.App"
-             xmlns:local="using:SCSA"
-             xmlns:semi="https://irihi.tech/semi"
+             xmlns:local="using:SCSA.Views"
              xmlns:styling="clr-namespace:FluentAvalonia.Styling;assembly=FluentAvalonia"
+             xmlns:converters="clr-namespace:SCSA.Converters"
              RequestedThemeVariant="Default">
-  <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
-  <Application.DataTemplates>
-    <local:ViewLocator/>
+    <Application.DataTemplates>
+        <local:ViewLocator />
 
-  </Application.DataTemplates>
+    </Application.DataTemplates>
 
-  <Application.Styles>
-    <FluentTheme />
-    <!--<StyleInclude Source="avares://Semi.Avalonia.ColorPicker/Index.axaml" />
+    <Application.Styles>
+        <FluentTheme />
+        <!--<StyleInclude Source="avares://Semi.Avalonia.ColorPicker/Index.axaml" />
         <StyleInclude Source="avares://Semi.Avalonia.DataGrid/Index.axaml" />
         <StyleInclude Source="avares://Semi.Avalonia.TreeDataGrid/Index.axaml" />
         <semi:SemiTheme Locale="zh-CN" />-->
-    <StyleInclude Source="avares://OxyPlot.AvaloniaCore/Themes/Default.axaml"/>
+        <StyleInclude Source="avares://OxyPlot.AvaloniaCore/Themes/Default.axaml" />
 
-    <styling:FluentAvaloniaTheme PreferSystemTheme="True" PreferUserAccentColor="True" >
-      <styling:FluentAvaloniaTheme.MergedDictionaries>
-        <ResourceDictionary>
+        <styling:FluentAvaloniaTheme PreferSystemTheme="True" PreferUserAccentColor="True">
+            <styling:FluentAvaloniaTheme.MergedDictionaries>
+                <ResourceDictionary />
+            </styling:FluentAvaloniaTheme.MergedDictionaries>
+        </styling:FluentAvaloniaTheme>
 
-        </ResourceDictionary>
-      </styling:FluentAvaloniaTheme.MergedDictionaries>
-    </styling:FluentAvaloniaTheme>
+    </Application.Styles>
 
-  </Application.Styles>
 
 </Application>

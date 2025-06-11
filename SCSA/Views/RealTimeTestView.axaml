@@ -6,170 +6,170 @@
              xmlns:plot="clr-namespace:SCSA.Plot;assembly=SCSA.Plot"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="SCSA.RealTimeTestView">
-  <UserControl.Resources>
-    <converters:EnumToBooleanConverter x:Key="EnumConverter"></converters:EnumToBooleanConverter>
-    <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"></converters:BooleanToVisibilityConverter>
-    <converters:GreaterThanOrEqualZeroToVisibilityConverter x:Key="GreaterThanOrEqualZeroToVisibilityConverter"></converters:GreaterThanOrEqualZeroToVisibilityConverter>
-    <converters:InverseBoolConverter x:Key="InverseBoolConverter"></converters:InverseBoolConverter>
-  </UserControl.Resources>
-  <Grid ColumnDefinitions="220,5,*"  IsEnabled="{Binding ControlEnable}">
-    <StackPanel Orientation="Vertical" Spacing="5" Margin="10">
-        <!-- 按钮区域 -->
-        <StackPanel  >
-            <StackPanel Orientation="Horizontal" Spacing="5">
-                <Button Content="开始测试" Command="{Binding StartTestCommand}" 
-                        IsEnabled="{Binding IsTestRunning, Converter={StaticResource InverseBoolConverter}}"/>
-                <Button Content="停止测试" Command="{Binding StopTestCommand}" 
-                        IsEnabled="{Binding IsTestRunning}"/>
+    <UserControl.Resources>
+        <converters:EnumToBooleanConverter x:Key="EnumConverter" />
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    </UserControl.Resources>
+    <Grid ColumnDefinitions="220,5,*" IsEnabled="{Binding ControlEnable}">
+        <StackPanel Orientation="Vertical" Spacing="5" Margin="10">
+            <!-- 按钮区域 -->
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Button Content="开始测试" Command="{Binding StartTestCommand}"
+                            IsEnabled="{Binding IsTestRunning, Converter={StaticResource InverseBoolConverter}}" />
+                    <Button Content="停止测试" Command="{Binding StopTestCommand}"
+                            IsEnabled="{Binding IsTestRunning}" />
+                </StackPanel>
+
             </StackPanel>
 
-        </StackPanel>
-
-        <!-- 进度显示区域 -->
-        <StackPanel Spacing="5" Margin="0,10,0,0">
-            <ProgressBar Minimum="0" Maximum="100"
-                         Value="{Binding SaveProgress}"
-                         IsVisible="{Binding ShowDataStorageInfo}"
-                         Height="25" />
-            <TextBlock
-                Foreground="{Binding StatusColor}"
-                Margin="0,5,0,0"
-                IsVisible="{Binding SettingsViewModel.SelectedTriggerType, 
+            <!-- 进度显示区域 -->
+            <StackPanel Spacing="5" Margin="0,10,0,0">
+                <ProgressBar Minimum="0" Maximum="100"
+                             Value="{Binding SaveProgress}"
+                             IsVisible="{Binding ShowDataStorageInfo}"
+                             Height="25" />
+                <TextBlock
+                    Foreground="{Binding StatusColor}"
+                    Margin="0,5,0,0"
+                    IsVisible="{Binding SettingsViewModel.SelectedTriggerType, 
                                Converter={StaticResource EnumConverter}, 
                                ConverterParameter=DebugTrigger}">
-                <Run Text="触发状态："></Run>
-                <Run Text="{Binding TriggerStatus}"></Run>
-            </TextBlock>
-            <StackPanel Orientation="Vertical" Margin="0 5">
-                <TextBlock Text="{Binding SaveStatus}"
-                           Foreground="{Binding StatusColor}"/>
-                <TextBlock Text="{Binding ReceivedPoints, StringFormat='已接收数据点：{0}'}"
-                           Foreground="{Binding StatusColor}"
-                           IsVisible="{Binding ShowDataStorageInfo}"/>
-                <TextBlock Text="{Binding SaveProgress, StringFormat='数据接收进度：{0}%'}"
-                           Foreground="{Binding StatusColor}"
-                           IsVisible="{Binding ShowDataStorageInfo}"/>
+                    <Run Text="触发状态：" />
+                    <Run Text="{Binding TriggerStatus}" />
+                </TextBlock>
+                <StackPanel Orientation="Vertical" Margin="0 5">
+                    <TextBlock Text="{Binding SaveStatus}"
+                               Foreground="{Binding StatusColor}" />
+                    <TextBlock Text="{Binding ReceivedPoints, StringFormat='已接收数据点：{0}'}"
+                               Foreground="{Binding StatusColor}"
+                               IsVisible="{Binding ShowDataStorageInfo}" />
+                    <TextBlock Text="{Binding SaveProgress, StringFormat='数据接收进度：{0}%'}"
+                               Foreground="{Binding StatusColor}"
+                               IsVisible="{Binding ShowDataStorageInfo}" />
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
-      
-      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
-        <TextBlock Text="选择信号类型：" FontSize="14" FontWeight="Bold"/>
-        <ComboBox ItemsSource="{Binding SignalTypes}" 
-                  SelectedItem="{Binding SelectedSignalType}" 
-                  IsEnabled="{Binding SelectedSignalTypeEnable}" 
-                  HorizontalAlignment="Stretch"/>
-      </StackPanel>
 
-      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
-        <TextBlock Text="采样率：" FontSize="14" FontWeight="Bold"/>
-        <ComboBox ItemsSource="{Binding SampleRateList}" 
-                  SelectedItem="{Binding SelectedSampleRate}" 
-                  IsEnabled="{Binding SelectedSignalTypeEnable}"
-                  DisplayMemberBinding="{Binding DisplayName}" 
-                  HorizontalAlignment="Stretch"/>
-      </StackPanel>
-      
-      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
-        <TextBlock Text="显示点数：" FontSize="14" FontWeight="Bold"/>
-        <TextBox Text="{Binding DisplayPointCount}"/>
-      </StackPanel>
-      
-      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
-        <TextBlock Text="直流：" FontSize="14" FontWeight="Bold"/>
-        <CheckBox Content="启用去直流" FontSize="14" IsChecked="{Binding RemoveDc}"/>
-      </StackPanel>
-      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
-        <TextBlock Text="窗函数：" FontSize="14" FontWeight="Bold"/>
-        <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding WindowFunctions}" SelectedItem="{Binding SelectedWindowFunction}"></ComboBox>
-      </StackPanel>
-      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
-        <TextBlock Text="滤波：" FontSize="14" FontWeight="Bold"/>
+            <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+                <TextBlock Text="选择信号类型：" FontSize="14" FontWeight="Bold" />
+                <ComboBox ItemsSource="{Binding SignalTypes}"
+                          SelectedItem="{Binding SelectedSignalType}"
+                          IsEnabled="{Binding SelectedSignalTypeEnable}"
+                          HorizontalAlignment="Stretch" />
+            </StackPanel>
 
-        <CheckBox Content="启用滤波" FontSize="14" IsChecked="{Binding EnableFilter}"/>
+            <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+                <TextBlock Text="采样率：" FontSize="14" FontWeight="Bold" />
+                <ComboBox ItemsSource="{Binding SampleRateList}"
+                          SelectedItem="{Binding SelectedSampleRate}"
+                          IsEnabled="{Binding SelectedSignalTypeEnable}"
+                          DisplayMemberBinding="{Binding DisplayName}"
+                          HorizontalAlignment="Stretch" />
+            </StackPanel>
 
-        <StackPanel Orientation="Vertical" IsEnabled="{Binding EnableFilter }" Spacing="5">
+            <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+                <TextBlock Text="显示点数：" FontSize="14" FontWeight="Bold" />
+                <TextBox Text="{Binding DisplayPointCount}" />
+            </StackPanel>
 
-          <!-- 低通 -->
-          <Grid ColumnDefinitions="Auto,*" Margin="5 0 0 0">
-            <RadioButton Content="低通"
-                        GroupName="Filter"
-                        VerticalAlignment="Center"
-                        IsChecked="{Binding FilterType, 
+            <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+                <TextBlock Text="直流：" FontSize="14" FontWeight="Bold" />
+                <CheckBox Content="启用去直流" FontSize="14" IsChecked="{Binding RemoveDc}" />
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+                <TextBlock Text="窗函数：" FontSize="14" FontWeight="Bold" />
+                <ComboBox HorizontalAlignment="Stretch" ItemsSource="{Binding WindowFunctions}"
+                          SelectedItem="{Binding SelectedWindowFunction}" />
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+                <TextBlock Text="滤波：" FontSize="14" FontWeight="Bold" />
+
+                <CheckBox Content="启用滤波" FontSize="14" IsChecked="{Binding EnableFilter}" />
+
+                <StackPanel Orientation="Vertical" IsEnabled="{Binding EnableFilter }" Spacing="5">
+
+                    <!-- 低通 -->
+                    <Grid ColumnDefinitions="Auto,*" Margin="5 0 0 0">
+                        <RadioButton Content="低通"
+                                     GroupName="Filter"
+                                     VerticalAlignment="Center"
+                                     IsChecked="{Binding FilterType, 
                                    Converter={StaticResource EnumConverter}, 
                                    ConverterParameter=LowPass, 
-                                   Mode=TwoWay}"/>
-            <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
-                          HorizontalAlignment="Stretch"
-                          IsEnabled="{Binding FilterType, 
+                                   Mode=TwoWay}" />
+                        <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                                       HorizontalAlignment="Stretch"
+                                       IsEnabled="{Binding FilterType, 
                                     Converter={StaticResource EnumConverter}, 
                                     ConverterParameter=LowPass}"
-                          Value="{Binding LowPass}"/>
-          </Grid>
+                                       Value="{Binding LowPass}" />
+                    </Grid>
 
-          <!-- 高通 -->
-          <Grid ColumnDefinitions="Auto,*" Margin="5 0 0 0">
-            <RadioButton Content="高通"
-                        GroupName="Filter"
-                        VerticalAlignment="Center"
-                        IsChecked="{Binding FilterType, 
+                    <!-- 高通 -->
+                    <Grid ColumnDefinitions="Auto,*" Margin="5 0 0 0">
+                        <RadioButton Content="高通"
+                                     GroupName="Filter"
+                                     VerticalAlignment="Center"
+                                     IsChecked="{Binding FilterType, 
                                    Converter={StaticResource EnumConverter}, 
                                    ConverterParameter=HighPass, 
-                                   Mode=TwoWay}"/>
-            <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
-                          HorizontalAlignment="Stretch"
-                          IsEnabled="{Binding FilterType, 
+                                   Mode=TwoWay}" />
+                        <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                                       HorizontalAlignment="Stretch"
+                                       IsEnabled="{Binding FilterType, 
                                     Converter={StaticResource EnumConverter}, 
                                     ConverterParameter=HighPass}"
-                          Value="{Binding HighPass}"/>
-          </Grid>
+                                       Value="{Binding HighPass}" />
+                    </Grid>
 
-          <!-- 带通 -->
-          <Grid ColumnDefinitions="Auto,*,*" Margin="5 0 0 0">
-            <RadioButton Content="带通"
-                        GroupName="Filter"
-                        VerticalAlignment="Center"
-                        IsChecked="{Binding FilterType, 
+                    <!-- 带通 -->
+                    <Grid ColumnDefinitions="Auto,*,*" Margin="5 0 0 0">
+                        <RadioButton Content="带通"
+                                     GroupName="Filter"
+                                     VerticalAlignment="Center"
+                                     IsChecked="{Binding FilterType, 
                                    Converter={StaticResource EnumConverter}, 
                                    ConverterParameter=BandPass, 
-                                   Mode=TwoWay}"/>
-            <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
-                          HorizontalAlignment="Stretch"
-                          IsEnabled="{Binding FilterType, 
+                                   Mode=TwoWay}" />
+                        <NumericUpDown Grid.Column="1" ShowButtonSpinner="False"
+                                       HorizontalAlignment="Stretch"
+                                       IsEnabled="{Binding FilterType, 
                                     Converter={StaticResource EnumConverter}, 
                                     ConverterParameter=BandPass}"
-                          Value="{Binding BandPassFirst}"/>
-            <NumericUpDown Grid.Column="2" ShowButtonSpinner="False"
-                          HorizontalAlignment="Stretch"
-                          Margin="5,0,0,0"
-                          IsEnabled="{Binding FilterType, 
+                                       Value="{Binding BandPassFirst}" />
+                        <NumericUpDown Grid.Column="2" ShowButtonSpinner="False"
+                                       HorizontalAlignment="Stretch"
+                                       Margin="5,0,0,0"
+                                       IsEnabled="{Binding FilterType, 
                                     Converter={StaticResource EnumConverter}, 
                                     ConverterParameter=BandPass}"
-                          Value="{Binding BandPassSecond}"/>
-          </Grid>
+                                       Value="{Binding BandPassSecond}" />
+                    </Grid>
+
+                </StackPanel>
+            </StackPanel>
 
         </StackPanel>
-      </StackPanel>
-
-    </StackPanel>
-    <GridSplitter Grid.Column="1"/>
-    <!-- 动态生成波形图 -->
-    <ScrollViewer Grid.Column="2">
-      <ItemsControl ItemsSource="{Binding Waveforms}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <Grid/>
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <UniformGrid Rows="2" Width="{Binding Bounds.Width, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type WrapPanel}}}">
-              <plot:CuPlotModelView MinHeight="200" DataContext="{Binding TimeDomainModel}"/>
-              <!-- 频域波形 -->
-              <plot:CuPlotModelView MinHeight="200" DataContext="{Binding FrequencyDomainModel}"/>
-            </UniformGrid>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </ScrollViewer>
-  </Grid>
+        <GridSplitter Grid.Column="1" />
+        <!-- 动态生成波形图 -->
+        <ScrollViewer Grid.Column="2">
+            <ItemsControl ItemsSource="{Binding Waveforms}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Grid />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <UniformGrid Rows="2"
+                                     Width="{Binding Bounds.Width, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type WrapPanel}}}">
+                            <plot:CuPlotModelView MinHeight="200" DataContext="{Binding TimeDomainModel}" />
+                            <!-- 频域波形 -->
+                            <plot:CuPlotModelView MinHeight="200" DataContext="{Binding FrequencyDomainModel}" />
+                        </UniformGrid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
 </UserControl>

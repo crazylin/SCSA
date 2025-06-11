@@ -1,36 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
+﻿using System.Globalization;
 using Avalonia.Data.Converters;
 
+namespace QuickMA.Modules.Plot;
 
-namespace QuickMA.Modules.Plot
+public class InteractionModeToVisibilityConverter : IValueConverter
 {
-    public class InteractionModeToVisibilityConverter : IValueConverter
+    // 新增反转显示参数（XAML中可配置）
+    public bool Invert { get; set; }
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        // 新增反转显示参数（XAML中可配置）
-        public bool Invert { get; set; }
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        if (value is InteractionMode mode)
         {
-            if (value is InteractionMode mode)
-            {
-                var shouldShow = mode == InteractionMode.RangeSelect;
-                if (Invert) shouldShow = !shouldShow;
+            var shouldShow = mode == InteractionMode.RangeSelect;
+            if (Invert) shouldShow = !shouldShow;
 
-                return shouldShow ;
-            }
-
-            return false;
+            return shouldShow;
         }
 
-        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
+        return false;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
     }
 }

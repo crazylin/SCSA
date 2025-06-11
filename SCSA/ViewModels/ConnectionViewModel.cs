@@ -9,16 +9,30 @@ using CommunityToolkit.Mvvm.Input;
 using System.Windows.Input;
 using SCSA.Models;
 using SCSA.IO.Net.TCP;
+using SCSA.Services.Device;
 using System.Net.Sockets;
 using System.Net;
 using System.Threading;
+using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Serilog;
+using FluentAvalonia.UI.Controls;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 
 namespace SCSA.ViewModels
 {
     public partial class ConnectionViewModel : ViewModelBase
     {
+        // 修改为 public 访问级别
+        public event EventHandler<DeviceConnection>? ParametersChanged;
+
+        // 添加事件触发方法
+        public void OnParametersChanged(DeviceConnection device)
+        {
+            ParametersChanged?.Invoke(this, device);
+        }
+
         private readonly PipelineTcpServer<PipelineNetDataPackage> _tcpServer;
         public ObservableCollection<NetworkInterfaceInfo> NetworkInterfaces { set; get; }
         public NetworkInterfaceInfo SelectedInterface { get; set; }
@@ -41,16 +55,11 @@ namespace SCSA.ViewModels
                 if (_selectedDevice != value)
                 {
                     _selectedDevice = value;
-
                     OnPropertyChanged();
-                    // 处理选中设备后的逻辑
                     if (_selectedDevice != null)
                     {
-                        ReadParameterCommand.ExecuteAsync(_selectedDevice);
-                        StatusMessage = $"已选中设备: {_selectedDevice.DeviceId}";
+                        ShowNotification($"已选中设备: {_selectedDevice.DeviceId}");
                     }
-
-                  
                 }
             }
         }
@@ -61,6 +70,8 @@ namespace SCSA.ViewModels
             get => _statusMessage;
             set => SetProperty(ref _statusMessage, value);
         }
+
+
         public ParameterViewModel ParameterViewModel { set; get; } 
         public ConnectionViewModel(PipelineTcpServer<PipelineNetDataPackage> tcpServer, ParameterViewModel parameterViewModel)
         {
@@ -71,7 +82,6 @@ namespace SCSA.ViewModels
             InitializeNetworkInterfaces();
 
             ParameterViewModel.ConnectionViewModel = this;
-
         }
 
         private void _tcpServer_ClientDisconnected(object? sender, PipelineTcpClient<PipelineNetDataPackage> e)
@@ -83,32 +93,68 @@ namespace SCSA.ViewModels
                 if (device != null)
                 {
                     ConnectedDevices.Remove(device);
+                    ShowNotification($"设备已断开连接: {e.RemoteEndPoint}", InfoBarSeverity.Warning);
                 }
             });
         }
 
         private void _tcpServer_ClientConnected(object? sender, PipelineTcpClient<PipelineNetDataPackage> e)
         {
-
             Log.Debug($"Client Connected {e.RemoteEndPoint}");
 
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
             {
-                ConnectedDevices.Add(new DeviceConnection
+                var device = new DeviceConnection
                 {
-                    //DeviceId = string.Empty,
-                    //FirmwareVersion = string.Empty,
                     EndPoint = e.RemoteEndPoint,
                     ConnectTime = DateTime.Now,
                     Client = e,
                     DeviceParameters = new List<DeviceParameter>(),
                     DeviceControlApi = new PipelineDeviceControlApiAsync(e)
-                });
-                //e.Start();
+                };
+
+                ConnectedDevices.Add(device);
+                ShowNotification($"新设备已连接: {e.RemoteEndPoint}", InfoBarSeverity.Success);
 
                 if (SelectedDevice == null && ConnectedDevices.Count > 0)
-                    SelectedDevice = ConnectedDevices.First();
+                {
+                    SelectedDevice = device;
+                    // 连接后立即读取参数
+                    await ReadParametersAsync(device);
+                }
             });
+        }
+
+        private async Task ReadParametersAsync(DeviceConnection device)
+        {
+            if (device == null)
+                return;
+
+            ShowNotification("正在读取参数...", InfoBarSeverity.Informational);
+            
+            CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var parameters = ParameterViewModel.Categories.SelectMany(c => c.Parameters.Select(p => p.Address))
+                .Select(p => new Parameter() { Address = (ParameterType)p }).ToList();
+            
+            try 
+            {
+                var result = await device.DeviceControlApi.ReadParameters(parameters, cts.Token);
+                if (result.success)
+                {
+                    ParameterViewModel.SetParameters(result.result);
+                    // 修改事件调用方式
+                    ParametersChanged?.Invoke(this, device);
+                    ShowNotification("参数读取成功", InfoBarSeverity.Success);
+                }
+                else
+                {
+                    ShowNotification("参数读取失败", InfoBarSeverity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowNotification($"参数读取出错: {ex.Message}", InfoBarSeverity.Error);
+            }
         }
 
         private void InitializeNetworkInterfaces()
@@ -143,32 +189,24 @@ namespace SCSA.ViewModels
                    networkInterface.NetworkInterfaceType == NetworkInterfaceType.Fddi;
         }
 
-
-
-   
-
         public ICommand StartCommand => new RelayCommand(() =>
         {
             if (SelectedInterface == null)
             {
-                StatusMessage = "请选择网络接口";
+                ShowNotification("请选择网络接口", InfoBarSeverity.Error);
                 return;
             }
 
             try
             {
-
                 var endPoint = GetEndPoint(SelectedInterface, Port);
                 _tcpServer.Start(endPoint);
-                StatusMessage = $"正在监听 {SelectedInterface.Name}:{Port}";
-
+                ShowNotification($"正在监听 {SelectedInterface.Name}:{Port}", InfoBarSeverity.Success);
                 Log.Debug("Server Started");
             }
             catch (Exception ex)
             {
-                StatusMessage = $"启动失败: {ex.Message}";
-
-
+                ShowNotification($"启动失败: {ex.Message}", InfoBarSeverity.Error);
                 Log.Debug($"Server Started Error {ex.Message}");
             }
         });
@@ -176,8 +214,7 @@ namespace SCSA.ViewModels
         public ICommand StopCommand => new RelayCommand(() =>
         {
             _tcpServer.Stop();
-            StatusMessage = "已停止监听";
-
+            ShowNotification("已停止监听", InfoBarSeverity.Informational);
             Log.Debug("Server Stopped");
         });
 
@@ -185,38 +222,8 @@ namespace SCSA.ViewModels
         {
             device.Client.Close();
             ConnectedDevices.Remove(device);
-            //_tcpServer.DisconnectDevice(device.DeviceId);
-
+            ShowNotification($"已断开设备连接: {device.EndPoint}", InfoBarSeverity.Informational);
         });
-
-        public AsyncRelayCommand<DeviceConnection> ReadParameterCommand => new AsyncRelayCommand<DeviceConnection>(
-            async device =>
-            {
-                if (device == null)
-                    return;
-                ;
-                CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                //var parameters = Enum.GetValues<ParameterType>().Select(p => new Parameter() { Address = p }).ToList();
-
-                var parameters = ParameterViewModel.Categories.SelectMany(c => c.Parameters.Select(p => p.Address))
-                    .Select(p => new Parameter() { Address = (ParameterType)p }).ToList();
-                var result = await device.DeviceControlApi.ReadParameters(parameters, cts.Token);
-                if (result.success)
-                {
-                    ParameterViewModel.SetParameters(result.result);
-                    ParameterChanged();
-                }
-
-
-                //await device.DeviceControlApi.SetParameters(new List<Parameter>() { new Parameter() { Address = 0x00000000, Length = 0x01, Value = (byte)1 } }, cts.Token);
-            });
-
-
-        public void ParameterChanged()
-        {
-            OnPropertyChanged(nameof(SelectedDevice));
-        }
-
 
         public IPEndPoint GetEndPoint(NetworkInterfaceInfo networkInterface, int port)
         {
@@ -241,5 +248,17 @@ namespace SCSA.ViewModels
             return new IPEndPoint(ipv4Address, port);
         }
 
+
+        public ICommand SelectDeviceCommand => new RelayCommand<DeviceConnection>(device =>
+        {
+            if (device != null)
+            {
+                SelectedDevice = device;
+                ReadParametersAsync(device);
+            }
+        });
+
+        public AsyncRelayCommand<DeviceConnection> ReadParameterCommand => new AsyncRelayCommand<DeviceConnection>(
+            async device => await ReadParametersAsync(device));
     }
 }

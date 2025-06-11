@@ -155,7 +155,7 @@ namespace SCSA.Client.Test.ViewModels
                                     {
                                         _dataUploadTask = new Task(async () =>
                                         {
-                                            var p = _parameters.First(pp => pp.Key == ParameterType.TriggerSampleMode);
+                                            var p = _parameters.First(pp => pp.Key == ParameterType.TriggerSampleType);
                                             if ((byte)p.Value.Value == (byte)TriggerType.DebugTrigger)
                                                 await Task.Delay(TimeSpan.FromSeconds(5));
                                             double sampleRate = 20000000;

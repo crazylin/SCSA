@@ -1,25 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Net;
 
-namespace SCSA.IO.Net.TCP
+namespace SCSA.IO.Net.TCP;
+
+public interface ITcpClient<T> where T : class, new()
 {
-    public interface ITcpClient<T> where T : class,new()
-    {
-        public ITcpServer<T> TcpServer { set; get; }
-        public IPEndPoint IpEndPoint { set; get; }
-        public void Start();
-        public void Stop();
+    public ITcpServer<T> TcpServer { set; get; }
+    public IPEndPoint IpEndPoint { set; get; }
 
-        public bool SendMessage(T netDataPackage);
+    public bool? Connected { get; }
+    public void Start();
+    public void Stop();
 
-        public bool? Connected { get; }
+    public bool SendMessage(T netDataPackage);
 
 
-        event EventHandler<T> DataReceived;
-
-    }
+    event EventHandler<T> DataReceived;
 }

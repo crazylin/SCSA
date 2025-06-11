@@ -1,9 +1,9 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using SCSA.Client.Test.ViewModels;
+using SCSA.ViewModels;
 
-namespace SCSA.Client.Test;
+namespace SCSA.Views;
 
 public class ViewLocator : IDataTemplate
 {
