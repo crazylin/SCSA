@@ -166,27 +166,61 @@ namespace SCSA.Client.Test.ViewModels
                                             var stopwatch = new Stopwatch();
                                             stopwatch.Start();
 
+                                            // 计算需要存储的总点数
+                                            int totalPoints;
+                                            if ((byte)p.Value.Value == (byte)TriggerType.DebugTrigger)
+                                            {
+                                                // DebugTrigger模式下固定存储64M/4点
+                                                totalPoints = 64 * 1024 * 1024 / 4;
+                                            }
+                                            else
+                                            {
+                                                // 其他模式下根据采样率和时间计算点数
+                                                totalPoints = (int)(sampleRate * 5); // 假设存储5秒
+                                            }
+                                            int currentPoints = 0;
+
                                             try
                                             {
                                                 while (!_cts.IsCancellationRequested)
                                                 {
+                                                    // 检查是否达到总点数
+                                                    if (currentPoints >= totalPoints)
+                                                    {
+                                                        break;
+                                                    }
+
                                                     var returnNetPackage = new NetDataPackage();
                                                     returnNetPackage.DeviceCommand = DeviceCommand.ReplyUploadData;
                                                     var list = new List<byte>();
                                                     list.AddRange(BitConverter.GetBytes((int)Convert.ToInt32(_parameters[ParameterType.UploadDataType].Value))
                                                        );
-                                                    list.AddRange(BitConverter.GetBytes(buffer.Length));
-
-                                                    // 生成正弦波数据
-                                                    for (int i = 0; i < buffer.Length; i++)
+                                                    
+                                                    // 计算本次需要发送的点数
+                                                    int pointsToSend;
+                                                    if ((byte)p.Value.Value == (byte)TriggerType.DebugTrigger)
                                                     {
-                                                        double sample = Math.Sin(2 * Math.PI * frequency * time) * 127 +
-                                                                        128;
+                                                        // 在调试触发模式下，确保不会超过总点数
+                                                        pointsToSend = Math.Min(buffer.Length, totalPoints - currentPoints);
+                                                    }
+                                                    else
+                                                    {
+                                                        pointsToSend = buffer.Length;
+                                                    }
+
+                                                    list.AddRange(BitConverter.GetBytes(pointsToSend));
+
+                                                    // 生成数据
+                                                    for (int i = 0; i < pointsToSend; i++)
+                                                    {
+                                                        double sample = 20; //Math.Sin(2 * Math.PI * frequency * time) * 127 + 128;
                                                         buffer[i] = (byte)sample;
                                                         time += timeIncrement;
                                                         list.AddRange(
                                                             BitConverter.GetBytes((float)buffer[i]));
                                                     }
+
+                                                    currentPoints += pointsToSend;
 
                                                     returnNetPackage.Data = list.ToArray();
 
@@ -194,7 +228,7 @@ namespace SCSA.Client.Test.ViewModels
                                                     Send(returnNetPackage);
                                                     // 精确时间控制
                                                     var elapsed = stopwatch.Elapsed;
-                                                    var targetTime = TimeSpan.FromSeconds(buffer.Length / sampleRate);
+                                                    var targetTime = TimeSpan.FromSeconds(pointsToSend / sampleRate);
                                                     if (elapsed < targetTime)
                                                     {
                                                         //await Task.Delay(targetTime - elapsed, _cts.Token);

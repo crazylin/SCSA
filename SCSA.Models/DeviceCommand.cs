@@ -22,6 +22,7 @@ namespace SCSA.Models
         /// </summary>
         RequestStopCollection = 0x02,
         ReplyStopCollection = 0x03,
+
         /// <summary>
         /// 0x02 数据上传
         /// </summary>
@@ -32,6 +33,7 @@ namespace SCSA.Models
         /// </summary>
         RequestSetParameters = 0x06,
         ReplySetParameters = 0x07,
+
         /// <summary>
         /// 0x04 读取参数
         /// </summary>

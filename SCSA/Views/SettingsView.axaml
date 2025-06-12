@@ -32,8 +32,8 @@
                                 Margin="15,0,0,0" />
                     </Grid>
                 </StackPanel>
-                <TextBlock Text="存储数据长度" FontSize="14" FontWeight="Bold" />
-                <StackPanel Orientation="Vertical" Spacing="5">
+                <TextBlock Text="存储数据长度" FontSize="14" FontWeight="Bold"  IsVisible="{Binding ShowDataLengthSettings}"/>
+                <StackPanel Orientation="Vertical" Spacing="5" IsVisible="{Binding ShowDataLengthSettings}">
                     <ComboBox ItemsSource="{Binding StorageTypes}" 
                               SelectedItem="{Binding SelectedStorageType}"
                               MinWidth="200">

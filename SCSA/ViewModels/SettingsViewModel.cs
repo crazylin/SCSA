@@ -53,6 +53,9 @@ namespace SCSA.ViewModels
         [ObservableProperty]
         private string _storageTimeDisplay;
 
+        [ObservableProperty]
+        private bool _showDataLengthSettings = true;
+
         public ObservableCollection<StorageType> StorageTypes { get; } = new(Enum.GetValues<StorageType>());
 
         public SettingsViewModel()
@@ -152,6 +155,12 @@ namespace SCSA.ViewModels
             // 当存储类型改变时，更新显示
             UpdateDataLengthDisplay();
             UpdateStorageTimeDisplay();
+        }
+
+        partial void OnSelectedTriggerTypeChanged(TriggerType value)
+        {
+            ShowDataLengthSettings = value != TriggerType.DebugTrigger;
+            UpdateDataLengthDisplay();
         }
 
         private void UpdateDataLengthDisplay()

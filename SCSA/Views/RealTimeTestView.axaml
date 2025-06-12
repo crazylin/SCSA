@@ -40,11 +40,12 @@
                 </TextBlock>
                 <StackPanel Orientation="Vertical" Margin="0 5">
                     <TextBlock Text="{Binding SaveStatus}"
-                               Foreground="{Binding StatusColor}" />
+                               Foreground="{Binding StatusColor}"
+                               IsVisible="{Binding ShowSaveStatus}"/>
                     <TextBlock Text="{Binding ReceivedPoints, StringFormat='已接收数据点：{0}'}"
                                Foreground="{Binding StatusColor}"
                                IsVisible="{Binding ShowDataStorageInfo}" />
-                    <TextBlock Text="{Binding SaveProgress, StringFormat='数据接收进度：{0}%'}"
+                    <TextBlock Text="{Binding SaveProgress, StringFormat='数据保存进度：{0}%'}"
                                Foreground="{Binding StatusColor}"
                                IsVisible="{Binding ShowDataStorageInfo}" />
                 </StackPanel>
