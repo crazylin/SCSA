@@ -62,9 +62,8 @@ namespace SCSA.Services
                 // 如果是调试触发模式，使用固定的数据长度
                 if (triggerType == TriggerType.DebugTrigger)
                 {
-                    // 增加调试模式下的数据长度，以支持高采样率下更长时间的录制
-                    // 对于20MHz采样率，这个设置可以支持约21秒的录制
-                    _targetDataLength = 400 * 1024 * 1024; // 增加到400M个数据点
+
+                    _targetDataLength = 64 * 1024 * 1024 / 4; 
                     _storageType = StorageType.ByLength;
                 }
                 else
