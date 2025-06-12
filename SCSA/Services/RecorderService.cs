@@ -16,7 +16,8 @@ namespace SCSA.Services
     public class RecorderService
     {
         public string StoragePath { set; get; }
-        private readonly IProgress<int> _progress;
+        private readonly IProgress<int> _saveProgress;
+        private readonly IProgress<int> _receivedProgress;
         private CancellationTokenSource _cancellationTokenSource;
         private List<FileStream> _currentFileStreams;
         private List<BinaryWriter> _currentWriters;
@@ -24,7 +25,7 @@ namespace SCSA.Services
         private long _totalDataPoints = 0;
         private long _enTotalDataPoints = 0;
         private long _targetDataLength = 0;
-        private int _targetTimeSeconds = 0;
+  
         private DateTime _startTime;
         private Channel<Dictionary<Parameter.DataChannelType, double[,]>> _dataChannel;
         private Task _processingTask;
@@ -37,10 +38,11 @@ namespace SCSA.Services
         // 添加数据采集完成事件
         public event EventHandler DataCollectionCompleted;
 
-        public RecorderService(string storagePath, IProgress<int> progress = null)
+        public RecorderService(string storagePath, IProgress<int> saveProgress,IProgress<int> receivedProgress)
         {
             StoragePath = storagePath;
-            _progress = progress;
+            _saveProgress = saveProgress;
+            _receivedProgress = receivedProgress;
             _dataChannel = Channel.CreateUnbounded<Dictionary<Parameter.DataChannelType, double[,]>>(
                 new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         }
@@ -60,14 +62,30 @@ namespace SCSA.Services
                 // 如果是调试触发模式，使用固定的数据长度
                 if (triggerType == TriggerType.DebugTrigger)
                 {
-                    _targetDataLength = 64 * 1024 * 1024 / 4; // 64M/4
+                    // 增加调试模式下的数据长度，以支持高采样率下更长时间的录制
+                    // 对于20MHz采样率，这个设置可以支持约21秒的录制
+                    _targetDataLength = 400 * 1024 * 1024; // 增加到400M个数据点
                     _storageType = StorageType.ByLength;
                 }
                 else
                 {
-                    _targetDataLength = targetDataLength;
-                    _targetTimeSeconds = targetTimeSeconds;
+                    if (_storageType == StorageType.ByLength)
+                    {
+                        _targetDataLength = targetDataLength;
+
+                    }else if (_storageType == StorageType.ByTime)
+                    {
+                        _targetDataLength = (long)(targetTimeSeconds * _sampleRate);
+                    }
+            
                 }
+
+                // 添加调试信息
+                Debug.WriteLine($"目标数据长度: {_targetDataLength}");
+                Debug.WriteLine($"采样率: {_sampleRate}");
+                Debug.WriteLine($"预期时间: {targetTimeSeconds}秒");
+                Debug.WriteLine($"存储类型: {_storageType}");
+                Debug.WriteLine($"触发类型: {triggerType}");
 
                 if (signalType == Parameter.DataChannelType.ISignalAndQSignal)
                 {
@@ -103,7 +121,14 @@ namespace SCSA.Services
                 _totalDataPoints = 0;
                 _enTotalDataPoints = 0;
                 _startTime = DateTime.Now;
-                _progress?.Report(0);
+                _saveProgress?.Report(0);
+                _receivedProgress.Report(0);
+    
+                while (_dataChannel.Reader.TryRead(out _))
+                {
+                    // 空循环体，直接丢弃数据
+                }
+ 
                 _isRecording = true;
 
                 // 启动数据处理任务
@@ -116,6 +141,7 @@ namespace SCSA.Services
                 throw new Exception($"启动记录失败: {ex.Message}", ex);
             }
         }
+
 
         public async Task StopRecordingAsync()
         {
@@ -153,7 +179,8 @@ namespace SCSA.Services
                     _currentFileStreams.Clear();
                 }
                 
-                _progress?.Report(100);
+                _saveProgress?.Report(100);
+                _receivedProgress?.Report(100);
             }
             catch (Exception ex)
             {
@@ -161,7 +188,7 @@ namespace SCSA.Services
             }
         }
 
-        public async Task WriteDataAsync(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
+        public async Task<bool> WriteDataAsync(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
         {
             if (!_isRecording)
             {
@@ -169,17 +196,11 @@ namespace SCSA.Services
             }
 
             await _dataChannel.Writer.WriteAsync(channelDatas);
+            _enTotalDataPoints += channelDatas.ElementAt(0).Value.GetLength(1);
+            var progress = (int)((double)_enTotalDataPoints / _targetDataLength * 100);
+            _receivedProgress?.Report(Math.Min(progress, 100));
 
-            //_enTotalDataPoints += channelDatas.ElementAt(0).Value.GetLength(1);
-            //// 检查是否达到目标
-            //if (_storageType == StorageType.ByLength)
-            //{
-            //    return _enTotalDataPoints >= _targetDataLength;
-            //}
-            //else // ByTime
-            //{
-            //    return _enTotalDataPoints >= (int)(_targetTimeSeconds * _sampleRate);
-            //}
+            return _isRecording;
         }
 
         private async Task ProcessDataAsync(CancellationToken cancellationToken)
@@ -196,16 +217,15 @@ namespace SCSA.Services
                         bool shouldStop = false;
                         if (_storageType == StorageType.ByLength)
                         {
-                            var remainingPoints = _targetDataLength - _enTotalDataPoints;
+                            var remainingPoints = _targetDataLength - _totalDataPoints;
                             var currentDataLength = channelData.GetLength(1);
 
                             if (remainingPoints <= currentDataLength)
                             {
-                              
                                 shouldStop = true;
                                 if (remainingPoints > 0)
                                 {
-                                    _enTotalDataPoints += remainingPoints;
+                           
                                     if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
                                     {
                                         var dataList = new List<Int16[]>();
@@ -230,7 +250,7 @@ namespace SCSA.Services
                             }
                             else
                             {
-                                _enTotalDataPoints += currentDataLength;
+                        
                                 if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
                                 {
                                     var dataList = new List<Int16[]>();
@@ -253,9 +273,8 @@ namespace SCSA.Services
                         }
                         else // ByTime
                         {
-                            var targetPoints = (int)(_targetTimeSeconds * _sampleRate);
-
-                            var remainingPoints = targetPoints - _enTotalDataPoints;
+          
+                            var remainingPoints = _targetDataLength - _totalDataPoints;
                             var currentDataLength = channelData.GetLength(1);
 
                             if (remainingPoints <= currentDataLength)
@@ -263,7 +282,7 @@ namespace SCSA.Services
                                 shouldStop = true;
                                 if (remainingPoints > 0)
                                 {
-                                    _enTotalDataPoints += remainingPoints;
+                     
                                     if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
                                     {
                                         var dataList = new List<Int16[]>();
@@ -288,7 +307,7 @@ namespace SCSA.Services
                             }
                             else
                             {
-                                _enTotalDataPoints += currentDataLength;
+                      
                                 if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
                                 {
                                     var dataList = new List<Int16[]>();
@@ -311,16 +330,10 @@ namespace SCSA.Services
                         }
 
                         // 更新进度
-                        if (_storageType == StorageType.ByLength && _targetDataLength > 0)
+                        if (_targetDataLength > 0)
                         {
                             var progress = (int)((double)_totalDataPoints / _targetDataLength * 100);
-                            _progress?.Report(Math.Min(progress, 100));
-                        }
-                        else if (_storageType == StorageType.ByTime && _targetTimeSeconds > 0)
-                        {
-                            var targetPoints = (int)(_targetTimeSeconds * _sampleRate);
-                            var progress = (int)((double)_totalDataPoints / targetPoints * 100);
-                            _progress?.Report(Math.Min(progress, 100));
+                            _saveProgress?.Report(Math.Min(progress, 100));
                         }
 
                         if (shouldStop)

@@ -69,25 +69,23 @@ namespace SCSA.ViewModels
         [ObservableProperty] private double _bandPassFirst = 100;
         [ObservableProperty] private double _bandPassSecond = 500;
 
-        // 新增数据保存相关属性
-        [ObservableProperty]
-        private bool _isSaving = false;
+
         [ObservableProperty]
         private double _saveProgress;
         [ObservableProperty]
-        private string _saveStatus = "";
-        [ObservableProperty]
-        private bool _showSaveStatus = true;
+        private string _testStatus = "";
         [ObservableProperty]
         private bool _isTestRunning = false;
         [ObservableProperty]
-        private string _receivedPoints = "0";
+        private double _receivedProgress;
         [ObservableProperty]
         private SolidColorBrush _statusColor = new(Colors.Black);
         [ObservableProperty]
         private bool _showDataStorageInfo;
         [ObservableProperty]
         private string _triggerStatus = "准备就绪";
+        [ObservableProperty]
+        private bool _shoudUpdate = false;
 
         private CancellationTokenSource _cts;
         private DispatcherTimer _timer;
@@ -117,7 +115,9 @@ namespace SCSA.ViewModels
             _recorderService = new RecorderService(SettingsViewModel.DataStoragePath, new Progress<int>(progress => 
             {
                 SaveProgress = progress;
-                SaveStatus = $"保存进度： {progress}%";
+            }), new Progress<int>(progress =>
+            {
+                ReceivedProgress = progress;
             }));
 
             // 订阅数据采集完成事件
@@ -134,18 +134,16 @@ namespace SCSA.ViewModels
                         SelectedSignalTypeEnable = true;
                         IsTestRunning = false;
                         TriggerStatus = "准备就绪";
-                        ShowSaveStatus = false;
+                        ShoudUpdate = false;
                         // 停止数据记录
                         await _recorderService.StopRecordingAsync();
-                        SaveStatus = "测试完成";
-                        ReceivedPoints = SettingsViewModel.SelectedStorageType == StorageType.ByLength ? 
-                            SettingsViewModel.DataLength.ToString() : 
-                            $"{SettingsViewModel.StorageTime}秒";
+                        TestStatus = "测试完成";
                         SaveProgress = 100;
+                        ReceivedProgress = 100;
                     }
                     catch (Exception ex)
                     {
-                        SaveStatus = $"停止测试失败: {ex.Message}";
+                        TestStatus = $"停止测试失败: {ex.Message}";
                     }
                 });
             };
@@ -375,11 +373,11 @@ namespace SCSA.ViewModels
                 try
                 {
                     IsTestRunning = true;
-                    SaveStatus = "测试运行中";
-                    ReceivedPoints = "0";
+                    TestStatus = "测试运行中";
                     SaveProgress = -1;
+                    ReceivedProgress = -1;
                     TriggerStatus = SettingsViewModel.SelectedTriggerType == TriggerType.DebugTrigger ? "等待触发中..." : "准备就绪";
-
+                    ShoudUpdate = true;
 
                     SelectedSignalTypeEnable = false;
                     SampleRate = Parameter.GetSampleRate((byte)SelectedSampleRate.RealValue);
@@ -390,7 +388,7 @@ namespace SCSA.ViewModels
                     // 启动数据记录
                     if (SettingsViewModel.EnableDataStorage)
                     {
-                        ShowSaveStatus = true;
+       
                         _recorderService.StoragePath = SettingsViewModel.DataStoragePath;
 
                         await _recorderService.StartRecordingAsync(
@@ -478,7 +476,7 @@ namespace SCSA.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    SaveStatus = $"启动测试失败: {ex.Message}";
+                    TestStatus = $"启动测试失败: {ex.Message}";
                     IsTestRunning = false;
                 }
             }
@@ -659,66 +657,40 @@ namespace SCSA.ViewModels
                     SelectedSignalTypeEnable = true;
                     IsTestRunning = false;
                     TriggerStatus = "准备就绪";
-                    ShowSaveStatus = false;
+                    ShoudUpdate = false; 
                     // 停止数据记录
                     if (SettingsViewModel.EnableDataStorage)
                     {
                         await _recorderService.StopRecordingAsync();
-                        SaveStatus = "测试已停止";
+                        TestStatus = "测试已停止";
                     }
                     else
                     {
-                        SaveStatus = "测试已停止";
+                        TestStatus = "测试已停止";
                     }
                 }
                 catch (Exception ex)
                 {
-                    SaveStatus = $"停止测试失败: {ex.Message}";
+                    TestStatus = $"停止测试失败: {ex.Message}";
                 }
             }
         });
 
         private async void DeviceControlApi_DataReceived(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
         {
+            if(!ShoudUpdate)
+                return;
             if (channelDatas.TryGetValue(SelectedSignalType, out var channelData))
             {
                 // 直接保存原始数据
                 if (IsTestRunning && SettingsViewModel.EnableDataStorage)
                 {
-                    try
-                    {
-                        _recorderService.WriteDataAsync(channelDatas);
-                        
-                        if (SettingsViewModel.SelectedStorageType == StorageType.ByLength)
-                        {
-                            ReceivedPoints = _recorderService.GetEnTotalDataPoints().ToString();
-                        }
-                        else
-                        {
-                            var points = _recorderService.GetEnTotalDataPoints();
-                            var time = points / SampleRate;
-                            ReceivedPoints = $"{time:F1}秒";
-                        }
-                        
-                        if (SettingsViewModel.SelectedStorageType == StorageType.ByLength)
-                        {
-                            SaveProgress = (int)((double)_recorderService.GetTotalDataPoints() / SettingsViewModel.DataLength * 100);
-                        }
-                        else
-                        {
-                            var points = _recorderService.GetTotalDataPoints();
-                            var totalPoints = (int)(SampleRate * SettingsViewModel.StorageTime);
-                            SaveProgress = (int)((double)points / totalPoints * 100);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        SaveStatus = $"保存数据失败: {ex.Message}";
-                    }
+                    ShoudUpdate = await _recorderService.WriteDataAsync(channelDatas);
                 }
                 else if (IsTestRunning)
                 {
                     SaveProgress = -1;
+                    ReceivedProgress = -1;
                 }
 
                 // 处理显示数据

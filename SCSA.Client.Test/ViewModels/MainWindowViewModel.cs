@@ -176,7 +176,10 @@ namespace SCSA.Client.Test.ViewModels
                                             else
                                             {
                                                 // 其他模式下根据采样率和时间计算点数
-                                                totalPoints = (int)(sampleRate * 5); // 假设存储5秒
+                                                // 移除硬编码的5秒限制，改为更大的值以支持长时间录制
+                                                // 使用long来避免整数溢出，然后安全地转换为int
+                                                long longTotalPoints = (long)(sampleRate * 60); // 支持60秒录制
+                                                totalPoints = longTotalPoints > int.MaxValue ? int.MaxValue : (int)longTotalPoints;
                                             }
                                             int currentPoints = 0;
 
@@ -213,7 +216,7 @@ namespace SCSA.Client.Test.ViewModels
                                                     // 生成数据
                                                     for (int i = 0; i < pointsToSend; i++)
                                                     {
-                                                        double sample = 20; //Math.Sin(2 * Math.PI * frequency * time) * 127 + 128;
+                                                        double sample = Math.Sin(2 * Math.PI * frequency * time) * 127 + 128;
                                                         buffer[i] = (byte)sample;
                                                         time += timeIncrement;
                                                         list.AddRange(
