@@ -1,15 +1,16 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:converters="clr-namespace:SCSA.Converters"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="SCSA.SettingsView">
-    <UserControl.Resources>
-        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+<reactiveUi:ReactiveUserControl x:TypeArguments="viewModels:SettingsViewModel" xmlns="https://github.com/avaloniaui"
+                                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                xmlns:converters="clr-namespace:SCSA.Converters"
+                                xmlns:reactiveUi="http://reactiveui.net"
+                                xmlns:viewModels="clr-namespace:SCSA.ViewModels"
+                                mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+                                x:Class="SCSA.SettingsView">
+    <reactiveUi:ReactiveUserControl.Resources>
         <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <converters:EnumToDisplayNameConverter x:Key="EnumToDisplayNameConverter" />
-    </UserControl.Resources>
+    </reactiveUi:ReactiveUserControl.Resources>
     <DockPanel>
         <ScrollViewer>
             <StackPanel Orientation="Vertical" Spacing="5" Margin="10">
@@ -32,9 +33,34 @@
                                 Margin="15,0,0,0" />
                     </Grid>
                 </StackPanel>
-                <TextBlock Text="存储数据长度" FontSize="14" FontWeight="Bold"  IsVisible="{Binding ShowDataLengthSettings}"/>
+                <TextBlock Text="文件格式" FontSize="14" FontWeight="Bold" />
+                <StackPanel Orientation="Vertical" Spacing="5">
+                    <ComboBox ItemsSource="{Binding FileFormatTypes}"
+                              SelectedItem="{Binding SelectedFileFormat}"
+                              MinWidth="200">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource EnumToDisplayNameConverter}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <StackPanel Orientation="Vertical" Spacing="5" IsVisible="{Binding ShowUFFFormatSettings}">
+                        <TextBlock Text="UFF子格式" FontSize="14" FontWeight="SemiBold" />
+                        <ComboBox ItemsSource="{Binding UFFFormatTypes}"
+                                  SelectedItem="{Binding SelectedUFFFormat}"
+                                  MinWidth="200">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource EnumToDisplayNameConverter}}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Text="存储数据长度" FontSize="14" FontWeight="Bold" IsVisible="{Binding ShowDataLengthSettings}" />
                 <StackPanel Orientation="Vertical" Spacing="5" IsVisible="{Binding ShowDataLengthSettings}">
-                    <ComboBox ItemsSource="{Binding StorageTypes}" 
+                    <ComboBox ItemsSource="{Binding StorageTypes}"
                               SelectedItem="{Binding SelectedStorageType}"
                               MinWidth="200">
                         <ComboBox.ItemTemplate>
@@ -43,21 +69,25 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    
-                    <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding SelectedStorageType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=ByLength}">
-                        <NumericUpDown AllowSpin="False" ParsingNumberStyle="Integer" FormatString="0" ShowButtonSpinner="False"
-                                   Value="{Binding DataLength}" Width="200" HorizontalAlignment="Left" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="5"
+                                IsVisible="{Binding SelectedStorageType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Length}">
+                        <NumericUpDown AllowSpin="False" ParsingNumberStyle="Integer" FormatString="0"
+                                       ShowButtonSpinner="False"
+                                       Value="{Binding DataLength}" Width="200" HorizontalAlignment="Left" />
                         <TextBlock Text="{Binding DataLengthDisplay}" VerticalAlignment="Center" Foreground="Green" />
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding SelectedStorageType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=ByTime}">
-                        <NumericUpDown AllowSpin="False" ParsingNumberStyle="Integer" FormatString="0" ShowButtonSpinner="False"
-                                   Value="{Binding StorageTime}" Width="200" HorizontalAlignment="Left" />
+                    <StackPanel Orientation="Horizontal" Spacing="5"
+                                IsVisible="{Binding SelectedStorageType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Time}">
+                        <NumericUpDown AllowSpin="False" ParsingNumberStyle="Float" FormatString="0.##"
+                                       ShowButtonSpinner="False"
+                                       Value="{Binding StorageTime}" Width="200" HorizontalAlignment="Left"
+                                       Increment="0.1" Minimum="0.1" />
                         <TextBlock Text="{Binding StorageTimeDisplay}" VerticalAlignment="Center" Foreground="Green" />
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>
-
-</UserControl>
+</reactiveUi:ReactiveUserControl>

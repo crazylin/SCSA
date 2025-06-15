@@ -1,420 +1,406 @@
 using System;
-using System.IO;
-using System.Threading.Tasks;
-using System.Threading;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using SCSA.Models;
-using Avalonia.Threading;
-using SCSA.Utils;
+using SCSA.Services.Recording;
+using SCSA.Services.Recording.Writers;
+using SCSA.UFF;
+using SCSA.UFF.Models;
 using SCSA.ViewModels;
 
-namespace SCSA.Services
+namespace SCSA.Services;
+
+public class RecorderService : IRecorderService
 {
-    public class RecorderService
+    private readonly IAppSettingsService _appSettingsService;
+    //private readonly List<short> _cmdIds = new(); // 添加CmdId列表
+    private readonly Channel<Dictionary<Parameter.DataChannelType, double[,]>> _dataChannel;
+
+    private readonly List<UFFStreamWriter> _uffStreamWriters = new();
+    private readonly SemaphoreSlim _uffWriteSemaphore = new(1, 1);
+    private CancellationTokenSource _cancellationTokenSource;
+    private List<IChannelWriter> _channelWriters;
+    private List<string> _currentFileNames;
+    private List<FileStream> _currentFileStreams;
+    private Parameter.DataChannelType _currentSignalType;
+
+    private bool _isRecording;
+    private Task _processingTask;
+    private IProgress<int> _receivedProgress;
+
+    private double _sampleRate;
+    private bool _saveAsUFF;
+    private IProgress<int> _saveProgress;
+
+    private DateTime _startTime;
+    private StorageType _storageType;
+    private long _targetDataLength;
+    private long _totalWDataPoints;
+    private long _totalRDataPoints;
+    private bool _uffStreamWritersInitialized;
+    private bool _useBinaryUFF;
+    public string StoragePath { set; get; }
+    // 同步锁用于防止 StopRecordingAsync 并发执行
+    private readonly object _stopLock = new();
+
+    public RecorderService(IAppSettingsService appSettingsService)
     {
-        public string StoragePath { set; get; }
-        private readonly IProgress<int> _saveProgress;
-        private readonly IProgress<int> _receivedProgress;
-        private CancellationTokenSource _cancellationTokenSource;
-        private List<FileStream> _currentFileStreams;
-        private List<BinaryWriter> _currentWriters;
-        private List<string> _currentFileNames;
-        private long _totalDataPoints = 0;
-        private long _enTotalDataPoints = 0;
-        private long _targetDataLength = 0;
-  
-        private DateTime _startTime;
-        private Channel<Dictionary<Parameter.DataChannelType, double[,]>> _dataChannel;
-        private Task _processingTask;
-        private Parameter.DataChannelType _currentSignalType;
-        private bool _isRecording = false;
-        private StorageType _storageType;
+        _appSettingsService = appSettingsService;
+        StoragePath = _appSettingsService.Load().DataStoragePath;
+        _dataChannel = Channel.CreateUnbounded<Dictionary<Parameter.DataChannelType, double[,]>>(
+            new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+    }
 
-        private double _sampleRate;
 
-        // 添加数据采集完成事件
-        public event EventHandler DataCollectionCompleted;
 
-        public RecorderService(string storagePath, IProgress<int> saveProgress,IProgress<int> receivedProgress)
+    // 添加数据采集完成事件
+    public event EventHandler DataCollectionCompleted;
+
+    public async Task StartRecordingAsync(Parameter.DataChannelType signalType, TriggerType triggerType,
+        double sampleRate, IProgress<int> saveProgress, IProgress<int> receivedProgress, long targetDataLength = 0,
+        double targetTimeSeconds = 0,
+        StorageType storageType = StorageType.Length, FileFormatType fileFormat = FileFormatType.Binary,
+        bool useBinaryUFF = true)
+    {
+        try
         {
-            StoragePath = storagePath;
             _saveProgress = saveProgress;
             _receivedProgress = receivedProgress;
-            _dataChannel = Channel.CreateUnbounded<Dictionary<Parameter.DataChannelType, double[,]>>(
-                new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+            _sampleRate = sampleRate;
+            _currentSignalType = signalType;
+            _storageType = storageType;
+            _saveAsUFF = fileFormat == FileFormatType.UFF;
+            _useBinaryUFF = useBinaryUFF;
+            //_cmdIds.Clear();
+
+            _targetDataLength = CalculateTargetDataLength(triggerType, targetDataLength, targetTimeSeconds);
+
+            var timestamp = InitializeRecordingStateAndGetTimestamp();
+            var fileNameSuffix = GenerateFileNameSuffix(triggerType, _targetDataLength, targetTimeSeconds, timestamp);
+            await InitializeWritersAsync(signalType, fileFormat, fileNameSuffix);
+
+            Debug.WriteLine($"目标数据长度: {_targetDataLength}");
+            Debug.WriteLine($"采样率: {_sampleRate}");
+            Debug.WriteLine($"预期时间: {targetTimeSeconds}秒");
+            Debug.WriteLine($"存储类型: {_storageType}");
+            Debug.WriteLine($"触发类型: {triggerType}");
+
+            //var cmdIdFileName = Path.Combine(StoragePath, $"CmdId_{fileNameSuffix}.txt");
+
+            _totalWDataPoints = 0;
+            _totalRDataPoints = 0;
+            _uffStreamWritersInitialized = false;
+            _startTime = DateTime.Now;
+            _saveProgress?.Report(0);
+            _receivedProgress.Report(0);
+
+            while (_dataChannel.Reader.TryRead(out _))
+            {
+                // Empty loop to discard stale data
+            }
+
+            _isRecording = true;
+
+            _cancellationTokenSource = new CancellationTokenSource();
+            _processingTask = ProcessDataAsync(_cancellationTokenSource.Token);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"启动记录失败: {ex.Message}");
+            throw;
+        }
+    }
+
+    // 添加记录CmdId的方法
+    //public void RecordCmdId(short cmdId)
+    //{
+    //    if (_isRecording) _cmdIds.Add(cmdId);
+    //}
+
+    // 接口实现，默认等待处理线程结束
+    public Task StopRecordingAsync() => StopRecordingAsyncInternal(true);
+
+    // 内部重载，可选择是否等待 _processingTask
+    private async Task StopRecordingAsyncInternal(bool waitForProcessing)
+    {
+        // 确保仅有一次真正进入停止逻辑
+        lock (_stopLock)
+        {
+            if (!_isRecording)
+                return;
+
+            _isRecording = false;
         }
 
-        public async Task StartRecordingAsync(Parameter.DataChannelType signalType, TriggerType triggerType, double sampleRate, long targetDataLength = 0, int targetTimeSeconds = 0, StorageType storageType = StorageType.ByLength)
+        _cancellationTokenSource?.Cancel();
+
+        try
         {
-            try
+            if (waitForProcessing && _processingTask != null)
             {
-                _sampleRate = sampleRate;
-                _currentSignalType = signalType;
-                _storageType = storageType;
-                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                _currentFileStreams = new List<FileStream>();
-                _currentWriters = new List<BinaryWriter>();
-                _currentFileNames = new List<string>();
-
-                // 如果是调试触发模式，使用固定的数据长度
-                if (triggerType == TriggerType.DebugTrigger)
+                if (!Task.CurrentId.HasValue || _processingTask.Id != Task.CurrentId.Value)
                 {
-
-                    _targetDataLength = 64 * 1024 * 1024 / 4; 
-                    _storageType = StorageType.ByLength;
+                    await _processingTask;
                 }
-                else
+            }
+
+            //// 保存CmdId列表
+            //if (_cmdIds.Count > 0)
+            //{
+            //    var cmdIdFileName = Path.Combine(StoragePath, $"CmdId_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+            //    await File.WriteAllLinesAsync(cmdIdFileName, _cmdIds.Select(id => id.ToString()));
+            //}
+
+            foreach (var writer in _channelWriters) writer?.Dispose();
+
+            foreach (var stream in _currentFileStreams) stream?.Dispose();
+
+            _channelWriters.Clear();
+            _currentFileStreams.Clear();
+            _currentFileNames.Clear();
+            //_cmdIds.Clear();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"停止记录失败: {ex.Message}");
+        }
+        finally
+        {
+            _isRecording = false;
+            DataCollectionCompleted?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public async Task<bool> WriteDataAsync(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
+    {
+        if (!_isRecording)
+            return false;
+        if (_dataChannel.Writer.TryWrite(channelDatas))
+        {
+
+            _totalRDataPoints += channelDatas.ElementAt(0).Value.GetLength(1);
+            var enProgress = (int)((double)_totalRDataPoints / _targetDataLength * 100);
+            _receivedProgress?.Report(enProgress);
+            return true;
+        }
+
+        return false;
+    }
+
+    private string InitializeRecordingStateAndGetTimestamp()
+    {
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        _currentFileStreams = new List<FileStream>();
+        _channelWriters = new List<IChannelWriter>();
+        _currentFileNames = new List<string>();
+        return timestamp;
+    }
+
+    private long CalculateTargetDataLength(TriggerType triggerType, long targetDataLength, double targetTimeSeconds)
+    {
+        if (triggerType == TriggerType.DebugTrigger)
+        {
+            _storageType = StorageType.Length;
+            return 64 * 1024 * 1024 / 4;
+        }
+
+        if (_storageType == StorageType.Time)
+        {
+            return (long)(targetTimeSeconds * _sampleRate);
+        }
+
+        return targetDataLength;
+    }
+
+    private string GenerateFileNameSuffix(TriggerType triggerType, long targetDataLength, double targetTimeSeconds,
+        string timestamp)
+    {
+        if (triggerType == TriggerType.DebugTrigger) return $"{_sampleRate}_{timestamp}";
+
+        var storageTypeStr = _storageType == StorageType.Length ? "ByLength" : "ByTime";
+        var targetInfo = _storageType == StorageType.Length
+            ? $"Len{targetDataLength}"
+            : $"Time{targetTimeSeconds}s";
+        return $"SR{_sampleRate}_{storageTypeStr}_{targetInfo}_{triggerType}_{timestamp}";
+    }
+
+    private async Task InitializeWritersAsync(Parameter.DataChannelType signalType, FileFormatType fileFormat,
+        string fileNameSuffix)
+    {
+        var fileExtension = GetFileExtension(fileFormat);
+        var saveAsWav = fileFormat == FileFormatType.WAV;
+
+        if (signalType == Parameter.DataChannelType.ISignalAndQSignal)
+        {
+            if (_saveAsUFF)
+            {
+                var iqFileName = Path.Combine(StoragePath, $"IQ_Signal_{fileNameSuffix}.{fileExtension}");
+                _currentFileNames.Add(iqFileName);
+                Directory.CreateDirectory(Path.GetDirectoryName(iqFileName));
+                _currentFileStreams.Add(null);
+                _channelWriters.Add(null);
+            }
+            else
+            {
+                var iFileName = Path.Combine(StoragePath, $"I_Signal_{fileNameSuffix}.{fileExtension}");
+                var qFileName = Path.Combine(StoragePath, $"Q_Signal_{fileNameSuffix}.{fileExtension}");
+                _currentFileNames.Add(iFileName);
+                _currentFileNames.Add(qFileName);
+
+                foreach (var fileName in _currentFileNames)
                 {
-                    if (_storageType == StorageType.ByLength)
-                    {
-                        _targetDataLength = targetDataLength;
-
-                    }else if (_storageType == StorageType.ByTime)
-                    {
-                        _targetDataLength = (long)(targetTimeSeconds * _sampleRate);
-                    }
-            
-                }
-
-                // 添加调试信息
-                Debug.WriteLine($"目标数据长度: {_targetDataLength}");
-                Debug.WriteLine($"采样率: {_sampleRate}");
-                Debug.WriteLine($"预期时间: {targetTimeSeconds}秒");
-                Debug.WriteLine($"存储类型: {_storageType}");
-                Debug.WriteLine($"触发类型: {triggerType}");
-
-                if (signalType == Parameter.DataChannelType.ISignalAndQSignal)
-                {
-                    // IQ信号需要两个文件
-                    var iFileName = Path.Combine(StoragePath, $"I_Signal_{sampleRate}_{timestamp}.bin");
-                    var qFileName = Path.Combine(StoragePath, $"Q_Signal_{sampleRate}_{timestamp}.bin");
-                    
-                    _currentFileNames.Add(iFileName);
-                    _currentFileNames.Add(qFileName);
-
-                    foreach (var fileName in _currentFileNames)
-                    {
-                        Directory.CreateDirectory(Path.GetDirectoryName(fileName));
-                        var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write);
-                        var writer = new BinaryWriter(fileStream);
-                        _currentFileStreams.Add(fileStream);
-                        _currentWriters.Add(writer);
-                    }
-                }
-                else
-                {
-                    // 其他信号类型只需要一个文件
-                    var fileName = Path.Combine(StoragePath, $"{signalType}_{sampleRate}_{timestamp}.bin");
-                    _currentFileNames.Add(fileName);
-                    
                     Directory.CreateDirectory(Path.GetDirectoryName(fileName));
                     var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write);
                     var writer = new BinaryWriter(fileStream);
                     _currentFileStreams.Add(fileStream);
-                    _currentWriters.Add(writer);
+                    if (saveAsWav)
+                        _channelWriters.Add(new WavChannelWriter(writer, (int)_sampleRate));
+                    else
+                        _channelWriters.Add(new BinChannelWriter(writer,
+                            _currentSignalType == Parameter.DataChannelType.ISignalAndQSignal
+                                ? BinDataType.Int16
+                                : BinDataType.Float32));
                 }
-                
-                _totalDataPoints = 0;
-                _enTotalDataPoints = 0;
-                _startTime = DateTime.Now;
-                _saveProgress?.Report(0);
-                _receivedProgress.Report(0);
-    
-                while (_dataChannel.Reader.TryRead(out _))
-                {
-                    // 空循环体，直接丢弃数据
-                }
- 
-                _isRecording = true;
-
-                // 启动数据处理任务
-                _cancellationTokenSource = new CancellationTokenSource();
-                _processingTask = ProcessDataAsync(_cancellationTokenSource.Token);
-            }
-            catch (Exception ex)
-            {
-                await StopRecordingAsync();
-                throw new Exception($"启动记录失败: {ex.Message}", ex);
             }
         }
-
-
-        public async Task StopRecordingAsync()
+        else
         {
-            try
-            {
-                _isRecording = false;
-                _cancellationTokenSource?.Cancel();
-                
-                if (_processingTask != null)
-                {
-                    await _processingTask;
-                }
+            var fileName = Path.Combine(StoragePath, $"{signalType}_{fileNameSuffix}.{fileExtension}");
+            _currentFileNames.Add(fileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(fileName));
 
-                if (_currentWriters != null)
-                {
-                    foreach (var writer in _currentWriters)
-                    {
-                        if (writer != null)
-                        {
-                            writer.Close();
-                        }
-                    }
-                    _currentWriters.Clear();
-                }
-                
-                if (_currentFileStreams != null)
-                {
-                    foreach (var stream in _currentFileStreams)
-                    {
-                        if (stream != null)
-                        {
-                            stream.Close();
-                        }
-                    }
-                    _currentFileStreams.Clear();
-                }
-                
-                _saveProgress?.Report(100);
-                _receivedProgress?.Report(100);
-            }
-            catch (Exception ex)
+            if (_saveAsUFF)
             {
-                throw new Exception($"停止记录失败: {ex.Message}", ex);
+                _currentFileStreams.Add(null);
+                _channelWriters.Add(null);
+            }
+            else
+            {
+                var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write);
+                var writer = new BinaryWriter(fileStream);
+                _currentFileStreams.Add(fileStream);
+                _channelWriters.Add(saveAsWav
+                    ? new WavChannelWriter(writer, (int)_sampleRate)
+                    : new BinChannelWriter(writer, BinDataType.Float32));
             }
         }
+    }
 
-        public async Task<bool> WriteDataAsync(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
+    private string GetFileExtension(FileFormatType fileFormat)
+    {
+        return fileFormat switch
         {
-            if (!_isRecording)
-            {
-                throw new InvalidOperationException("记录未启动");
-            }
+            FileFormatType.UFF => "uff",
+            FileFormatType.WAV => "wav",
+            _ => "bin"
+        };
+    }
 
-            await _dataChannel.Writer.WriteAsync(channelDatas);
-            _enTotalDataPoints += channelDatas.ElementAt(0).Value.GetLength(1);
-            var progress = (int)((double)_enTotalDataPoints / _targetDataLength * 100);
-            _receivedProgress?.Report(Math.Min(progress, 100));
-
-            return _isRecording;
-        }
-
-        private async Task ProcessDataAsync(CancellationToken cancellationToken)
+    private async Task ProcessDataAsync(CancellationToken cancellationToken)
+    {
+        try
         {
-            try
+            await foreach (var channelData in _dataChannel.Reader.ReadAllAsync(cancellationToken))
             {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    var channelDatas = await _dataChannel.Reader.ReadAsync(cancellationToken);
-                    
-                    if (channelDatas.TryGetValue(_currentSignalType, out var channelData))
+
+                foreach (var (channelType, data) in channelData)
+                    if (channelType == _currentSignalType)
                     {
-                        // 检查是否达到目标
-                        bool shouldStop = false;
-                        var remainingPoints = _targetDataLength - _totalDataPoints;
-                        var currentDataLength = channelData.GetLength(1);
+                        var perChannelDataLen = data.GetLength(1);
+                        var remainDataLen = _targetDataLength - _totalWDataPoints;
+                        if (remainDataLen >= perChannelDataLen)
+                            remainDataLen = perChannelDataLen;
+                            
+                        //if (_saveAsUFF)
+                        //{
+                        //    if (!_uffStreamWritersInitialized)
+                        //    {
+                        //        var channelCount = _currentSignalType == Parameter.DataChannelType.ISignalAndQSignal
+                        //            ? 2
+                        //            : 1;
+                        //        await InitializeUFFStreamWritersAsync(channelCount);
+                        //        _uffStreamWritersInitialized = true;
+                        //    }
 
-                        if (remainingPoints <= currentDataLength)
+                        //    var dataList = new List<double[]>();
+                        //    if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
+                        //    {
+                        //        var iSignal = new double[data.GetLength(1)];
+                        //        var qSignal = new double[data.GetLength(1)];
+                        //        for (var i = 0; i < data.GetLength(1); i++)
+                        //        {
+                        //            iSignal[i] = data[0, i];
+                        //            qSignal[i] = data[1, i];
+                        //        }
+
+                        //        dataList.Add(iSignal);
+                        //        dataList.Add(qSignal);
+                        //    }
+                        //    else
+                        //    {
+                        //        var signal = new double[data.Length];
+                        //        Buffer.BlockCopy(data, 0, signal, 0, data.Length * sizeof(double));
+                        //        dataList.Add(signal);
+                        //    }
+
+                        //    await WriteUFFData(dataList);
+                        //}
+                        //else
                         {
-                            shouldStop = true;
-                            if (remainingPoints > 0)
-                            {
-
-                                if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
-                                {
-                                    var dataList = new List<Int16[]>();
-                                    for (int i = 0; i < channelData.GetLength(0); i++)
-                                    {
-                                        var row = channelData.GetRow(i);
-                                        dataList.Add(row.Take((int)remainingPoints).Select(d => (Int16)d).ToArray());
-                                    }
-                                    WriteData(dataList);
-                                }
-                                else
-                                {
-                                    var dataList = new List<float[]>();
-                                    for (int i = 0; i < channelData.GetLength(0); i++)
-                                    {
-                                        var row = channelData.GetRow(i);
-                                        dataList.Add(row.Take((int)remainingPoints).Select(d => (float)d).ToArray());
-                                    }
-                                    WriteData(dataList);
-                                }
-                            }
-                        }
-                        else
-                        {
-
                             if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
                             {
-                                var dataList = new List<Int16[]>();
-                                for (int i = 0; i < channelData.GetLength(0); i++)
+                                var iSignal = new double[data.GetLength(1)];
+                                var qSignal = new double[data.GetLength(1)];
+                                for (var j = 0; j < data.GetLength(1); j++)
                                 {
-                                    dataList.Add(channelData.GetRow(i).Select(d => (Int16)d).ToArray());
+                                    iSignal[j] = data[0, j];
+                                    qSignal[j] = data[1, j];
                                 }
-                                WriteData(dataList);
+
+                                _channelWriters[0].Write(iSignal.Take((int)remainDataLen).ToArray());
+                                _channelWriters[1].Write(qSignal.Take((int)remainDataLen).ToArray());
                             }
                             else
                             {
-                                var dataList = new List<float[]>();
-                                for (int i = 0; i < channelData.GetLength(0); i++)
-                                {
-                                    dataList.Add(channelData.GetRow(i).Select(d => (float)d).ToArray());
-                                }
-                                WriteData(dataList);
+                                var signal = new double[data.Length];
+                                for (var j = 0; j < data.Length; j++) signal[j] = data[0, j];
+                                _channelWriters[0].Write(signal.Take((int)remainDataLen).ToArray());
                             }
-                        }
-                        // 更新进度
-                        if (_targetDataLength > 0)
-                        {
-                            var progress = (int)((double)_totalDataPoints / _targetDataLength * 100);
-                            _saveProgress?.Report(Math.Min(progress, 100));
+
+                            _totalWDataPoints += remainDataLen;
                         }
 
-                        if (shouldStop)
+                        var progressPercent = (int)((double)_totalWDataPoints / _targetDataLength * 100);
+                        _saveProgress?.Report(progressPercent);
+
+                        if (_totalWDataPoints >= _targetDataLength)
                         {
-                            // 触发数据采集完成事件
-                            DataCollectionCompleted?.Invoke(this, EventArgs.Empty);
+                            await StopRecordingAsyncInternal(false);
                             break;
                         }
                     }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // 正常取消，不需要处理
-            }
-            catch (Exception ex)
-            {
-                // 处理其他异常
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    throw new Exception($"数据处理失败: {ex.Message}", ex);
-                });
             }
         }
-
-        public void WriteData(List<double[]> channelData)
+        catch (OperationCanceledException)
         {
-            if (_currentWriters == null || _currentWriters.Count == 0)
-            {
-                throw new InvalidOperationException("记录未启动");
-            }
-
-            try
-            {
-                for (int i = 0; i < channelData.Count; i++)
-                {
-                    if (i < _currentWriters.Count)
-                    {
-                        var data = channelData[i];
-                        //_currentWriters[i].Write(data.Length);
-                        foreach (var value in data)
-                        {
-                            _currentWriters[i].Write(value);
-                        }
-                    }
-                }
-                
-                _totalDataPoints += channelData[0].Length;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"写入数据失败: {ex.Message}", ex);
-            }
+            Debug.WriteLine("数据处理任务被取消。");
         }
-
-        public void WriteData(List<float[]> channelData)
+        catch (Exception ex)
         {
-            if (_currentWriters == null || _currentWriters.Count == 0)
-            {
-                throw new InvalidOperationException("记录未启动");
-            }
-
-            try
-            {
-                for (int i = 0; i < channelData.Count; i++)
-                {
-                    if (i < _currentWriters.Count)
-                    {
-                        var data = channelData[i];
-                        //_currentWriters[i].Write(data.Length);
-                        foreach (var value in data)
-                        {
-                            _currentWriters[i].Write(value);
-                        }
-                    }
-                }
-
-                _totalDataPoints += channelData[0].Length;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"写入数据失败: {ex.Message}", ex);
-            }
+            Debug.WriteLine($"处理数据时出错: {ex.Message}");
         }
-
-        public void WriteData(List<Int16[]> channelData)
+        finally
         {
-            if (_currentWriters == null || _currentWriters.Count == 0)
-            {
-                throw new InvalidOperationException("记录未启动");
-            }
-
-            try
-            {
-                for (int i = 0; i < channelData.Count; i++)
-                {
-                    if (i < _currentWriters.Count)
-                    {
-                        var data = channelData[i];
-                        //_currentWriters[i].Write(data.Length);
-                        foreach (var value in data)
-                        {
-                            _currentWriters[i].Write(value);
-                        }
-                    }
-                }
-
-                _totalDataPoints += channelData[0].Length;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"写入数据失败: {ex.Message}", ex);
-            }
-        }
-
-        public List<string> GetCurrentFileNames()
-        {
-            return _currentFileNames;
-        }
-
-        public long GetTotalDataPoints()
-        {
-            return _totalDataPoints;
-        }
-
-        public long GetEnTotalDataPoints()
-        {
-            return _enTotalDataPoints;
-        }
-
-        public bool IsRecording()
-        {
-            return _isRecording;
-        }
-
-        public bool HasReachedTargetLength()
-        {
-            return _targetDataLength > 0 && _totalDataPoints >= _targetDataLength;
-        }
-
-        public DateTime GetStartTime()
-        {
-            return _startTime;
+            //if (_saveAsUFF) await CleanupUFFStreamWritersAsync();
         }
     }
-} 
+
+
+
+
+}

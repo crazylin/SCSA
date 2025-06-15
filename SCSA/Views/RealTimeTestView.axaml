@@ -1,15 +1,18 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:converters="using:SCSA.Converters"
-             xmlns:plot="clr-namespace:SCSA.Plot;assembly=SCSA.Plot"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="SCSA.RealTimeTestView">
-    <UserControl.Resources>
+<reactiveUi:ReactiveUserControl
+    x:TypeArguments="viewModels:RealTimeTestViewModel" xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:converters="using:SCSA.Converters"
+    xmlns:plot="clr-namespace:SCSA.Plot;assembly=SCSA.Plot"
+    xmlns:reactiveUi="http://reactiveui.net"
+    xmlns:viewModels="clr-namespace:SCSA.ViewModels"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    x:Class="SCSA.RealTimeTestView">
+    <reactiveUi:ReactiveUserControl.Resources>
         <converters:EnumToBooleanConverter x:Key="EnumConverter" />
         <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
-    </UserControl.Resources>
+    </reactiveUi:ReactiveUserControl.Resources>
     <Grid ColumnDefinitions="220,5,*" IsEnabled="{Binding ControlEnable}">
         <StackPanel Orientation="Vertical" Spacing="5" Margin="10">
             <!-- 按钮区域 -->
@@ -32,7 +35,7 @@
                 <TextBlock
                     Foreground="{Binding StatusColor}"
                     Margin="0,5,0,0"
-                    IsVisible="{Binding SettingsViewModel.SelectedTriggerType, 
+                    IsVisible="{Binding SelectedTriggerType, 
                                Converter={StaticResource EnumConverter}, 
                                ConverterParameter=DebugTrigger}">
                     <Run Text="触发状态：" />
@@ -40,7 +43,7 @@
                 </TextBlock>
                 <StackPanel Orientation="Vertical" Margin="0 5">
                     <TextBlock Text="{Binding TestStatus}"
-                               Foreground="{Binding StatusColor}"/>
+                               Foreground="{Binding StatusColor}" />
                     <TextBlock Text="{Binding ReceivedProgress, StringFormat='数据接收进度：{0}%'}"
                                Foreground="{Binding StatusColor}"
                                IsVisible="{Binding ShowDataStorageInfo}" />
@@ -172,4 +175,4 @@
             </ItemsControl>
         </ScrollViewer>
     </Grid>
-</UserControl>
+</reactiveUi:ReactiveUserControl>

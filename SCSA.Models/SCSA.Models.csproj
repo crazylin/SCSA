@@ -6,10 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
-    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="System.IO.Hashing" Version="9.0.5" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.2.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SCSA.IO\SCSA.IO.csproj" />

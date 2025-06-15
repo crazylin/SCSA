@@ -2,7 +2,6 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
-using Serilog;
 using PipeOptions = System.IO.Pipelines.PipeOptions;
 
 
@@ -84,13 +83,10 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
                     // socket 异常或断开
                     catch (SocketException e) when (e.SocketErrorCode == SocketError.ConnectionReset)
                     {
-                        Log.Debug(e.Message);
                         break;
                     }
                     catch (Exception e)
                     {
-                        Log.Debug(e.Message);
-
                         break;
                     }
 
@@ -110,7 +106,6 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
             }
             catch (Exception e)
             {
-                Log.Debug(e.Message);
             }
             finally
             {
@@ -150,7 +145,6 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
                 }
                 catch (Exception e)
                 {
-                    Log.Debug(e.Message);
                     break;
                 }
 
@@ -205,7 +199,6 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
             }
             catch (Exception e)
             {
-                Log.Debug(e.Message);
                 return false;
             }
         }

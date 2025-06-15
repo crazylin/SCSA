@@ -18,7 +18,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		通讯协议.docx = 通讯协议.docx
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SCSA.Plot", "SCSA.Plot\SCSA.Plot.csproj", "{9B2290D5-06D9-4EC1-9AA8-B8A666F9A78D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SCSA.Plot", "SCSA.Plot\SCSA.Plot.csproj", "{9B2290D5-06D9-4EC1-9AA8-B8A666F9A78D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

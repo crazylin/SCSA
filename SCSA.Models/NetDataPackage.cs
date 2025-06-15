@@ -1,6 +1,5 @@
 ﻿using System.IO.Hashing;
 using SCSA.IO.Net.TCP;
-using Serilog;
 
 namespace SCSA.Models;
 
@@ -38,7 +37,6 @@ public class NetDataPackage : INetDataPackage
         Crc = crc;
 
 
-        Log.Debug(ToString());
         //var bytes = Get();
         //Debug.WriteLine($"Server Recv: {bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
     }
@@ -56,14 +54,14 @@ public class NetDataPackage : INetDataPackage
         DataLen = Data is { Length: > 0 } ? Data.Length : 0;
         bytes.AddRange(BitConverter.GetBytes(DataLen));
         if (Data is { Length: > 0 }) bytes.AddRange(Data);
-        
+
         Crc = BitConverter.GetBytes(Crc32.HashToUInt32(bytes.ToArray()));
         //添加CRC校验
         bytes.AddRange(Crc);
 
 
         //Debug.WriteLine($"Build: {bytes.Select(d => d.ToString("x2")).Aggregate((p, n) => p + " " + n)}");
-        Log.Debug(ToString());
+
         return bytes.ToArray();
     }
 

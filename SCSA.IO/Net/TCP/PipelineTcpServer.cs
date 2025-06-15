@@ -53,7 +53,7 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
         _running = false;
         try
         {
-            _listener.Close();
+            _listener?.Close();
         }
         catch
         {

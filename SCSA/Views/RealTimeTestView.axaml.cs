@@ -1,8 +1,9 @@
-using Avalonia.Controls;
+using Avalonia.ReactiveUI;
+using SCSA.ViewModels;
 
 namespace SCSA;
 
-public partial class RealTimeTestView : UserControl
+public partial class RealTimeTestView : ReactiveUserControl<RealTimeTestViewModel>
 {
     public RealTimeTestView()
     {

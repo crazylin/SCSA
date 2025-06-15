@@ -3,167 +3,138 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
+using System.Reactive;
+using System.Reactive.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.Input;
-using System.Windows.Input;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using Newtonsoft.Json;
-using SCSA.Models;
 using FluentAvalonia.UI.Controls;
+using ReactiveUI;
+using SCSA.Models;
+using SCSA.ViewModels.Messages;
 
-namespace SCSA.ViewModels
+namespace SCSA.ViewModels;
+
+public class ParameterViewModel : ViewModelBase
 {
+    private readonly IStorageProvider _storageProvider;
 
-    public class ParameterViewModel : ViewModelBase
+    private DeviceConnection? _currentDevice;
+
+    public ParameterViewModel(IStorageProvider storageProvider)
     {
-        public DeviceConfiguration Config { get; }
-        public ObservableCollection<ParameterCategory> Categories { get; } = new();
-        public ConnectionViewModel ConnectionViewModel { set; get; }
+        _storageProvider = storageProvider;
 
-        private readonly IStorageProvider _storageProvider;
+        Config = new DeviceConfiguration();
+        Categories = new ObservableCollection<ParameterCategory>(Config.Categories);
 
-        public ParameterViewModel(IStorageProvider storageProvider)
+        // Listen for device and parameter changes
+        MessageBus.Current.Listen<SelectedDeviceChangedMessage>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(OnSelectedDeviceChanged);
+
+        MessageBus.Current.Listen<ParametersChangedMessage>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(OnParametersChanged);
+
+        var canExecute = this.WhenAnyValue(x => x.CurrentDevice)
+            .Select(device => device != null);
+
+        ReadParametersFromDeviceCommand = ReactiveCommand.Create(ReadParametersFromDevice, canExecute);
+        SaveCommand = ReactiveCommand.Create(Save, canExecute);
+        SaveAsCommand = ReactiveCommand.CreateFromTask(SaveAsAsync);
+    }
+
+    public DeviceConfiguration Config { get; }
+    public ObservableCollection<ParameterCategory> Categories { get; }
+
+    public DeviceConnection? CurrentDevice
+    {
+        get => _currentDevice;
+        private set => this.RaiseAndSetIfChanged(ref _currentDevice, value);
+    }
+
+    public ReactiveCommand<Unit, Unit> ReadParametersFromDeviceCommand { get; }
+    public ReactiveCommand<Unit, Unit> SaveCommand { get; }
+    public ReactiveCommand<Unit, Unit> SaveAsCommand { get; }
+
+    private void OnSelectedDeviceChanged(SelectedDeviceChangedMessage msg)
+    {
+        CurrentDevice = msg.Value;
+        if (CurrentDevice?.DeviceParameters != null) SetDeviceParameters(CurrentDevice.DeviceParameters);
+    }
+
+    private void OnParametersChanged(ParametersChangedMessage msg)
+    {
+        if (CurrentDevice != null && msg.Value.EndPoint.Equals(CurrentDevice.EndPoint))
+            SetDeviceParameters(msg.Value.DeviceParameters);
+    }
+
+    private void SetDeviceParameters(List<DeviceParameter> deviceParameters)
+    {
+        var parameters = deviceParameters
+            .Select(dp => new Parameter
+                { Address = (ParameterType)dp.Address, Value = dp.Value, Length = dp.DataLength })
+            .ToList();
+        SetParameters(parameters);
+    }
+
+    private void SetParameters(List<Parameter> parameters)
+    {
+        foreach (var uiParam in Config.Categories.SelectMany(c => c.Parameters))
         {
-            _storageProvider = storageProvider;
-  
-            Config = new DeviceConfiguration();
-            Categories = new ObservableCollection<ParameterCategory>(Config.Categories);
+            var receivedParam = parameters.FirstOrDefault(p => (int)p.Address == uiParam.Address);
+            if (receivedParam != null) uiParam.Value = receivedParam.Value;
         }
 
+        if (CurrentDevice != null)
+            CurrentDevice.DeviceParameters = Config.Categories.SelectMany(c => c.Parameters).ToList();
+    }
 
-        public void SetParameters(List<Parameter> parameters)
-        {
-            foreach (var deviceParameter in Config.Categories.SelectMany(c=>c.Parameters))
+    private void ReadParametersFromDevice()
+    {
+        ShowNotification("正在读取参数...");
+        MessageBus.Current.SendMessage(new RequestReadParametersMessage());
+    }
+
+    private void Save()
+    {
+        ShowNotification("正在保存参数...");
+        var parameters = Config.Categories.SelectMany(c => c.Parameters)
+            .Select(p => new Parameter
             {
-                foreach (var parameter in parameters)
-                {
-                    if ((int)parameter.Address == deviceParameter.Address)
-                    {
-                        deviceParameter.Value = parameter.Value;
-                        break;
-                    }
-                }
-            }
+                Address = (ParameterType)p.Address,
+                Length = p.DataLength,
+                Value = p.Value is bool b ? (byte)(b ? 1 : 0) : p.Value
+            }).ToList();
+        MessageBus.Current.SendMessage(new RequestWriteParametersMessage(parameters));
+    }
 
-            ConnectionViewModel.SelectedDevice.DeviceParameters =
-                Config.Categories.SelectMany(c => c.Parameters).ToList();
-            
-
-        }
-
-        public ICommand ReadParametersFromDeviceCommand => new RelayCommand(async () =>
+    private async Task SaveAsAsync()
+    {
+        var options = new FilePickerSaveOptions
         {
-            if (ConnectionViewModel.SelectedDevice==null)
+            Title = "保存配置文件",
+            SuggestedFileName = "data.json",
+            FileTypeChoices = new[] { new FilePickerFileType("配置文件") { Patterns = new[] { "*.json" } } }
+        };
+
+        try
+        {
+            var result = await _storageProvider.SaveFilePickerAsync(options);
+            if (result == null)
             {
-                ShowNotification("请先选择设备", InfoBarSeverity.Warning);
+                ShowNotification("已取消保存");
                 return;
             }
 
-            ShowNotification("正在读取参数...", InfoBarSeverity.Informational);
-            CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var parameters = Enum.GetValues<ParameterType>().Select(p => new Parameter() { Address = p }).ToList();
-            try
-            {
-                var result = await ConnectionViewModel.SelectedDevice.DeviceControlApi.ReadParameters(parameters, cts.Token);
-                if (result.success)
-                {
-                    SetParameters(result.result);
-                    // 修改事件调用方式
-                    ConnectionViewModel.OnParametersChanged(ConnectionViewModel.SelectedDevice);
-
-                    ShowNotification("参数读取成功", InfoBarSeverity.Success);
-                }
-                else
-                {
-                    ShowNotification("参数读取失败", InfoBarSeverity.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowNotification($"参数读取出错: {ex.Message}", InfoBarSeverity.Error);
-            }
-        });
-
-        public ICommand SaveCommand => new RelayCommand(async () =>
+            var json = JsonSerializer.Serialize(Config.Categories, new JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(result.Path.AbsolutePath, json);
+            ShowNotification("配置文件保存成功", InfoBarSeverity.Success);
+        }
+        catch (Exception ex)
         {
-            if (ConnectionViewModel.SelectedDevice == null)
-            {
-                ShowNotification("请先选择设备", InfoBarSeverity.Warning);
-                return;
-            }
-
-            ShowNotification("正在保存参数...", InfoBarSeverity.Informational);
-            CancellationTokenSource cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-
-            var parameters = new List<Parameter>();
-            foreach (var deviceParameter in Config.Categories.SelectMany(c => c.Parameters))
-            {
-                parameters.Add(new Parameter()
-                {
-                    Address = (ParameterType)deviceParameter.Address, 
-                    Length = deviceParameter.DataLength,
-                    Value = deviceParameter.Value is bool b ? b ? (byte)1 : (byte)0 : deviceParameter.Value
-                });
-            }
-
-            try
-            {
-                var result = await ConnectionViewModel.SelectedDevice.DeviceControlApi.SetParameters(parameters, cts.Token);
-                if (result)
-                {
-                    // 修改为使用新的事件触发方法
-                    ConnectionViewModel.OnParametersChanged(ConnectionViewModel.SelectedDevice);
-                    ShowNotification("参数保存成功", InfoBarSeverity.Success);
-                }
-                else
-                {
-                    ShowNotification("参数保存失败", InfoBarSeverity.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowNotification($"参数保存出错: {ex.Message}", InfoBarSeverity.Error);
-            }
-        });
-
-        public ICommand SaveAsCommand => new RelayCommand(async () =>
-        {
-            var options = new FilePickerSaveOptions
-            {
-                Title = "保存配置文件",
-                SuggestedFileName = "data.json",
-                FileTypeChoices = new[]
-                {
-                    new FilePickerFileType("配置文件")
-                    {
-                        Patterns = new[] { "*.json" }
-                    }
-                }
-            };
-
-            try
-            {
-                // 显示对话框并获取用户选择的路径
-                var result = await _storageProvider.SaveFilePickerAsync(options);
-                if (result == null)
-                {
-                    ShowNotification("已取消保存", InfoBarSeverity.Informational);
-                    return;
-                }
-
-                var json = JsonConvert.SerializeObject(Config.Categories, Formatting.Indented);
-                File.WriteAllText(result.Path.AbsolutePath, json);
-                ShowNotification("配置文件保存成功", InfoBarSeverity.Success);
-            }
-            catch (Exception ex)
-            {
-                ShowNotification($"保存配置文件失败: {ex.Message}", InfoBarSeverity.Error);
-            }
-        });
+            ShowNotification($"保存配置文件失败: {ex.Message}", InfoBarSeverity.Error);
+        }
     }
 }

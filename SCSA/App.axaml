@@ -3,7 +3,6 @@
              x:Class="SCSA.App"
              xmlns:local="using:SCSA.Views"
              xmlns:styling="clr-namespace:FluentAvalonia.Styling;assembly=FluentAvalonia"
-             xmlns:converters="clr-namespace:SCSA.Converters"
              RequestedThemeVariant="Default">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 

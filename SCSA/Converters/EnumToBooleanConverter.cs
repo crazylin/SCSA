@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Globalization;
-using Avalonia;
 using Avalonia.Data.Converters;
 
 namespace SCSA.Converters;
@@ -12,8 +11,8 @@ public class EnumToBooleanConverter : IValueConverter
         if (value == null || parameter == null)
             return false;
 
-        string enumValue = value.ToString();
-        string targetValue = parameter.ToString();
+        var enumValue = value.ToString();
+        var targetValue = parameter.ToString();
 
         return enumValue.Equals(targetValue);
     }
@@ -23,8 +22,8 @@ public class EnumToBooleanConverter : IValueConverter
         if (value == null || parameter == null)
             return null;
 
-        bool useValue = (bool)value;
-        string targetValue = parameter.ToString();
+        var useValue = (bool)value;
+        var targetValue = parameter.ToString();
         if (useValue)
             return Enum.Parse(targetType, targetValue);
 

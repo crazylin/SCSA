@@ -1,49 +1,55 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using System.Windows.Input;
+﻿using System.Collections.Generic;
+using ReactiveUI;
 
-namespace SCSA.ViewModels
+namespace SCSA.ViewModels;
+
+public class MainWindowViewModel : ViewModelBase
 {
-    public partial class MainWindowViewModel(
-        ConnectionViewModel connectionViewModel,
+    private NavItem _selectedItem;
+
+    public MainWindowViewModel(ConnectionViewModel connectionViewModel,
         RealTimeTestViewModel realTimeTestViewModel,
         FirmwareUpdateViewModel firmwareUpdateViewModel,
         SettingsViewModel settingsViewModel)
-        : ViewModelBase
     {
+        ConnectionViewModel = connectionViewModel;
+        RealTimeTestViewModel = realTimeTestViewModel;
+        FirmwareUpdateViewModel = firmwareUpdateViewModel;
+        SettingsViewModel = settingsViewModel;
 
-        public FirmwareUpdateViewModel FirmwareUpdateViewModel { set; get; } = firmwareUpdateViewModel;
-        public ConnectionViewModel ConnectionViewModel { set; get; } = connectionViewModel;
-        public RealTimeTestViewModel RealTimeTestViewModel { set; get; } = realTimeTestViewModel;
-        public SettingsViewModel SettingsViewModel { set; get; } = settingsViewModel;
+        NavItems = new List<NavItem>
+        {
+            new("设备管理", ConnectionViewModel, "ViewAll"),
+            new("实时测试", RealTimeTestViewModel, "Play"),
+            new("固件升级", FirmwareUpdateViewModel, "Sync")
+        };
 
-        [ObservableProperty] private object _contentView;
-        [ObservableProperty]
-        private object _selectedItem;
+        SelectedItem = NavItems[0];
 
-        //public object SelectedItem
-        //{
-        //    set
-        //    {
-        //        if (Equals(value, _selectedItem)) return;
-        //        _selectedItem = value;
-        //        var v = (dynamic)_selectedItem;
-        //        switch (int.Parse(v.Tag.ToString()))
-        //        {
-        //            case 0:
-        //                ContentView = ConnectionViewModel;
-        //                break;
-        //            case 1:
-        //                ContentView = RealTimeTestViewModel;
-        //                break;
-        //            case 2:
-        //                ContentView = FirmwareUpdateViewModel;
-        //                break;
-        //        }
-        //        OnPropertyChanged();
-        //    }
-        //    get => _selectedItem;
-        //}
 
+        FooterNavItems = new List<NavItem> { new("设置", SettingsViewModel, "Setting") };
     }
+
+    public IReadOnlyList<NavItem> NavItems { get; }
+
+    public NavItem SelectedItem
+    {
+        get => _selectedItem;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedItem, value);
+            this.RaisePropertyChanged(nameof(CurrentPage));
+        }
+    }
+
+    public IReadOnlyList<NavItem> FooterNavItems { get; set; }
+
+    public object CurrentPage => SelectedItem?.Page;
+
+    public ConnectionViewModel ConnectionViewModel { get; }
+    public RealTimeTestViewModel RealTimeTestViewModel { get; }
+    public FirmwareUpdateViewModel FirmwareUpdateViewModel { get; }
+    public SettingsViewModel SettingsViewModel { get; }
+
+    public record NavItem(string Title, object Page, object Icon);
 }

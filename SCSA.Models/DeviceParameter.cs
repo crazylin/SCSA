@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using CommunityToolkit.Mvvm.ComponentModel;
+using ReactiveUI;
 
 namespace SCSA.Models;
 
 // ParameterItem.cs
-public abstract class DeviceParameter : ObservableObject
+public abstract class DeviceParameter : ReactiveObject
 {
     public string Name { get; set; }
     public string Description { get; set; }
@@ -34,7 +34,7 @@ public class StringParameter : DeviceParameter
     public override object Value
     {
         get => _value;
-        set => SetProperty(ref _value, (string)value);
+        set => this.RaiseAndSetIfChanged(ref _value, (string)value);
     }
 }
 
@@ -45,7 +45,7 @@ public class BoolParameter : DeviceParameter
     public override object Value
     {
         get => _value;
-        set => SetProperty(ref _value, Convert.ToBoolean(value));
+        set => this.RaiseAndSetIfChanged(ref _value, Convert.ToBoolean(value));
     }
 }
 
@@ -58,7 +58,7 @@ public class NumberParameter : DeviceParameter
     public override object Value
     {
         get => _value;
-        set => SetProperty(ref _value, Convert.ToDouble(value));
+        set => this.RaiseAndSetIfChanged(ref _value, Convert.ToDouble(value));
     }
 }
 
@@ -71,7 +71,7 @@ public class FloatNumberParameter : DeviceParameter
     public override object Value
     {
         get => _value;
-        set => SetProperty(ref _value, Convert.ToSingle(value));
+        set => this.RaiseAndSetIfChanged(ref _value, Convert.ToSingle(value));
     }
 }
 
@@ -84,7 +84,7 @@ public class IntegerNumberParameter : DeviceParameter
     public override object Value
     {
         get => _value;
-        set => SetProperty(ref _value, Convert.ToInt32(value));
+        set => this.RaiseAndSetIfChanged(ref _value, Convert.ToInt32(value));
     }
 }
 
@@ -96,7 +96,7 @@ public class EnumParameter : DeviceParameter
     public override object Value
     {
         get => _value;
-        set => SetProperty(ref _value, value);
+        set => this.RaiseAndSetIfChanged(ref _value, value);
     }
 }
 
@@ -115,7 +115,8 @@ public class EnumCheckParameter : DeviceParameter
             if (_selectedValues != value)
             {
                 _selectedValues = value;
-                OnPropertyChanged();
+
+                this.RaisePropertyChanged();
                 Value = _selectedValues; // 同步到 Value 属性
             }
         }
@@ -132,8 +133,9 @@ public class EnumCheckParameter : DeviceParameter
                 _selectedValues = new List<object> { value };
             else
                 _selectedValues = new List<object>();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(SelectedValues));
+
+            this.RaisePropertyChanged();
+            this.RaisePropertyChanged(nameof(SelectedValues));
         }
     }
 }
@@ -146,7 +148,7 @@ public class EnumRadioParameter : DeviceParameter
     public override object Value
     {
         get => _value;
-        set => SetProperty(ref _value, value);
+        set => this.RaiseAndSetIfChanged(ref _value, value);
     }
 }
 //public class EnumRadioParameter : DeviceParameter

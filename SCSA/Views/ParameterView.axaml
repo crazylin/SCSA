@@ -1,15 +1,17 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:models="clr-namespace:SCSA.Models;assembly=SCSA.Models"
-             xmlns:converters="clr-namespace:SCSA.Converters"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="SCSA.ParameterView">
+<reactiveUi:ReactiveUserControl x:TypeArguments="viewModels:ParameterViewModel" xmlns="https://github.com/avaloniaui"
+                                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                xmlns:models="clr-namespace:SCSA.Models;assembly=SCSA.Models"
+                                xmlns:converters="clr-namespace:SCSA.Converters"
+                                xmlns:reactiveUi="http://reactiveui.net"
+                                xmlns:viewModels="clr-namespace:SCSA.ViewModels"
+                                mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+                                x:Class="SCSA.ParameterView">
 
-    <UserControl.Resources>
+    <reactiveUi:ReactiveUserControl.Resources>
         <converters:SelectedValuesConverter x:Key="SelectedValuesConverter" />
-    </UserControl.Resources>
+    </reactiveUi:ReactiveUserControl.Resources>
     <UserControl.DataTemplates>
 
         <DataTemplate DataType="{x:Type models:StringParameter}">
@@ -179,4 +181,4 @@
             </ItemsControl>
         </ScrollViewer>
     </DockPanel>
-</UserControl>
+</reactiveUi:ReactiveUserControl>
