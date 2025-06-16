@@ -100,6 +100,15 @@ public class SettingsViewModel : ViewModelBase
         this.WhenAnyValue(x => x.SelectedStorageType, x => x.StorageTime)
             .Select(t => FormatStorageTime(t.Item1, t.Item2))
             .ToProperty(this, x => x.StorageTimeDisplay, out _storageTimeDisplay, scheduler: RxApp.MainThreadScheduler);
+
+        // 更新 ShowDataLengthSettings: 调试触发时隐藏数据长度设置
+        this.WhenAnyValue(x => x.SelectedTriggerType)
+            .Subscribe(trigger => ShowDataLengthSettings = trigger != TriggerType.DebugTrigger);
+
+        // 初始化 ShowDataLengthSettings 值
+        ShowDataLengthSettings = SelectedTriggerType != TriggerType.DebugTrigger;
+
+        BrowseStoragePathCommand = ReactiveCommand.CreateFromTask(BrowseStoragePath);
     }
 
     public bool EnableDataStorage
@@ -166,37 +175,15 @@ public class SettingsViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _selectedUFFFormat, value);
     }
 
-    public bool ShowUFFFormatSettings
-    {
-        get => _showUFFFormatSettings;
-        set => this.RaiseAndSetIfChanged(ref _showUFFFormatSettings, value);
-    }
-
     public ObservableCollection<StorageType> StorageTypes { get; }
     public ObservableCollection<FileFormatType> FileFormatTypes { get; }
     public ObservableCollection<UFFFormatType> UFFFormatTypes { get; }
 
     public ReactiveCommand<Unit, Unit> SaveSettingsCommand { get; }
+    public ReactiveCommand<Unit, Unit> BrowseStoragePathCommand { get; }
 
-    /// <summary>
-    ///     获取是否保存为UFF格式
-    /// </summary>
-    public bool SaveAsUFF => SelectedFileFormat == FileFormatType.UFF;
 
-    /// <summary>
-    ///     获取是否使用二进制UFF格式
-    /// </summary>
-    public bool UseBinaryUFF => SelectedFileFormat == FileFormatType.UFF && SelectedUFFFormat == UFFFormatType.Binary;
 
-    /// <summary>
-    ///     获取文件扩展名
-    /// </summary>
-    public string FileExtension => SelectedFileFormat switch
-    {
-        FileFormatType.UFF => "uff",
-        FileFormatType.WAV => "wav",
-        _ => "bin"
-    };
 
     public bool EnableLogging
     {
@@ -215,7 +202,6 @@ public class SettingsViewModel : ViewModelBase
         SelectedTriggerType = settings.SelectedTriggerType;
         SelectedFileFormat = settings.SelectedFileFormat;
         SelectedUFFFormat = settings.SelectedUFFFormat;
-        ShowUFFFormatSettings = settings.SelectedFileFormat == FileFormatType.UFF;
         EnableLogging = settings.EnableLogging;
 
         // triggers calculations immediately

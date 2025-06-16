@@ -38,6 +38,8 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     private DeviceConnection? _currentDevice;
     private AppSettings _currentSettings;
     private DispatcherTimer _timer;
+    // 标记后台处理是否正在进行，避免重入
+    private volatile bool _isProcessing;
 
     // 标记是否已执行过停止清理，避免重复
     private int _hasCleaned;
@@ -334,170 +336,154 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     private void _timer_Tick(object? sender, EventArgs e)
     {
-        _timer.Stop();
+        if (_isProcessing) return;
+
+        // 快速从缓存抓取数据（UI 线程）
         List<double[]> latestData;
         lock (_cacheLock)
         {
-            // Snapshot
-            latestData = _cacheBuffers.Select(buf => buf.ToArray()).ToList();
+            latestData = _cacheBuffers.Select(b => b.ToArray()).ToList();
         }
 
-        if (latestData.Count == 0)
+        if (latestData.Count == 0 || latestData[0].Length < DisplayPointCount)
         {
-            _timer.Start();
-            return;
-        };
-
-        // 若采样数量不足，不刷新，避免频繁重绘
-        if (latestData[0].Length < DisplayPointCount)
-        {
-            _timer.Start();
-            return;
+            return; // 数据不足，等待下一轮
         }
 
-        // ---------------------
-        // 预处理：去直流 + 滤波 + 加窗
-        // ---------------------
+        _isProcessing = true;
+        _timer.Stop();
 
-        var processedData = new List<double[]>();      // 时域显示使用
-        var fftInputData = new List<double[]>();       // 仅用于FFT，额外乘以窗函数
+        // 捕获当前状态，避免后台线程访问 UI 线程对象
+        var sampleRate = SampleRate;
+        var windowFunc = SelectedWindowFunction;
+        var removeDc = RemoveDc;
+        var enableFilter = EnableFilter;
+        var filterType = FilterType;
+        var lowPass = LowPass;
+        var highPass = HighPass;
+        var bandPassFirst = BandPassFirst;
+        var bandPassSecond = BandPassSecond;
+        var yUnit = Waveforms[0].FrequencyDomainModel.PlotModel.YUnit;
+        var isIQ = SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal;
 
-        foreach (var ch in latestData)
+        Task.Run(() =>
         {
-            var data = new double[ch.Length];
-            Array.Copy(ch, data, ch.Length);
+            // -----------------------------  后台线程：数据预处理  -----------------------------
+            var processedData = new List<double[]>();      // 时域显示使用
+            var fftInputData = new List<double[]>();       // 用于 FFT
 
-            // 1) 去直流
-            if (RemoveDc)
+            foreach (var ch in latestData)
             {
-                var mean = data.Average();
-                for (var i = 0; i < data.Length; i++)
-                    data[i] -= mean;
-            }
-   
-            // 2) 加窗用于FFT
-            var window = Window.GetWindow(SelectedWindowFunction, data.Length);
-            var winData = new double[data.Length];
-            for (var i = 0; i < data.Length; i++)
-                winData[i] = data[i] * window[i];
-            fftInputData.Add(winData);
+                var data = new double[ch.Length];
+                Array.Copy(ch, data, ch.Length);
 
-            // 3) 滤波
-            if (EnableFilter)
-                data = SignalProcessingService.FilterSamples(
-                    FilterType,
-                    data,
-                    SampleRate,
-                    LowPass,
-                    HighPass,
-                    BandPassFirst,
-                    BandPassSecond);
-
-            // 保存时域数据（无窗）
-            processedData.Add(data);
-
-        }
-
-        // 计算时域峰值（根据所有通道，使用" / "分隔）
-        if (processedData.Count > 0)
-        {
-            var timePeakResults = processedData.Select(SignalProcessingService.CalculateTimePeak).ToList();
-            string fmta(double d) => $"{d,9:+0.000;-0.000;0.000}"; // 始终带符号并固定 9 宽
-            string fmt(double d) => $"{d,8:0.000}"; // 始终带符号并固定 8 宽
-            var channelStrings = timePeakResults
-                .Select(r => $"Avg:{fmta(r.AveragePeak)} Pk-Pk:{fmt(r.PeakToPeak)} RMS:{fmt(r.EffectivePeak)} ({Waveforms[0].FrequencyDomainModel.PlotModel.YUnit})");
-            Waveforms[0].TimeDomainModel.PlotModel.SubTitle = string.Join(" / ", channelStrings);
-        }
-
-        // Update time-domain plot (使用处理后的数据)
-        var timeDomainSeries = Waveforms[0].TimeDomainModel.PlotModel.Series;
-        for (var i = 0; i < processedData.Count && i < timeDomainSeries.Count; i++)
-        {
-            var series = (LineSeries)timeDomainSeries[i];
-            var points = new List<DataPoint>(processedData[i].Length);
-            for (var j = 0; j < processedData[i].Length; j++)
-                points.Add(new DataPoint(j / SampleRate, processedData[i][j]));
-            series.Points.Clear();
-            series.Points.AddRange(points);
-        }
-     
-        Waveforms[0].TimeDomainModel.PlotModel.InvalidatePlot(true);
-
-        // 计算 FFT
-        var fftData = fftInputData.Select(pd => SignalProcessingService.ComputeFft(pd)).ToList();
-
-        // Update frequency-domain plot
-        var freqDomainSeries = Waveforms[0].FrequencyDomainModel.PlotModel.Series;
-        for (var i = 0; i < fftData.Count && i < freqDomainSeries.Count; i++)
-        {
-            var series = (LineSeries)freqDomainSeries[i];
-            var points = new List<DataPoint>(fftData[i].Length);
-            var freqStep = SampleRate / processedData[i].Length;
-            for (var j = 0; j < fftData[i].Length; j++) points.Add(new DataPoint(j * freqStep, fftData[i][j]));
-            series.Points.Clear();
-            series.Points.AddRange(points);
-        }
-
-        // 调整频域 X 轴范围与滤波带宽一致
-        var xAxis = Waveforms[0].FrequencyDomainModel.PlotModel.Axes.First(a => a.Position == AxisPosition.Bottom);
-        double nyquist = SampleRate / 2;
-        double minFreq = 0;
-        double maxFreq = nyquist;
-        if (EnableFilter)
-        {
-            switch (FilterType)
-            {
-                case FilterType.LowPass:
-                    maxFreq = LowPass;
-                    break;
-                case FilterType.HighPass:
-                    minFreq = HighPass;
-                    break;
-                case FilterType.BandPass:
-                    minFreq = BandPassFirst;
-                    maxFreq = BandPassSecond;
-                    break;
-            }
-            // 防止设置范围无效
-            if (maxFreq <= 0) maxFreq = nyquist;
-            if (minFreq < 0) minFreq = 0;
-            if (maxFreq <= minFreq) maxFreq = minFreq + nyquist / 10;
-        }
-        xAxis.Minimum = minFreq;
-        xAxis.Maximum = maxFreq;
-
-        // 计算频域峰值（根据所有通道，使用" / "分隔）
-        if (freqDomainSeries.Count > 0)
-        {
-            var freqPeakResults = freqDomainSeries.Cast<LineSeries>()
-                .Select(ls => SignalProcessingService.CalculateFreqPeak(ls.Points.ToArray()))
-                .ToList();
-            string fmt(double d) => $"{d,8:0.000;0.000}"; // 始终带符号并固定 8 宽
-            var channelStrings = freqPeakResults
-                .Select(r => $"F:{fmt(r.Position)}Hz Pk:{fmt(r.Peak)} ({Waveforms[0].FrequencyDomainModel.PlotModel.YUnit})");
-            Waveforms[0].FrequencyDomainModel.PlotModel.SubTitle = string.Join(" / ", channelStrings);
-        }
-
-        Waveforms[0].FrequencyDomainModel.PlotModel.InvalidatePlot(true);
-
-        // 更新李萨如图 (I vs Q)
-        if (SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal && processedData.Count >= 2)
-        {
-            var lissajousSeries = Waveforms[0].LissajousModel?.PlotModel.Series.FirstOrDefault() as ScatterSeries;
-            if (lissajousSeries != null)
-            {
-                lissajousSeries.Points.Clear();
-                var len = processedData[0].Length;//Math.Min(processedData[0].Length, 10240); // 限制点数
-                for (int k = 0; k < len; k++)
+                // 1) 去直流
+                if (removeDc)
                 {
-                    lissajousSeries.Points.Add(new ScatterPoint(processedData[0][k], processedData[1][k]));
+                    var mean = data.Average();
+                    for (int i = 0; i < data.Length; i++)
+                        data[i] -= mean;
                 }
-                Waveforms[0].LissajousModel.PlotModel.InvalidatePlot(true);
 
-                // 计算相关系数与强度
+                // 2) 加窗（FFT 使用）
+                var window = Window.GetWindow(windowFunc, data.Length);
+                var winData = new double[data.Length];
+                for (int i = 0; i < data.Length; i++)
+                    winData[i] = data[i] * window[i];
+                fftInputData.Add(winData);
+
+                // 3) 滤波
+                if (enableFilter)
+                {
+                    data = SignalProcessingService.FilterSamples(
+                        filterType,
+                        data,
+                        sampleRate,
+                        lowPass,
+                        highPass,
+                        bandPassFirst,
+                        bandPassSecond);
+                }
+
+                processedData.Add(data);
+            }
+
+            // 生成时域 DataPoints
+            var timeSeriesPoints = new List<List<DataPoint>>();
+            for (int i = 0; i < processedData.Count; i++)
+            {
+                var seriesPts = new List<DataPoint>(processedData[i].Length);
+                for (int j = 0; j < processedData[i].Length; j++)
+                    seriesPts.Add(new DataPoint(j / sampleRate, processedData[i][j]));
+                timeSeriesPoints.Add(seriesPts);
+            }
+
+            // 计算时域峰值字符串
+            string fmta(double d) => $"{d,9:+0.000;-0.000;0.000}";
+            string fmt(double d) => $"{d,8:0.000}";
+            var timePeakResults = processedData.Select(SignalProcessingService.CalculateTimePeak).ToList();
+            var timeSubTitle = string.Join(" / ",
+                timePeakResults.Select(r =>
+                    $"Avg:{fmta(r.AveragePeak)} Pk-Pk:{fmt(r.PeakToPeak)} RMS:{fmt(r.EffectivePeak)} ({yUnit})"));
+
+            // -----------------------------  FFT  -----------------------------
+            var fftData = fftInputData.Select(pd => SignalProcessingService.ComputeFft(pd)).ToList();
+
+            var freqSeriesPoints = new List<List<DataPoint>>();
+            for (int i = 0; i < fftData.Count; i++)
+            {
+                var pts = new List<DataPoint>(fftData[i].Length);
+                var freqStep = sampleRate / processedData[i].Length;
+                for (int j = 0; j < fftData[i].Length; j++)
+                    pts.Add(new DataPoint(j * freqStep, fftData[i][j]));
+                freqSeriesPoints.Add(pts);
+            }
+
+            // 计算频域峰值
+            string fmtFreq(double d) => $"{d,8:0.000;0.000}";
+            var freqPeakResults = freqSeriesPoints.Select((pts) =>
+                SignalProcessingService.CalculateFreqPeak(pts.ToArray())).ToList();
+            var freqSubTitle = string.Join(" / ",
+                freqPeakResults.Select(r => $"F:{fmtFreq(r.Position)}Hz Pk:{fmtFreq(r.Peak)} ({yUnit})"));
+
+            // 轴范围
+            double nyquist = sampleRate / 2;
+            double minFreq = 0;
+            double maxFreq = nyquist;
+            if (enableFilter)
+            {
+                switch (filterType)
+                {
+                    case FilterType.LowPass:
+                        maxFreq = lowPass;
+                        break;
+                    case FilterType.HighPass:
+                        minFreq = highPass;
+                        break;
+                    case FilterType.BandPass:
+                        minFreq = bandPassFirst;
+                        maxFreq = bandPassSecond;
+                        break;
+                }
+                if (maxFreq <= 0) maxFreq = nyquist;
+                if (minFreq < 0) minFreq = 0;
+                if (maxFreq <= minFreq) maxFreq = minFreq + nyquist / 10;
+            }
+
+            // -----------------------------  IQ 李萨如图 -----------------------------
+            List<ScatterPoint>? lissaPts = null;
+            string? lissaSubTitle = null;
+            double strength = 0;
+            if (isIQ && processedData.Count >= 2)
+            {
                 var iSig = processedData[0];
                 var qSig = processedData[1];
-                int lenSig = iSig.Length;//Math.Min(iSig.Length, 4096);
+                int lenSig = iSig.Length;
+                lissaPts = new List<ScatterPoint>(lenSig);
+                for (int k = 0; k < lenSig; k++)
+                    lissaPts.Add(new ScatterPoint(iSig[k], qSig[k]));
+
+                // 相关系数
                 double sumI = 0, sumQ = 0, sumI2 = 0, sumQ2 = 0, sumIQ = 0;
                 for (int m = 0; m < lenSig; m++)
                 {
@@ -516,22 +502,81 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 double stdQ = Math.Sqrt(Math.Max((sumQ2 / lenSig) - meanQ * meanQ, 1e-12));
                 double corr = cov / (stdI * stdQ);
 
-                // 信号强度：向量幅值均方根
+                // 信号强度
                 double strengthRms = 0;
                 for (int m = 0; m < lenSig; m++)
                     strengthRms += iSig[m] * iSig[m] + qSig[m] * qSig[m];
                 strengthRms = Math.Sqrt(strengthRms / lenSig);
+                strength = Math.Min(1.0, strengthRms / 100.0);
 
                 string fmt8(double d) => $"{d,8:0.000}";
-                Waveforms[0].LissajousModel.PlotModel.SubTitle = $"Corr:{fmt8(corr)}  RMS:{fmt8(strengthRms)}";
-
-                Waveforms[0].Strength = Math.Min(1.0, strengthRms / 100.0);
+                lissaSubTitle = $"Corr:{fmt8(corr)}  RMS:{fmt8(strengthRms)}";
             }
-        }
 
-        _timer.Start();
+            var result = new PlotData(timeSeriesPoints, timeSubTitle, freqSeriesPoints, freqSubTitle, lissaPts, lissaSubTitle, minFreq, maxFreq, strength);
+
+            // ------------------ 切回 UI 线程进行渲染 ------------------
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                ApplyPlotData(result);
+                _isProcessing = false;
+                _timer.Start();
+            });
+        });
     }
 
+    private record PlotData(
+        List<List<DataPoint>> TimeSeries,
+        string TimeSubTitle,
+        List<List<DataPoint>> FreqSeries,
+        string FreqSubTitle,
+        List<ScatterPoint>? Lissajous,
+        string? LissajousSubTitle,
+        double MinFreq,
+        double MaxFreq,
+        double Strength);
+
+    private void ApplyPlotData(PlotData data)
+    {
+        // 更新时域
+        var timeDomainSeries = Waveforms[0].TimeDomainModel.PlotModel.Series;
+        for (int i = 0; i < data.TimeSeries.Count && i < timeDomainSeries.Count; i++)
+        {
+            var series = (LineSeries)timeDomainSeries[i];
+            series.Points.Clear();
+            series.Points.AddRange(data.TimeSeries[i]);
+        }
+        Waveforms[0].TimeDomainModel.PlotModel.SubTitle = data.TimeSubTitle;
+        Waveforms[0].TimeDomainModel.PlotModel.InvalidatePlot(true);
+
+        // 更新频域
+        var freqDomainSeries = Waveforms[0].FrequencyDomainModel.PlotModel.Series;
+        for (int i = 0; i < data.FreqSeries.Count && i < freqDomainSeries.Count; i++)
+        {
+            var series = (LineSeries)freqDomainSeries[i];
+            series.Points.Clear();
+            series.Points.AddRange(data.FreqSeries[i]);
+        }
+        Waveforms[0].FrequencyDomainModel.PlotModel.SubTitle = data.FreqSubTitle;
+        var xAxis = Waveforms[0].FrequencyDomainModel.PlotModel.Axes.First(a => a.Position == AxisPosition.Bottom);
+        xAxis.Minimum = data.MinFreq;
+        xAxis.Maximum = data.MaxFreq;
+        Waveforms[0].FrequencyDomainModel.PlotModel.InvalidatePlot(true);
+
+        // 更新 Lissajous
+        if (data.Lissajous != null && Waveforms[0].LissajousModel != null)
+        {
+            var lissajousSeries = Waveforms[0].LissajousModel.PlotModel.Series.FirstOrDefault() as ScatterSeries;
+            if (lissajousSeries != null)
+            {
+                lissajousSeries.Points.Clear();
+                lissajousSeries.Points.AddRange(data.Lissajous);
+                Waveforms[0].LissajousModel.PlotModel.SubTitle = data.LissajousSubTitle ?? string.Empty;
+                Waveforms[0].LissajousModel.PlotModel.InvalidatePlot(true);
+                Waveforms[0].Strength = data.Strength;
+            }
+        }
+    }
 
     private async Task StopTestAsync()
     {
