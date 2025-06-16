@@ -3,25 +3,31 @@ using SCSA.UFF;
 namespace SCSA.Services.Recording.Writers;
 
 /// <summary>
-///     基于 UFFStreamWriter 的包装，当前仅支持单通道实数写入。
+///     UFF 通道写入器包装类，可选是否在 Dispose 时关闭底层 <see cref="UFFStreamWriter"/>。
+///     仅支持单通道实数数据写入。
 /// </summary>
 internal sealed class UffChannelWriter : IChannelWriter
 {
-    private readonly UFFStreamWriter _writer;
+    private readonly UFFStreamWriter _streamWriter;
+    private readonly bool _leaveOpen;
+    private bool _disposed;
 
-    public UffChannelWriter(UFFStreamWriter writer)
+    public UffChannelWriter(UFFStreamWriter streamWriter, bool leaveOpen = false)
     {
-        _writer = writer;
+        _streamWriter = streamWriter;
+        _leaveOpen = leaveOpen;
     }
 
     public void Write(double[] samples)
     {
-        // 同步调用异步方法，确保兼容当前 RecorderService 同步流程
-        _writer.WriteDataAsync(samples).GetAwaiter().GetResult();
+        if (_disposed) return;
+        _streamWriter.WriteSamples(samples);
     }
 
     public void Dispose()
     {
-        _writer?.Dispose();
+        if (_disposed) return;
+        if (!_leaveOpen) _streamWriter.Dispose();
+        _disposed = true;
     }
-}
+} 

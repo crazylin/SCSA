@@ -23,9 +23,12 @@ internal sealed class WavChannelWriter : IChannelWriter
 
     public void Write(double[] samples)
     {
+        if (_disposed) return;
         foreach (var v in samples)
         {
-            var s = (short)Math.Clamp(v, short.MinValue, short.MaxValue);
+            // 将 -1.0~1.0 范围映射到 16-bit 有符号整型
+            var scaled = Math.Round(v * short.MaxValue);
+            var s = (short)Math.Clamp(scaled, short.MinValue, short.MaxValue);
             _writer.Write(s);
             _dataLength += 2;
         }

@@ -9,9 +9,8 @@ using System.Threading.Tasks;
 using SCSA.Models;
 using SCSA.Services.Recording;
 using SCSA.Services.Recording.Writers;
-using SCSA.UFF;
-using SCSA.UFF.Models;
 using SCSA.ViewModels;
+using SCSA.UFF;
 
 namespace SCSA.Services;
 
@@ -239,8 +238,20 @@ public class RecorderService : IRecorderService
                 var iqFileName = Path.Combine(StoragePath, $"IQ_Signal_{fileNameSuffix}.{fileExtension}");
                 _currentFileNames.Add(iqFileName);
                 Directory.CreateDirectory(Path.GetDirectoryName(iqFileName));
+
+                string unit = "V";
+                var uffStreamWriterI = new UFFStreamWriter(iqFileName,
+                    _useBinaryUFF ? UFFWriteFormat.Binary : UFFWriteFormat.ASCII,
+                    _sampleRate, append: false, useFloat32: false, ordinateUnit: unit);
+                var uffStreamWriterQ = new UFFStreamWriter(iqFileName,
+                    _useBinaryUFF ? UFFWriteFormat.Binary : UFFWriteFormat.ASCII,
+                    _sampleRate, append: true, useFloat32: false, ordinateUnit: unit);
+
+                _channelWriters.Add(new UffChannelWriter(uffStreamWriterI, leaveOpen: false)); // I
+                _channelWriters.Add(new UffChannelWriter(uffStreamWriterQ, leaveOpen: false));  // Q
+
                 _currentFileStreams.Add(null);
-                _channelWriters.Add(null);
+                _currentFileStreams.Add(null);
             }
             else
             {
@@ -273,8 +284,18 @@ public class RecorderService : IRecorderService
 
             if (_saveAsUFF)
             {
+                string unit = signalType switch
+                {
+                    Parameter.DataChannelType.Velocity => "mm/s",
+                    Parameter.DataChannelType.Displacement => "um",
+                    Parameter.DataChannelType.Acceleration => "m/s2",
+                    _ => "V"
+                };
+                var uffStreamWriter = new UFFStreamWriter(fileName,
+                    _useBinaryUFF ? UFFWriteFormat.Binary : UFFWriteFormat.ASCII,
+                    _sampleRate, append: false, useFloat32: false, ordinateUnit: unit);
                 _currentFileStreams.Add(null);
-                _channelWriters.Add(null);
+                _channelWriters.Add(new UffChannelWriter(uffStreamWriter));
             }
             else
             {
@@ -312,65 +333,28 @@ public class RecorderService : IRecorderService
                         var remainDataLen = _targetDataLength - _totalWDataPoints;
                         if (remainDataLen >= perChannelDataLen)
                             remainDataLen = perChannelDataLen;
-                            
-                        //if (_saveAsUFF)
-                        //{
-                        //    if (!_uffStreamWritersInitialized)
-                        //    {
-                        //        var channelCount = _currentSignalType == Parameter.DataChannelType.ISignalAndQSignal
-                        //            ? 2
-                        //            : 1;
-                        //        await InitializeUFFStreamWritersAsync(channelCount);
-                        //        _uffStreamWritersInitialized = true;
-                        //    }
 
-                        //    var dataList = new List<double[]>();
-                        //    if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
-                        //    {
-                        //        var iSignal = new double[data.GetLength(1)];
-                        //        var qSignal = new double[data.GetLength(1)];
-                        //        for (var i = 0; i < data.GetLength(1); i++)
-                        //        {
-                        //            iSignal[i] = data[0, i];
-                        //            qSignal[i] = data[1, i];
-                        //        }
-
-                        //        dataList.Add(iSignal);
-                        //        dataList.Add(qSignal);
-                        //    }
-                        //    else
-                        //    {
-                        //        var signal = new double[data.Length];
-                        //        Buffer.BlockCopy(data, 0, signal, 0, data.Length * sizeof(double));
-                        //        dataList.Add(signal);
-                        //    }
-
-                        //    await WriteUFFData(dataList);
-                        //}
-                        //else
+                        if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
                         {
-                            if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
+                            var iSignal = new double[data.GetLength(1)];
+                            var qSignal = new double[data.GetLength(1)];
+                            for (var j = 0; j < data.GetLength(1); j++)
                             {
-                                var iSignal = new double[data.GetLength(1)];
-                                var qSignal = new double[data.GetLength(1)];
-                                for (var j = 0; j < data.GetLength(1); j++)
-                                {
-                                    iSignal[j] = data[0, j];
-                                    qSignal[j] = data[1, j];
-                                }
-
-                                _channelWriters[0].Write(iSignal.Take((int)remainDataLen).ToArray());
-                                _channelWriters[1].Write(qSignal.Take((int)remainDataLen).ToArray());
-                            }
-                            else
-                            {
-                                var signal = new double[data.Length];
-                                for (var j = 0; j < data.Length; j++) signal[j] = data[0, j];
-                                _channelWriters[0].Write(signal.Take((int)remainDataLen).ToArray());
+                                iSignal[j] = data[0, j];
+                                qSignal[j] = data[1, j];
                             }
 
-                            _totalWDataPoints += remainDataLen;
+                            _channelWriters[0].Write(iSignal.Take((int)remainDataLen).ToArray());
+                            _channelWriters[1].Write(qSignal.Take((int)remainDataLen).ToArray());
                         }
+                        else
+                        {
+                            var signal = new double[data.Length];
+                            for (var j = 0; j < data.Length; j++) signal[j] = data[0, j];
+                            _channelWriters[0].Write(signal.Take((int)remainDataLen).ToArray());
+                        }
+
+                        _totalWDataPoints += remainDataLen;
 
                         var progressPercent = (int)((double)_totalWDataPoints / _targetDataLength * 100);
                         _saveProgress?.Report(progressPercent);
