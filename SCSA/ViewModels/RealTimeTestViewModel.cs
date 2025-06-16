@@ -12,13 +12,14 @@ using Avalonia.Threading;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
-using QuickMA.Modules.Plot;
 using ReactiveUI;
 using SCSA.Models;
 using SCSA.Services;
 using SCSA.Services.Recording;
 using SCSA.Utils;
 using SCSA.ViewModels.Messages;
+using System.Runtime.CompilerServices;
+using SCSA.Plot;
 
 namespace SCSA.ViewModels;
 
@@ -27,7 +28,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     private readonly object _cacheLock = new();
     private readonly ConnectionViewModel _connectionVm;
     private readonly IRecorderService _recorderService;
-    private List<List<double>> _cacheDatas;
+    private List<SCSA.Utils.CircularBuffer<double>> _cacheBuffers;
 
     private CancellationTokenSource _cts;
     private DeviceConnection? _currentDevice;
@@ -40,10 +41,13 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     public RealTimeTestViewModel(IRecorderService recorderService, IAppSettingsService appSettingsService,
         ConnectionViewModel connectionViewModel)
     {
+
+        // Load initial settings
+        _currentSettings = appSettingsService.Load();
+
         _recorderService = recorderService;
-        _currentSettings = appSettingsService.Load(); // Load initial settings
         _connectionVm = connectionViewModel;
-        SelectedTriggerType = _currentSettings.SelectedTriggerType;
+    
 
         // Message Bus Subscriptions
         MessageBus.Current.Listen<SelectedDeviceChangedMessage>()
@@ -72,6 +76,8 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         StartTestCommand.ThrownExceptions.Subscribe(ex => TestStatus = $"启动测试失败: {ex.Message}");
         StopTestCommand.ThrownExceptions.Subscribe(ex => TestStatus = $"停止测试失败: {ex.Message}");
 
+
+        SelectedTriggerType = _currentSettings.SelectedTriggerType;
 
         SignalTypes = new ObservableCollection<Parameter.DataChannelType>(Enum.GetValues<Parameter.DataChannelType>());
         SelectedSignalType = SignalTypes.FirstOrDefault();
@@ -160,40 +166,47 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         var waveform = new Waveform { DataChannelType = channelType };
 
         // Time Domain Plot
-        waveform.TimeDomainModel = new CuPlotModel
+        waveform.TimeDomainModel = new CuPlotViewModel()
         {
-            Title = $"{channelType} - 时域波形",
-            XTitle = "时间",
-            XUint = "s",
-            YTitle = channelType.ToString(),
-            YUnit = yUnit
+            PlotModel = new CuPlotModel
+            {
+                Title = $"{channelType} - 时域波形",
+                XTitle = "时间",
+                XUint = "s",
+                YTitle = channelType.ToString(),
+                YUnit = yUnit
+            },
+
         };
-        waveform.TimeDomainModel.Axes.Add(new LinearAxis
+        waveform.TimeDomainModel.PlotModel.Axes.Add(new LinearAxis
             { Position = AxisPosition.Left, MaximumPadding = 0.1, MinimumPadding = 0.1 });
-        waveform.TimeDomainModel.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom });
+        waveform.TimeDomainModel.PlotModel.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom });
 
         // Frequency Domain Plot
-        waveform.FrequencyDomainModel = new CuPlotModel
+        waveform.FrequencyDomainModel = new CuPlotViewModel()
         {
-            Title = $"{channelType} - 频域波形",
-            IsLegendVisible = true,
-            XTitle = "频率",
-            XUint = "Hz",
-            YTitle = channelType.ToString(),
-            YUnit = yUnit
+            PlotModel = new CuPlotModel
+            {
+                Title = $"{channelType} - 频域波形",
+                IsLegendVisible = true,
+                XTitle = "频率",
+                XUint = "Hz",
+                YTitle = channelType.ToString(),
+                YUnit = yUnit
+            }
         };
-        waveform.FrequencyDomainModel.Axes.Add(new LinearAxis
+        waveform.FrequencyDomainModel.PlotModel.Axes.Add(new LinearAxis
             { Position = AxisPosition.Left, MaximumPadding = 0.1, MinimumPadding = 0.1 });
-        waveform.FrequencyDomainModel.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom });
+        waveform.FrequencyDomainModel.PlotModel.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom });
 
         foreach (var title in seriesTitles)
         {
-            waveform.TimeDomainModel.Series.Add(new LineSeries { Title = title, Decimator = Decimator.Decimate });
-            waveform.FrequencyDomainModel.Series.Add(new LineSeries { Title = title });
+            waveform.TimeDomainModel.PlotModel.Series.Add(new LineSeries { Title = title, Decimator = Decimator.Decimate });
+            waveform.FrequencyDomainModel.PlotModel.Series.Add(new LineSeries { Title = title });
         }
 
-        waveform.TimeDomainModel.ApplyTheme();
-        waveform.FrequencyDomainModel.ApplyTheme();
+        waveform.TimeDomainModel.PlotModel.ApplyTheme();
+        waveform.FrequencyDomainModel.PlotModel.ApplyTheme();
         waveform.InvalidatePlot(true);
 
         return waveform;
@@ -215,7 +228,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         {
             IsTestRunning = true;
             SelectedSignalTypeEnable = false;
-            _cacheDatas = new List<List<double>>();
+            _cacheBuffers = new List<SCSA.Utils.CircularBuffer<double>>();
 
             if (_currentSettings.EnableDataStorage)
             {
@@ -287,18 +300,26 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     private void _timer_Tick(object? sender, EventArgs e)
     {
+        _timer.Stop();
         List<double[]> latestData;
         lock (_cacheLock)
         {
-            // Take a snapshot of the data to be displayed
-            latestData = _cacheDatas.Select(channel => channel.ToArray()).ToList();
+            // Snapshot
+            latestData = _cacheBuffers.Select(buf => buf.ToArray()).ToList();
         }
 
-        if (latestData.Count == 0) return;
+        if (latestData.Count == 0)
+        {
+            _timer.Start();
+            return;
+        };
 
         // 若采样数量不足，不刷新，避免频繁重绘
         if (latestData[0].Length < DisplayPointCount)
+        {
+            _timer.Start();
             return;
+        }
 
         // ---------------------
         // 预处理：去直流 + 滤波 + 加窗
@@ -336,8 +357,19 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             processedData.Add(data);
         }
 
+        // 计算时域峰值（根据所有通道，使用" / "分隔）
+        if (processedData.Count > 0)
+        {
+            var timePeakResults = processedData.Select(SignalProcessingService.CalculateTimePeak).ToList();
+            string fmta(double d) => $"{d,9:+0.000;-0.000;0.000}"; // 始终带符号并固定 9 宽
+            string fmt(double d) => $"{d,8:0.000}"; // 始终带符号并固定 8 宽
+            var channelStrings = timePeakResults
+                .Select(r => $"Avg:{fmta(r.AveragePeak)} Pk-Pk:{fmt(r.PeakToPeak)} RMS:{fmt(r.EffectivePeak)}");
+            Waveforms[0].TimeDomainModel.PlotModel.SubTitle = string.Join(" / ", channelStrings);
+        }
+
         // Update time-domain plot (使用处理后的数据)
-        var timeDomainSeries = Waveforms[0].TimeDomainModel.Series;
+        var timeDomainSeries = Waveforms[0].TimeDomainModel.PlotModel.Series;
         for (var i = 0; i < processedData.Count && i < timeDomainSeries.Count; i++)
         {
             var series = (LineSeries)timeDomainSeries[i];
@@ -347,14 +379,14 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             series.Points.Clear();
             series.Points.AddRange(points);
         }
-
-        Waveforms[0].TimeDomainModel.InvalidatePlot(true);
+     
+        Waveforms[0].TimeDomainModel.PlotModel.InvalidatePlot(true);
 
         // 计算 FFT
         var fftData = processedData.Select(pd => SignalProcessingService.ComputeFft(pd)).ToList();
 
         // Update frequency-domain plot
-        var freqDomainSeries = Waveforms[0].FrequencyDomainModel.Series;
+        var freqDomainSeries = Waveforms[0].FrequencyDomainModel.PlotModel.Series;
         for (var i = 0; i < fftData.Count && i < freqDomainSeries.Count; i++)
         {
             var series = (LineSeries)freqDomainSeries[i];
@@ -365,7 +397,21 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             series.Points.AddRange(points);
         }
 
-        Waveforms[0].FrequencyDomainModel.InvalidatePlot(true);
+        // 计算频域峰值（根据所有通道，使用" / "分隔）
+        if (freqDomainSeries.Count > 0)
+        {
+            var freqPeakResults = freqDomainSeries.Cast<LineSeries>()
+                .Select(ls => SignalProcessingService.CalculateFreqPeak(ls.Points.ToArray()))
+                .ToList();
+            string fmt(double d) => $"{d,8:0.000;0.000}"; // 始终带符号并固定 8 宽
+            var channelStrings = freqPeakResults
+                .Select(r => $"F:{fmt(r.Position)}Hz Pk:{fmt(r.Peak)}");
+            Waveforms[0].FrequencyDomainModel.PlotModel.SubTitle = string.Join(" / ", channelStrings);
+        }
+
+        Waveforms[0].FrequencyDomainModel.PlotModel.InvalidatePlot(true);
+
+        _timer.Start();
     }
 
 
@@ -377,8 +423,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         {
             // 停止设备
             _cts?.Cancel();
-            await _currentDevice.DeviceControlApi.Stop(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
-
+     
             // 停止录制
             await _recorderService.StopRecordingAsync();
 
@@ -408,8 +453,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 _currentDevice.DeviceControlApi.DataReceived -= DeviceControlApi_DataReceived;
                 try
                 {
-                    _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    await _currentDevice.DeviceControlApi.Stop(_cts.Token);
+                    await _currentDevice.DeviceControlApi.Stop(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
                 }
                 catch
                 {
@@ -447,15 +491,12 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 var channelCount = rawData.GetLength(0);
                 var sampleCount = rawData.GetLength(1);
 
-                while (_cacheDatas.Count < channelCount) _cacheDatas.Add(new List<double>());
+                while (_cacheBuffers.Count < channelCount)
+                    _cacheBuffers.Add(new SCSA.Utils.CircularBuffer<double>(DisplayPointCount));
 
                 for (var i = 0; i < channelCount; i++)
-                {
-                    for (var j = 0; j < sampleCount; j++) _cacheDatas[i].Add(rawData[i, j]);
-
-                    var overflow = _cacheDatas[i].Count - DisplayPointCount;
-                    if (overflow > 0) _cacheDatas[i].RemoveRange(0, overflow);
-                }
+                    for (var j = 0; j < sampleCount; j++)
+                        _cacheBuffers[i].Add(rawData[i, j]);
             }
         }
     }
@@ -474,13 +515,13 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     public class Waveform
     {
         public Parameter.DataChannelType DataChannelType { get; set; }
-        public CuPlotModel TimeDomainModel { get; set; }
-        public CuPlotModel FrequencyDomainModel { get; set; }
+        public CuPlotViewModel TimeDomainModel { get; set; }
+        public CuPlotViewModel FrequencyDomainModel { get; set; }
 
         public void InvalidatePlot(bool t)
         {
-            TimeDomainModel.InvalidatePlot(t);
-            FrequencyDomainModel.InvalidatePlot(t);
+            TimeDomainModel.PlotModel.InvalidatePlot(t);
+            FrequencyDomainModel.PlotModel.InvalidatePlot(t);
         }
     }
 
@@ -710,4 +751,5 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     public ReactiveCommand<Unit, Unit> StopTestCommand { get; }
 
     #endregion
+
 }

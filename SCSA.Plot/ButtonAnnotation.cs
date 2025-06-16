@@ -1,6 +1,6 @@
 ﻿using OxyPlot;
 
-namespace QuickMA.Modules.Plot;
+namespace SCSA.Plot;
 
 /// <summary>Represents a toggle button annotation with text and clickable behavior.</summary>
 public class ButtonAnnotation : TextAnnotation

@@ -8,7 +8,7 @@ using OxyPlot;
 using OxyPlot.Annotations;
 using OxyPlot.Avalonia;
 
-namespace QuickMA.Modules.Plot;
+namespace SCSA.Plot;
 
 public class TextAnnotation : TransposableAnnotation, INotifyPropertyChanged
 {

@@ -69,7 +69,7 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public string IpAddress { set; get; } = "192.168.100.131";
+    public string IpAddress { set; get; } = "192.66.66.28";
     public int Port { set; get; } = 9123;
 
     public RelayCommand ConnectToServerCommand { set; get; }

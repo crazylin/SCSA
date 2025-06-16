@@ -1,4 +1,4 @@
-﻿namespace QuickMA.Modules.Plot;
+﻿namespace SCSA.Plot;
 
 public enum InteractionMode
 {

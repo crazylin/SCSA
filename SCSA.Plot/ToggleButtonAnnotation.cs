@@ -1,6 +1,6 @@
 ﻿using OxyPlot;
 
-namespace QuickMA.Modules.Plot;
+namespace SCSA.Plot;
 
 public class ToggleButtonAnnotation : ButtonAnnotation
 {

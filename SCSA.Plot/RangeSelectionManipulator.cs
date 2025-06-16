@@ -6,7 +6,7 @@ using LineSeries = OxyPlot.Series.LineSeries;
 using RectangleAnnotation = OxyPlot.Annotations.RectangleAnnotation;
 
 
-namespace QuickMA.Modules.Plot;
+namespace SCSA.Plot;
 
 /// <summary>
 ///     Enables range selection with creating, resizing and dragging of a RectangleAnnotation.
@@ -231,7 +231,7 @@ public class RangeSelectionManipulator : MouseManipulator
     public static (DataPoint leftPoint, DataPoint rightPoint, DataPoint peakPoint, double meanValue)
         GetSegmentExtrema(LineSeries series, double minX, double maxX)
     {
-        var points = series.ItemsSource as IEnumerable<DataPoint>;
+        var points = series.ItemsSource as IEnumerable<DataPoint> ?? series.Points;
         if (points == null || !points.Any())
             throw new InvalidOperationException("LineSeries 中没有任何采样点，无法插值和求最大值。");
         points = points.ToList();

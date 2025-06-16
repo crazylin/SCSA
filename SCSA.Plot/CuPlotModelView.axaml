@@ -1,27 +1,90 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:plot="clr-namespace:QuickMA.Modules.Plot"
-             xmlns:avalonia="http://oxyplot.org/avalonia"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="SCSA.Plot.CuPlotModelView">
+<reactiveUi:ReactiveUserControl x:TypeArguments="plot:CuPlotViewModel" xmlns="https://github.com/avaloniaui"
+                                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                xmlns:avalonia="http://oxyplot.org/avalonia"
+                                xmlns:reactiveUi="http://reactiveui.net"
+                                xmlns:plot="clr-namespace:SCSA.Plot"
+                                mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+                                x:Class="SCSA.Plot.CuPlotModelView">
     <UserControl.Resources>
         <plot:InteractionModeToVisibilityConverter x:Key="InteractionModeToVisibilityConverter" />
+        <plot:EnumEqualsConverter x:Key="EnumEqualsConverter" />
+        <FontFamily x:Key="IconFont">avares://SCSA.Plot/Assets/Fonts#iconfont</FontFamily>
     </UserControl.Resources>
+  <UserControl.Styles>
+
+    <Style Selector="Button">
+      <Setter Property="Padding" Value="0"></Setter>
+      <Setter Property="CornerRadius" Value="0"></Setter>
+      <Setter Property="Width" Value="25"></Setter>
+      <Setter Property="Height" Value="25"></Setter>
+      <Setter Property="HorizontalContentAlignment" Value="Center"></Setter>
+      <Setter Property="VerticalContentAlignment" Value="Center"></Setter>
+      <Setter Property="FontFamily" Value="{StaticResource IconFont}"></Setter>
+    </Style>
+
+    <Style Selector="ToggleButton">
+      <Setter Property="Padding" Value="0"></Setter>
+      <Setter Property="CornerRadius" Value="0"></Setter>
+      <Setter Property="Width" Value="25"></Setter>
+      <Setter Property="Height" Value="25"></Setter>
+      <Setter Property="HorizontalContentAlignment" Value="Center"></Setter>
+      <Setter Property="VerticalContentAlignment" Value="Center"></Setter>
+      <Setter Property="FontFamily" Value="{StaticResource IconFont}"></Setter>
+    </Style>
+
+    <Style Selector="RadioButton.toggle-like">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate>
+            <ToggleButton IsChecked="{Binding IsChecked, Mode=TwoWay,RelativeSource={RelativeSource TemplatedParent}}"
+                          Content="{TemplateBinding Content}"/>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </UserControl.Styles>
     <Grid Margin="5">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <avalonia:PlotView x:Name="PlotView" Model="{Binding}" Controller="{Binding Controller}" />
+        <Grid Grid.Row="0" RowDefinitions="Auto,*">
+         <Grid  Grid.Row="0" ColumnDefinitions="*,Auto">
+
+             <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Spacing="1" Margin="50 0 0 0">
+    
+                 <RadioButton x:Name="BtnPan"   Content="&#xE616;" GroupName="ToolBar" Classes="toggle-like"
+                              IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Pan}" />
+                 <RadioButton x:Name="BtnZoom"  Content="&#xE7FF;" GroupName="ToolBar" Classes="toggle-like"
+                              IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Zoom}" />
+                 <RadioButton x:Name="BtnRange" Content="&#xE7FC;" GroupName="ToolBar" Classes="toggle-like"
+                              IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=RangeSelect}" />
+                 <ToggleButton x:Name="BtnLog"  Content="&#xE690;" IsChecked="{Binding IsLogEnabled, Mode=TwoWay}" />
+                 <ToggleButton x:Name="BtnLock" Content="&#xE676;" IsChecked="{Binding IsLockEnabled, Mode=TwoWay}" />
+                 <Button Content="&#xE706;" Command="{Binding CopyCommand}" />
+                 <Button Content="&#xE642;" Command="{Binding ScreenshotCommand}" />
+                 <Button Content="&#xE79B;" Command="{Binding ResetCommand}" />
+
+                 <TextBlock FontFamily="Consolas" Text="{Binding PlotModel.SubTitle}" VerticalAlignment="Center" Margin="10 0 0 0"></TextBlock>
+               
+             </StackPanel>
+
+             <TextBlock Grid.Column="1" Text="{Binding PlotModel.Title}" VerticalAlignment="Center" FontWeight="Bold" Margin="0 0 10 0"></TextBlock>
+         </Grid>
+            
+
+
+            <avalonia:PlotView Grid.Row="1" x:Name="PlotView" Background="Transparent" Model="{Binding PlotModel}" Controller="{Binding PlotModel.Controller}" />
+        </Grid>
 
         <DockPanel Name="Container" Grid.Column="1" Width="230" Background="{Binding Background,ElementName=PlotView}"
-                   IsVisible="{Binding SelectedMode, Converter={StaticResource InteractionModeToVisibilityConverter},ConverterParameter={x:Static plot:InteractionMode.RangeSelect}}"
+                   IsVisible="{Binding SelectedMode, Converter={StaticResource InteractionModeToVisibilityConverter},ConverterParameter=RangeSelect}"
                    Margin="0 0 ">
 
 
-            <TabControl ItemsSource="{Binding RangeResults}" BorderThickness="0" SelectedIndex="0">
+            <TabControl ItemsSource="{Binding PlotModel.RangeResults}" BorderThickness="0" SelectedIndex="0">
                 <!-- TabItem标题模板 -->
                 <TabControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type plot:RangeResult}">
@@ -157,4 +220,4 @@
         </DockPanel>
 
     </Grid>
-</UserControl>
+</reactiveUi:ReactiveUserControl>

@@ -1,7 +1,7 @@
 ﻿using OxyPlot;
 using OxyPlot.Series;
 
-namespace QuickMA.Modules.Plot;
+namespace SCSA.Plot;
 
 public class XZoomRectangleManipulator(IPlotView plotView) : MouseManipulator(plotView)
 {

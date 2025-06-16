@@ -1,7 +1,8 @@
 ﻿using System.Globalization;
 using Avalonia.Data.Converters;
+using SCSA.Plot;
 
-namespace QuickMA.Modules.Plot;
+namespace SCSA.Plot;
 
 public class InteractionModeToVisibilityConverter : IValueConverter
 {

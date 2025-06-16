@@ -20,7 +20,7 @@ using LineSeries = OxyPlot.Series.LineSeries;
 using LogarithmicAxis = OxyPlot.Axes.LogarithmicAxis;
 using RectangleAnnotation = OxyPlot.Annotations.RectangleAnnotation;
 
-namespace QuickMA.Modules.Plot;
+namespace SCSA.Plot;
 
 public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
 {
@@ -42,14 +42,15 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
     private string _yTitle;
     private string _yUnit;
     private PlotController _zoomController;
+    private readonly Dictionary<Axis, double?> _originalMin = new();
 
 
     public CuPlotModel(bool showToolBar = true)
     {
         Application.Current.ActualThemeVariantChanged += (s, e) => ApplyTheme();
         ApplyTheme();
-        PlotMargins = new OxyThickness(40, 20, 0, double.NaN);
-
+        PlotMargins = new OxyThickness(40, 0, 0, double.NaN);
+     
         IsLegendVisible = true;
 
         var legend = new Legend
@@ -63,8 +64,8 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
 
         DefaultFont = "Microsoft YaHei";
         SetupControllers();
-        SetupButtons();
-        SetupTitle();
+        //SetupButtons();
+        //SetupTitle();
 
 
         PropertyChanged += CuPlotModel_PropertyChanged;
@@ -185,10 +186,10 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
             foreach (var axise in Axes.Where(ax => ax.Position == AxisPosition.Bottom)
                          .ToList())
                 axise.Unit = XUint;
-        else if (e.PropertyName == nameof(Title))
-            TitleAnnotation.Text = Title;
-        else if (e.PropertyName == nameof(SubTitle))
-            SubTitleAnnotation.Text = SubTitle;
+        //else if (e.PropertyName == nameof(Title))
+        //    TitleAnnotation.Text = Title;
+        //else if (e.PropertyName == nameof(SubTitle))
+        //    SubTitleAnnotation.Text = SubTitle;
     }
 
     private void SetupTitle()
@@ -220,8 +221,13 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
         Annotations.Add(SubTitleAnnotation);
     }
 
+
+
+
     private void SetupButtons()
     {
+
+
         if (!_showToolBar)
             return;
         //var uri = new Uri("pack://application:,,,/QuickMA;component/Resources/Fonts/materialdesignicons-webfont.ttf", UriKind.Absolute);
@@ -286,24 +292,22 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
         };
 
 
-        var originalMin = new Dictionary<Axis, double?>();
-
         btnLock.Toggled += (s, e) =>
         {
             if (e.IsChecked)
             {
                 // 存储并归零
-                originalMin.Clear();
+                _originalMin.Clear();
                 foreach (var ax in Axes)
                 {
-                    originalMin[ax] = ax.AbsoluteMinimum;
+                    _originalMin[ax] = ax.AbsoluteMinimum;
                     ax.AbsoluteMinimum = 0;
                 }
             }
             else
             {
                 // 恢复原值
-                foreach (var kv in originalMin)
+                foreach (var kv in _originalMin)
                     kv.Key.AbsoluteMinimum = kv.Value ?? double.NaN;
             }
 
@@ -460,11 +464,10 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
 
     public void ApplyTheme()
     {
-        Background = GetFluentColor("SolidBackgroundFillColorBase");
-        PlotAreaBorderColor = GetFluentColor("ControlElevationBorder");
-        PlotAreaBackground = GetFluentColor("SolidBackgroundFillColorQuarternary");
+        Background = OxyColors.Transparent;// GetFluentColor("SolidBackgroundFillColorBase");
+        PlotAreaBackground = OxyColors.Transparent; //GetFluentColor("SolidBackgroundFillColorBase");
         TextColor = GetFluentColor("TextFillColorPrimary");
-
+        PlotAreaBorderColor = TextColor; //GetFluentColor("ControlElevationBorder");
 
         // 数据系列颜色
         var accentColor = GetFluentColor("SystemAccentColor");
@@ -481,7 +484,7 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
         {
             axis.AxislineColor = GetFluentColor("SystemAccentColor");
             axis.TextColor = TextColor;
-            axis.TicklineColor = GetFluentColor("ControlStrokeColorSecondary");
+            axis.TicklineColor = TextColor.WithAlpha(0.8); //GetFluentColor("ControlStrokeColorSecondary");
             axis.MajorGridlineColor = GetFluentColor("ControlStrokeColorDefault")
                 .WithAlpha(0.4);
         }
@@ -496,7 +499,7 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
             legend.TextColor = TextColor;
             legend.LegendTitleColor = TitleColor;
             legend.LegendBackground = GetFluentColor("SolidBackgroundFillColorTertiary");
-            legend.LegendBorder = GetFluentColor("ControlElevationBorder");
+            legend.LegendBorder = TextColor.WithAlpha(0.8);  //GetFluentColor("ControlElevationBorder");
         }
 
         foreach (var ann in Annotations)
@@ -508,6 +511,11 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
                 txAnn.Background = GetFluentColor("SolidBackgroundFillColorTertiary");
                 txAnn.Stroke = GetFluentColor("ControlElevationBorder");
             }
+            //else if (ann is RectangleAnnotation rAnn)
+            //{
+            //    rAnn.TextColor = TextColor;
+            //    rAnn.Stroke = GetFluentColor("ControlElevationBorder");
+            //}
         }
 
         TextAnnotation.IconCache.Clear();
@@ -593,8 +601,10 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
     public void CopyAlignedSeriesDataToClipboard()
     {
         var manWin = ((IClassicDesktopStyleApplicationLifetime)Application.Current.ApplicationLifetime).MainWindow;
-        var lineSeriesList = Series.OfType<LineSeries>().ToList()
-            .Select(l => l.ItemsSource as IEnumerable<DataPoint>).ToList();
+        var lineSeriesList = Series.OfType<LineSeries>()
+            .Select(ls => ls.ItemsSource as IEnumerable<DataPoint> ?? ls.Points)
+            .Where(points => points != null)
+            .ToList();
 
         if (lineSeriesList.Count == 0)
             return;
@@ -644,4 +654,113 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
         OnPropertyChanged(propertyName);
         return true;
     }
+
+    #region External Toolbar Helpers
+
+    /// <summary>
+    /// 切换 X 轴锁定（AbsoluteMinimum = 0）。
+    /// </summary>
+    public void ToggleLock(bool isChecked)
+    {
+        if (isChecked)
+        {
+            _originalMin.Clear();
+            foreach (var ax in Axes)
+            {
+                _originalMin[ax] = ax.AbsoluteMinimum;
+                ax.AbsoluteMinimum = 0;
+            }
+        }
+        else
+        {
+            foreach (var kv in _originalMin)
+                kv.Key.AbsoluteMinimum = kv.Value ?? double.NaN;
+        }
+
+        ResetAllAxes();
+        InvalidatePlot(false);
+    }
+
+    /// <summary>
+    /// 切换 Y 轴线性 / 对数。
+    /// </summary>
+    public void ToggleLog(bool isChecked)
+    {
+        var updatedAxes = new List<Axis>();
+        var removeAxes = new List<Axis>();
+
+        if (isChecked)
+        {
+            foreach (var axis in Axes.ToList())
+            {
+                if (axis.Position == AxisPosition.Left || axis.Position == AxisPosition.Right)
+                {
+                    if (axis is LinearAxis lin)
+                    {
+                        var log = new LogarithmicAxis
+                        {
+                            Position = lin.Position,
+                            Title = lin.Title,
+                            Key = lin.Key,
+                            Minimum = double.NaN,
+                            Maximum = double.NaN
+                        };
+                        updatedAxes.Add(log);
+                    }
+                    else
+                    {
+                        updatedAxes.Add(axis);
+                    }
+                    removeAxes.Add(axis);
+                }
+            }
+        }
+        else
+        {
+            foreach (var axis in Axes.ToList())
+            {
+                if (axis.Position == AxisPosition.Left || axis.Position == AxisPosition.Right)
+                {
+                    if (axis is LogarithmicAxis logAx)
+                    {
+                        var lin2 = new LinearAxis
+                        {
+                            Position = logAx.Position,
+                            Title = logAx.Title,
+                            Key = logAx.Key,
+                            Minimum = double.NaN,
+                            Maximum = double.NaN
+                        };
+                        updatedAxes.Add(lin2);
+                    }
+                    else
+                    {
+                        updatedAxes.Add(axis);
+                    }
+                    removeAxes.Add(axis);
+                }
+            }
+        }
+
+        foreach (var ax in removeAxes)
+            Axes.Remove(ax);
+
+        foreach (var ax in updatedAxes)
+            Axes.Add(ax);
+
+        ResetAllAxes();
+        InvalidatePlot(false);
+    }
+
+    /// <summary>
+    /// 复位坐标系并清除交互模式。
+    /// </summary>
+    public void ResetPlot()
+    {
+        SelectedMode = InteractionMode.None;
+        ResetAllAxes();
+        InvalidatePlot(false);
+    }
+
+    #endregion
 }

@@ -1,6 +1,6 @@
 ﻿using OxyPlot;
 
-namespace QuickMA.Modules.Plot;
+namespace SCSA.Plot;
 
 /// <summary>
 ///     A container that holds multiple ButtonAnnotation instances and positions them in a row or column.

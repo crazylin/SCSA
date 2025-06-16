@@ -28,7 +28,6 @@ public class App : Application
         {
             desktop.MainWindow = new MainWindow();
 
-
             services.AddSingleton(desktop.MainWindow.StorageProvider);
 
             var serviceProvider = services.BuildServiceProvider(
