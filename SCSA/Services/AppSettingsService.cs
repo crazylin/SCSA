@@ -34,7 +34,7 @@ public sealed class AppSettingsService : IAppSettingsService
         catch (Exception e)
         {
             // 读取失败时记录异常
-            Debug.WriteLine($"Failed to load app settings: {e}");
+            SCSA.Utils.Log.Error("Failed to load app settings", e);
         }
 
         return GetDefault();
@@ -50,7 +50,7 @@ public sealed class AppSettingsService : IAppSettingsService
         catch (Exception e)
         {
             // 写入失败时记录异常
-            Debug.WriteLine($"Failed to save app settings: {e}");
+            SCSA.Utils.Log.Error("Failed to save app settings", e);
         }
     }
 

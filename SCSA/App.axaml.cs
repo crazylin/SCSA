@@ -37,7 +37,15 @@ public class App : Application
                     ValidateScopes = true
                 });
 
+            // 初始化日志系统
+            var appSettingsService = serviceProvider.GetRequiredService<IAppSettingsService>();
+            var appSettings = appSettingsService.Load();
+            SCSA.Utils.Log.Initialize(appSettings.EnableLogging);
+
             desktop.MainWindow.DataContext = serviceProvider.GetRequiredService<MainWindowViewModel>();
+
+            // 应用退出时关闭日志后台线程
+            desktop.Exit += (_, _) => SCSA.Utils.Log.Shutdown();
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
         {

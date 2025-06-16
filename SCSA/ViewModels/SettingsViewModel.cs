@@ -61,6 +61,8 @@ public class SettingsViewModel : ViewModelBase
 
     private ObservableCollection<TriggerType> _triggerTypes;
 
+    private bool _enableLogging = true;
+
     public SettingsViewModel(IAppSettingsService settingsService)
     {
         _settingsService = settingsService;
@@ -85,6 +87,10 @@ public class SettingsViewModel : ViewModelBase
             x => x.SelectedFileFormat,
             x => x.SelectedUFFFormat
         ).Subscribe(_ => SaveSettingsCommand.Execute().Subscribe());
+
+        // 监听日志开关单独保存，避免 WhenAnyValue 参数数量超限导致编译错误
+        this.WhenAnyValue(x => x.EnableLogging)
+            .Subscribe(_ => SaveSettingsCommand.Execute().Subscribe());
 
         // reactive derived displays
         this.WhenAnyValue(x => x.SelectedStorageType, x => x.DataLength)
@@ -192,6 +198,12 @@ public class SettingsViewModel : ViewModelBase
         _ => "bin"
     };
 
+    public bool EnableLogging
+    {
+        get => _enableLogging;
+        set => this.RaiseAndSetIfChanged(ref _enableLogging, value);
+    }
+
     private void LoadSettings()
     {
         var settings = _settingsService.Load();
@@ -204,6 +216,7 @@ public class SettingsViewModel : ViewModelBase
         SelectedFileFormat = settings.SelectedFileFormat;
         SelectedUFFFormat = settings.SelectedUFFFormat;
         ShowUFFFormatSettings = settings.SelectedFileFormat == FileFormatType.UFF;
+        EnableLogging = settings.EnableLogging;
 
         // triggers calculations immediately
         this.RaisePropertyChanged(nameof(DataLengthDisplay));
@@ -221,7 +234,8 @@ public class SettingsViewModel : ViewModelBase
             StorageTime = StorageTime,
             SelectedTriggerType = SelectedTriggerType,
             SelectedFileFormat = SelectedFileFormat,
-            SelectedUFFFormat = SelectedUFFFormat
+            SelectedUFFFormat = SelectedUFFFormat,
+            EnableLogging = this.EnableLogging
         };
 
         _settingsService.Save(settings);

@@ -17,6 +17,7 @@ using Axis = OxyPlot.Axes.Axis;
 using Legend = OxyPlot.Legends.Legend;
 using LinearAxis = OxyPlot.Axes.LinearAxis;
 using LineSeries = OxyPlot.Series.LineSeries;
+using ScatterSeries = OxyPlot.Series.ScatterSeries;
 using LogarithmicAxis = OxyPlot.Axes.LogarithmicAxis;
 using RectangleAnnotation = OxyPlot.Annotations.RectangleAnnotation;
 
@@ -490,10 +491,10 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
         }
 
         var index = 0;
-        foreach (var series in Series)
-            if (series is LineSeries line)
-                line.Color = GenerateSeriesColor(accentColor, index++);
-
+        foreach (var series in Series.OfType<LineSeries>())
+            series.Color = GenerateSeriesColor(accentColor, index++);
+        foreach (var series in Series.OfType<ScatterSeries>())
+            series.MarkerFill = GenerateSeriesColor(accentColor, index++);
         foreach (var legend in Legends)
         {
             legend.TextColor = TextColor;
@@ -554,8 +555,8 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
         switch (index % 3)
         {
             case 0: return baseColor;
-            case 1: return baseColor.ChangeHue(30);
-            case 2: return baseColor.ChangeHue(40);
+            case 1: return baseColor.ChangeHue(80);
+            case 2: return baseColor.ChangeHue(160);
         }
 
         return baseColor;

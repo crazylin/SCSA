@@ -20,9 +20,6 @@ public class RecorderService : IRecorderService
     private readonly IAppSettingsService _appSettingsService;
     //private readonly List<short> _cmdIds = new(); // 添加CmdId列表
     private readonly Channel<Dictionary<Parameter.DataChannelType, double[,]>> _dataChannel;
-
-    private readonly List<UFFStreamWriter> _uffStreamWriters = new();
-    private readonly SemaphoreSlim _uffWriteSemaphore = new(1, 1);
     private CancellationTokenSource _cancellationTokenSource;
     private List<IChannelWriter> _channelWriters;
     private List<string> _currentFileNames;
@@ -37,7 +34,6 @@ public class RecorderService : IRecorderService
     private bool _saveAsUFF;
     private IProgress<int> _saveProgress;
 
-    private DateTime _startTime;
     private StorageType _storageType;
     private long _targetDataLength;
     private long _totalWDataPoints;
@@ -84,18 +80,17 @@ public class RecorderService : IRecorderService
             var fileNameSuffix = GenerateFileNameSuffix(triggerType, _targetDataLength, targetTimeSeconds, timestamp);
             await InitializeWritersAsync(signalType, fileFormat, fileNameSuffix);
 
-            Debug.WriteLine($"目标数据长度: {_targetDataLength}");
-            Debug.WriteLine($"采样率: {_sampleRate}");
-            Debug.WriteLine($"预期时间: {targetTimeSeconds}秒");
-            Debug.WriteLine($"存储类型: {_storageType}");
-            Debug.WriteLine($"触发类型: {triggerType}");
+            SCSA.Utils.Log.Info($"目标数据长度: {_targetDataLength}");
+            SCSA.Utils.Log.Info($"采样率: {_sampleRate}");
+            SCSA.Utils.Log.Info($"预期时间: {targetTimeSeconds}秒");
+            SCSA.Utils.Log.Info($"存储类型: {_storageType}");
+            SCSA.Utils.Log.Info($"触发类型: {triggerType}");
 
             //var cmdIdFileName = Path.Combine(StoragePath, $"CmdId_{fileNameSuffix}.txt");
 
             _totalWDataPoints = 0;
             _totalRDataPoints = 0;
             _uffStreamWritersInitialized = false;
-            _startTime = DateTime.Now;
             _saveProgress?.Report(0);
             _receivedProgress.Report(0);
 
@@ -111,7 +106,8 @@ public class RecorderService : IRecorderService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"启动记录失败: {ex.Message}");
+            //Debug.WriteLine($"启动记录失败: {ex.Message}");
+            SCSA.Utils.Log.Error("启动记录失败", ex);
             throw;
         }
     }
@@ -167,7 +163,8 @@ public class RecorderService : IRecorderService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"停止记录失败: {ex.Message}");
+            //Debug.WriteLine($"停止记录失败: {ex.Message}");
+            SCSA.Utils.Log.Error("停止记录失败", ex);
         }
         finally
         {
@@ -388,11 +385,13 @@ public class RecorderService : IRecorderService
         }
         catch (OperationCanceledException)
         {
-            Debug.WriteLine("数据处理任务被取消。");
+            //Debug.WriteLine("数据处理任务被取消。");
+            SCSA.Utils.Log.Info("数据处理任务被取消。");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"处理数据时出错: {ex.Message}");
+            //Debug.WriteLine($"处理数据时出错: {ex.Message}");
+            SCSA.Utils.Log.Error("处理数据时出错", ex);
         }
         finally
         {

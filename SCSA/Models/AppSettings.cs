@@ -16,4 +16,6 @@ public class AppSettings
     // Network settings
     public int ListenPort { get; set; } = 9123;
     public string SelectedInterfaceName { get; set; } = string.Empty;
+
+    public bool EnableLogging { get; set; } = true;
 }

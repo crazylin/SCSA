@@ -56,7 +56,11 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
     {
         _running = true;
 
-        _processingChannel = Channel.CreateUnbounded<T>();
+        _processingChannel = Channel.CreateUnbounded<T>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
 
         _ = Task.Run(async () =>
         {
@@ -130,11 +134,6 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
                     while (_parserPrototype.TryParse(buffer, out var packet, out var frameEnd))
                     {
                         await _processingChannel.Writer.WriteAsync(packet);
-                        //if (!_processingChannel.Writer.TryWrite(packet))
-                        //{
-                        //    // 处理积压过多的情况（如丢弃旧数据）
-                        //}
-
                         // 标记已经消费到 frameEnd
                         consumed = frameEnd;
                         buffer = buffer.Slice(frameEnd);

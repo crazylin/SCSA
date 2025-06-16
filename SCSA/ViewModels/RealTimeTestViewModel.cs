@@ -20,6 +20,10 @@ using SCSA.Utils;
 using SCSA.ViewModels.Messages;
 using System.Runtime.CompilerServices;
 using SCSA.Plot;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Collections.Concurrent;
+using System.Linq;
 
 namespace SCSA.ViewModels;
 
@@ -28,7 +32,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     private readonly object _cacheLock = new();
     private readonly ConnectionViewModel _connectionVm;
     private readonly IRecorderService _recorderService;
-    private List<SCSA.Utils.CircularBuffer<double>> _cacheBuffers;
+    private List<CircularBuffer<double>> _cacheBuffers;
 
     private CancellationTokenSource _cts;
     private DeviceConnection? _currentDevice;
@@ -148,9 +152,13 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         switch (SelectedSignalType)
         {
             case Parameter.DataChannelType.Velocity:
-            case Parameter.DataChannelType.Displacement:
-            case Parameter.DataChannelType.Acceleration:
                 Waveforms.Add(CreateWaveform(SelectedSignalType, "mm/s", new[] { SelectedSignalType.ToString() }));
+                break;
+            case Parameter.DataChannelType.Displacement:
+                Waveforms.Add(CreateWaveform(SelectedSignalType, "µm", new[] { SelectedSignalType.ToString() }));
+                break;
+            case Parameter.DataChannelType.Acceleration:
+                Waveforms.Add(CreateWaveform(SelectedSignalType, "m/s\u00b2", new[] { SelectedSignalType.ToString() }));
                 break;
             case Parameter.DataChannelType.ISignalAndQSignal:
                 Waveforms.Add(CreateWaveform(SelectedSignalType, "V", new[] { "I Signal", "Q Signal" }));
@@ -201,12 +209,38 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
         foreach (var title in seriesTitles)
         {
-            waveform.TimeDomainModel.PlotModel.Series.Add(new LineSeries { Title = title, Decimator = Decimator.Decimate });
+            waveform.TimeDomainModel.PlotModel.Series.Add(new LineSeries { Title = title, Decimator = Decimator.Decimate});
             waveform.FrequencyDomainModel.PlotModel.Series.Add(new LineSeries { Title = title });
         }
 
         waveform.TimeDomainModel.PlotModel.ApplyTheme();
         waveform.FrequencyDomainModel.PlotModel.ApplyTheme();
+
+        // 若为 IQ 信号，创建李萨如图
+        if (channelType == Parameter.DataChannelType.ISignalAndQSignal)
+        {
+            waveform.LissajousModel = new CuPlotViewModel()
+            {
+                PlotModel = new CuPlotModel(false)
+                {
+                    Title = "I-Q 李萨如图",
+                    XTitle = "I",
+                    YTitle = "Q",
+                    IsLegendVisible = false
+                }
+            };
+            waveform.LissajousModel.PlotModel.Axes.Add(new LinearAxis
+            {
+                Position = AxisPosition.Left,
+                MaximumPadding = 0.1,
+                MinimumPadding = 0.1
+            });
+            waveform.LissajousModel.PlotModel.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom });
+
+            waveform.LissajousModel.PlotModel.Series.Add(new ScatterSeries { Title = "IQ",MarkerSize = 1});
+            waveform.LissajousModel.PlotModel.ApplyTheme();
+        }
+
         waveform.InvalidatePlot(true);
 
         return waveform;
@@ -284,7 +318,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             ShoudUpdate = true;
             _timer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(30)
+                Interval = TimeSpan.FromMilliseconds(50)
             };
             _timer.Tick += _timer_Tick;
             _timer.Start();
@@ -325,7 +359,9 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         // 预处理：去直流 + 滤波 + 加窗
         // ---------------------
 
-        var processedData = new List<double[]>();
+        var processedData = new List<double[]>();      // 时域显示使用
+        var fftInputData = new List<double[]>();       // 仅用于FFT，额外乘以窗函数
+
         foreach (var ch in latestData)
         {
             var data = new double[ch.Length];
@@ -338,8 +374,15 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 for (var i = 0; i < data.Length; i++)
                     data[i] -= mean;
             }
+   
+            // 2) 加窗用于FFT
+            var window = Window.GetWindow(SelectedWindowFunction, data.Length);
+            var winData = new double[data.Length];
+            for (var i = 0; i < data.Length; i++)
+                winData[i] = data[i] * window[i];
+            fftInputData.Add(winData);
 
-            // 2) 滤波（频域实现）
+            // 3) 滤波
             if (EnableFilter)
                 data = SignalProcessingService.FilterSamples(
                     FilterType,
@@ -350,11 +393,9 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                     BandPassFirst,
                     BandPassSecond);
 
-            // 3) 加窗
-            var window = Window.GetWindow(SelectedWindowFunction, data.Length);
-            for (var i = 0; i < data.Length; i++) data[i] *= window[i];
-
+            // 保存时域数据（无窗）
             processedData.Add(data);
+
         }
 
         // 计算时域峰值（根据所有通道，使用" / "分隔）
@@ -364,7 +405,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             string fmta(double d) => $"{d,9:+0.000;-0.000;0.000}"; // 始终带符号并固定 9 宽
             string fmt(double d) => $"{d,8:0.000}"; // 始终带符号并固定 8 宽
             var channelStrings = timePeakResults
-                .Select(r => $"Avg:{fmta(r.AveragePeak)} Pk-Pk:{fmt(r.PeakToPeak)} RMS:{fmt(r.EffectivePeak)}");
+                .Select(r => $"Avg:{fmta(r.AveragePeak)} Pk-Pk:{fmt(r.PeakToPeak)} RMS:{fmt(r.EffectivePeak)} ({Waveforms[0].FrequencyDomainModel.PlotModel.YUnit})");
             Waveforms[0].TimeDomainModel.PlotModel.SubTitle = string.Join(" / ", channelStrings);
         }
 
@@ -383,7 +424,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         Waveforms[0].TimeDomainModel.PlotModel.InvalidatePlot(true);
 
         // 计算 FFT
-        var fftData = processedData.Select(pd => SignalProcessingService.ComputeFft(pd)).ToList();
+        var fftData = fftInputData.Select(pd => SignalProcessingService.ComputeFft(pd)).ToList();
 
         // Update frequency-domain plot
         var freqDomainSeries = Waveforms[0].FrequencyDomainModel.PlotModel.Series;
@@ -397,6 +438,34 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             series.Points.AddRange(points);
         }
 
+        // 调整频域 X 轴范围与滤波带宽一致
+        var xAxis = Waveforms[0].FrequencyDomainModel.PlotModel.Axes.First(a => a.Position == AxisPosition.Bottom);
+        double nyquist = SampleRate / 2;
+        double minFreq = 0;
+        double maxFreq = nyquist;
+        if (EnableFilter)
+        {
+            switch (FilterType)
+            {
+                case FilterType.LowPass:
+                    maxFreq = LowPass;
+                    break;
+                case FilterType.HighPass:
+                    minFreq = HighPass;
+                    break;
+                case FilterType.BandPass:
+                    minFreq = BandPassFirst;
+                    maxFreq = BandPassSecond;
+                    break;
+            }
+            // 防止设置范围无效
+            if (maxFreq <= 0) maxFreq = nyquist;
+            if (minFreq < 0) minFreq = 0;
+            if (maxFreq <= minFreq) maxFreq = minFreq + nyquist / 10;
+        }
+        xAxis.Minimum = minFreq;
+        xAxis.Maximum = maxFreq;
+
         // 计算频域峰值（根据所有通道，使用" / "分隔）
         if (freqDomainSeries.Count > 0)
         {
@@ -405,11 +474,60 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 .ToList();
             string fmt(double d) => $"{d,8:0.000;0.000}"; // 始终带符号并固定 8 宽
             var channelStrings = freqPeakResults
-                .Select(r => $"F:{fmt(r.Position)}Hz Pk:{fmt(r.Peak)}");
+                .Select(r => $"F:{fmt(r.Position)}Hz Pk:{fmt(r.Peak)} ({Waveforms[0].FrequencyDomainModel.PlotModel.YUnit})");
             Waveforms[0].FrequencyDomainModel.PlotModel.SubTitle = string.Join(" / ", channelStrings);
         }
 
         Waveforms[0].FrequencyDomainModel.PlotModel.InvalidatePlot(true);
+
+        // 更新李萨如图 (I vs Q)
+        if (SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal && processedData.Count >= 2)
+        {
+            var lissajousSeries = Waveforms[0].LissajousModel?.PlotModel.Series.FirstOrDefault() as ScatterSeries;
+            if (lissajousSeries != null)
+            {
+                lissajousSeries.Points.Clear();
+                var len = processedData[0].Length;//Math.Min(processedData[0].Length, 10240); // 限制点数
+                for (int k = 0; k < len; k++)
+                {
+                    lissajousSeries.Points.Add(new ScatterPoint(processedData[0][k], processedData[1][k]));
+                }
+                Waveforms[0].LissajousModel.PlotModel.InvalidatePlot(true);
+
+                // 计算相关系数与强度
+                var iSig = processedData[0];
+                var qSig = processedData[1];
+                int lenSig = iSig.Length;//Math.Min(iSig.Length, 4096);
+                double sumI = 0, sumQ = 0, sumI2 = 0, sumQ2 = 0, sumIQ = 0;
+                for (int m = 0; m < lenSig; m++)
+                {
+                    var i = iSig[m];
+                    var q = qSig[m];
+                    sumI += i;
+                    sumQ += q;
+                    sumI2 += i * i;
+                    sumQ2 += q * q;
+                    sumIQ += i * q;
+                }
+                double meanI = sumI / lenSig;
+                double meanQ = sumQ / lenSig;
+                double cov = (sumIQ / lenSig) - meanI * meanQ;
+                double stdI = Math.Sqrt(Math.Max((sumI2 / lenSig) - meanI * meanI, 1e-12));
+                double stdQ = Math.Sqrt(Math.Max((sumQ2 / lenSig) - meanQ * meanQ, 1e-12));
+                double corr = cov / (stdI * stdQ);
+
+                // 信号强度：向量幅值均方根
+                double strengthRms = 0;
+                for (int m = 0; m < lenSig; m++)
+                    strengthRms += iSig[m] * iSig[m] + qSig[m] * qSig[m];
+                strengthRms = Math.Sqrt(strengthRms / lenSig);
+
+                string fmt8(double d) => $"{d,8:0.000}";
+                Waveforms[0].LissajousModel.PlotModel.SubTitle = $"Corr:{fmt8(corr)}  RMS:{fmt8(strengthRms)}";
+
+                Waveforms[0].Strength = Math.Min(1.0, strengthRms / 100.0);
+            }
+        }
 
         _timer.Start();
     }
@@ -484,19 +602,54 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     {
         if (ShoudUpdate && channelDatas.TryGetValue(SelectedSignalType, out var rawData))
         {
-            if (IsTestRunning && _currentSettings.EnableDataStorage) _recorderService.WriteDataAsync(channelDatas);
+            // 根据信号类型决定缩放因子
+            double factor = 1.0;
+            switch (SelectedSignalType)
+            {
+                case Parameter.DataChannelType.Velocity:
+                    factor = SampleRate;
+                    break;
+                case Parameter.DataChannelType.Acceleration:
+                    factor = SampleRate * SampleRate;
+                    break;
+            }
+
+            // 若需要缩放，复制并乘以因子；否则直接复用原数据
+            double[,] dataForProcess;
+            if (Math.Abs(factor - 1.0) > double.Epsilon)
+            {
+                var rows = rawData.GetLength(0);
+                var cols = rawData.GetLength(1);
+                dataForProcess = new double[rows, cols];
+                Parallel.For(0, rows, r =>
+                {
+                    for (int c = 0; c < cols; c++)
+                    {
+                        dataForProcess[r, c] = rawData[r, c] * factor;
+                    }
+                });
+            }
+            else
+            {
+                dataForProcess = rawData;
+            }
+
+            // 构建新的 channelDatas 以确保写盘和后续处理使用相同缩放
+            var scaledDict = new Dictionary<Parameter.DataChannelType, double[,]> { { SelectedSignalType, dataForProcess } };
+
+            if (IsTestRunning && _currentSettings.EnableDataStorage) _recorderService.WriteDataAsync(scaledDict);
 
             lock (_cacheLock)
             {
-                var channelCount = rawData.GetLength(0);
-                var sampleCount = rawData.GetLength(1);
+                var channelCount = dataForProcess.GetLength(0);
+                var sampleCount = dataForProcess.GetLength(1);
 
                 while (_cacheBuffers.Count < channelCount)
-                    _cacheBuffers.Add(new SCSA.Utils.CircularBuffer<double>(DisplayPointCount));
+                    _cacheBuffers.Add(new CircularBuffer<double>(DisplayPointCount));
 
                 for (var i = 0; i < channelCount; i++)
                     for (var j = 0; j < sampleCount; j++)
-                        _cacheBuffers[i].Add(rawData[i, j]);
+                        _cacheBuffers[i].Add(dataForProcess[i, j]);
             }
         }
     }
@@ -512,11 +665,19 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     }
 
     // 波形数据类
-    public class Waveform
+    public class Waveform : ReactiveObject
     {
         public Parameter.DataChannelType DataChannelType { get; set; }
         public CuPlotViewModel TimeDomainModel { get; set; }
         public CuPlotViewModel FrequencyDomainModel { get; set; }
+        public CuPlotViewModel LissajousModel { get; set; }
+
+        private double _strength;
+        public double Strength
+        {
+            get => _strength;
+            set => this.RaiseAndSetIfChanged(ref _strength, value);
+        }
 
         public void InvalidatePlot(bool t)
         {

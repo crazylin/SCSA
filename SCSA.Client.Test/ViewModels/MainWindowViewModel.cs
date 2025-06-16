@@ -25,8 +25,14 @@ public class MainWindowViewModel : ViewModelBase
 
     private Socket _tcpClient;
 
+    // IQ 文件路径，可根据需要修改或通过界面绑定
+    private string IFilePath;
+    private string QFilePath;
+
     public MainWindowViewModel()
     {
+        IFilePath = Path.Combine(AppContext.BaseDirectory, "I1-1280Hz-1.5米反光膜-新激光器-0.4mms.txt");
+        QFilePath = Path.Combine(AppContext.BaseDirectory, "q1-1280Hz-1.5米反光膜-新激光器-0.4mms.txt");
         //var len =BitConverter.ToInt32(new byte[] { 0x06, 0x20, 0x03, 0x00 }.Reverse().ToArray());
 
         //var netPackage = new PipelineNetDataPackage();
@@ -147,9 +153,43 @@ public class MainWindowViewModel : ViewModelBase
                             {
                                 _dataUploadTask = new Task(async () =>
                                 {
+                                    var rand = new Random();
+                                    short noiseRange = 1000; // 噪声幅度，越大相关性波动越明显
+
                                     var p = _parameters.First(pp => pp.Key == ParameterType.TriggerSampleType);
                                     if ((byte)p.Value.Value == (byte)TriggerType.DebugTrigger)
                                         await Task.Delay(TimeSpan.FromSeconds(5));
+
+                                    // 若需要从文件读取 IQ 数据
+                                    var iSamples = new List<short>();
+                                    var qSamples = new List<short>();
+
+                                    if (File.Exists(IFilePath) && File.Exists(QFilePath))
+                                    {
+                                        // 跳过首行标题, 解析第二列数值
+                                        foreach (var line in File.ReadLines(IFilePath).Skip(1))
+                                        {
+                                            var parts = line.Split('\t');
+                                            if (parts.Length >= 2 && double.TryParse(parts[1], out var v))
+                                                iSamples.Add((short)(v * 1000)); // 简单放大
+                                        }
+                                        foreach (var line in File.ReadLines(QFilePath).Skip(1))
+                                        {
+                                            var parts = line.Split('\t');
+                                            if (parts.Length >= 2 && double.TryParse(parts[1], out var v))
+                                                qSamples.Add((short)(v * 1000));
+                                        }
+                                    }
+
+                                    if (iSamples.Count == 0 || qSamples.Count == 0)
+                                    {
+                                        // 回退生成信号
+                                        iSamples.AddRange(Enumerable.Repeat<short>(0, 1));
+                                        qSamples.AddRange(Enumerable.Repeat<short>(0, 1));
+                                    }
+
+                                    int fileCursor = 0;
+
                                     double sampleRate = 20000000;
                                     double frequency = 160000;
                                     var buffer = new byte[10240];
@@ -170,7 +210,7 @@ public class MainWindowViewModel : ViewModelBase
                                         // 其他模式下根据采样率和时间计算点数
                                         // 移除硬编码的5秒限制，改为更大的值以支持长时间录制
                                         // 使用long来避免整数溢出，然后安全地转换为int
-                                        var longTotalPoints = (long)(sampleRate * 60); // 支持60秒录制
+                                        var longTotalPoints = (long)(sampleRate * 600); // 支持60秒录制
                                         totalPoints = longTotalPoints > int.MaxValue
                                             ? int.MaxValue
                                             : (int)longTotalPoints;
@@ -206,13 +246,30 @@ public class MainWindowViewModel : ViewModelBase
                                             list.AddRange(BitConverter.GetBytes(pointsToSend));
 
                                             // 生成数据
-                                            for (var i = 0; i < pointsToSend; i++)
+                                            var uploadType = (Parameter.DataChannelType)Convert.ToByte(_parameters[ParameterType.UploadDataType].Value);
+
+                                            if (uploadType == Parameter.DataChannelType.ISignalAndQSignal)
                                             {
-                                                var sample = Math.Sin(2 * Math.PI * frequency * time) * 127 + 128;
-                                                buffer[i] = (byte)sample;
-                                                time += timeIncrement;
-                                                list.AddRange(
-                                                    BitConverter.GetBytes((float)buffer[i]));
+                                                // 从文件缓冲读取 IQ
+                                                for (int i = 0; i < pointsToSend; i++)
+                                                {
+                                                    var iVal = iSamples[fileCursor % iSamples.Count];
+                                                    var qVal = qSamples[fileCursor % qSamples.Count];
+                                                    fileCursor++;
+                                                    list.AddRange(BitConverter.GetBytes(iVal));
+                                                    list.AddRange(BitConverter.GetBytes(qVal));
+                                                }
+                                            }
+                                            else
+                                            {
+                                                // 单通道 float 信号
+                                                for (var i = 0; i < pointsToSend; i++)
+                                                {
+                                                    var sample = Math.Sin(2 * Math.PI * frequency * time) * 127 + 128;
+                                                    buffer[i] = (byte)sample;
+                                                    time += timeIncrement;
+                                                    list.AddRange(BitConverter.GetBytes((float)buffer[i]));
+                                                }
                                             }
 
                                             currentPoints += pointsToSend;

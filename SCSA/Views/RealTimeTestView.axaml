@@ -12,6 +12,7 @@
   <reactiveUi:ReactiveUserControl.Resources>
     <converters:EnumToBooleanConverter x:Key="EnumConverter" />
     <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    <converters:NullToBooleanConverter x:Key="NullToBoolConverter" />
   </reactiveUi:ReactiveUserControl.Resources>
   <reactiveUi:ReactiveUserControl.DataTemplates>
     <DataTemplate DataType="plot:CuPlotViewModel">
@@ -169,11 +170,19 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate>
-            <UniformGrid Rows="2"
-                         Width="{Binding Bounds.Width, Mode=TwoWay, RelativeSource={RelativeSource AncestorType={x:Type Grid}}}">
-              <ContentControl MinHeight="200"  Content="{Binding TimeDomainModel}" />
-              <!-- 频域波形 -->
-              <ContentControl MinHeight="200"  Content="{Binding FrequencyDomainModel}" />
+            <UniformGrid Rows="2">
+              <ContentControl Content="{Binding TimeDomainModel}" />
+              <Grid ColumnDefinitions="*,Auto">
+                  <ContentControl Grid.Column="0"  Content="{Binding FrequencyDomainModel}" />
+                  <Grid Grid.Column="1" ColumnDefinitions="*,Auto">
+                      <ContentControl Content="{Binding LissajousModel}" MinWidth="300"
+                                      IsVisible="{Binding LissajousModel, Converter={StaticResource NullToBoolConverter}}"/>
+                      <ProgressBar Grid.Column="1" Width="20" Minimum="0" Maximum="1" Orientation="Vertical"
+                                   Value="{Binding Strength}" VerticalAlignment="Stretch" Margin="0 40 10 40"
+                                   BorderThickness="0" Background="Transparent"
+                                   IsVisible="{Binding LissajousModel, Converter={StaticResource NullToBoolConverter}}"/>
+                  </Grid>
+              </Grid>
             </UniformGrid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
