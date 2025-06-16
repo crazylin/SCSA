@@ -17,5 +17,5 @@ public class AppSettings
     public int ListenPort { get; set; } = 9123;
     public string SelectedInterfaceName { get; set; } = string.Empty;
 
-    public bool EnableLogging { get; set; } = true;
+    public bool EnableLogging { get; set; } = false;
 }

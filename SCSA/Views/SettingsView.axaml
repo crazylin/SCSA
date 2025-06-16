@@ -46,7 +46,7 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <StackPanel Orientation="Vertical" Spacing="5" IsVisible="{Binding ShowUFFFormatSettings}">
+                    <StackPanel Orientation="Vertical" Spacing="5"  IsVisible="{Binding SelectedFileFormat, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=UFF}">
                         <TextBlock Text="UFF子格式" FontSize="14" FontWeight="SemiBold" />
                         <ComboBox ItemsSource="{Binding UFFFormatTypes}"
                                   SelectedItem="{Binding SelectedUFFFormat}"
