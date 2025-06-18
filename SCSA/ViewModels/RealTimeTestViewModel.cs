@@ -24,6 +24,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Collections.Concurrent;
 using System.Linq;
+using ReactiveUI.Fody.Helpers;
 
 namespace SCSA.ViewModels;
 
@@ -717,12 +718,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         public CuPlotViewModel FrequencyDomainModel { get; set; }
         public CuPlotViewModel LissajousModel { get; set; }
 
-        private double _strength;
-        public double Strength
-        {
-            get => _strength;
-            set => this.RaiseAndSetIfChanged(ref _strength, value);
-        }
+        [Reactive] public double Strength { get; set; }
 
         public void InvalidatePlot(bool t)
         {
@@ -733,221 +729,59 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     #region Properties
 
-    private int _displayPointCount = 10240;
+    [Reactive] public int DisplayPointCount { get; set; } = 10240;
 
-    public int DisplayPointCount
-    {
-        get => _displayPointCount;
-        set => this.RaiseAndSetIfChanged(ref _displayPointCount, value);
-    }
+    [Reactive] public Parameter.DataChannelType SelectedSignalType { get; set; }
 
-    private Parameter.DataChannelType _selectedSignalType;
+    [Reactive] public ObservableCollection<Waveform> Waveforms { get; set; }
 
-    public Parameter.DataChannelType SelectedSignalType
-    {
-        get => _selectedSignalType;
-        set => this.RaiseAndSetIfChanged(ref _selectedSignalType, value);
-    }
+    [Reactive] public ObservableCollection<Parameter.DataChannelType> SignalTypes { get; set; }
 
-    private ObservableCollection<Waveform> _waveforms;
+    [Reactive] public ObservableCollection<WindowFunction> WindowFunctions { get; set; }
 
-    public ObservableCollection<Waveform> Waveforms
-    {
-        get => _waveforms;
-        set => this.RaiseAndSetIfChanged(ref _waveforms, value);
-    }
+    [Reactive] public WindowFunction SelectedWindowFunction { get; set; }
 
-    private ObservableCollection<Parameter.DataChannelType> _signalTypes;
+    [Reactive] public bool RemoveDc { get; set; }
 
-    public ObservableCollection<Parameter.DataChannelType> SignalTypes
-    {
-        get => _signalTypes;
-        set => this.RaiseAndSetIfChanged(ref _signalTypes, value);
-    }
+    [Reactive] public bool SelectedSignalTypeEnable { get; set; } = true;
 
-    private ObservableCollection<WindowFunction> _windowFunctions;
+    [Reactive] public double SampleRate { get; set; }
 
-    public ObservableCollection<WindowFunction> WindowFunctions
-    {
-        get => _windowFunctions;
-        set => this.RaiseAndSetIfChanged(ref _windowFunctions, value);
-    }
+    [Reactive] public bool ControlEnable { get; set; }
 
-    private WindowFunction _selectedWindowFunction;
+    [Reactive] public List<EnumOption> SampleRateList { get; set; }
 
-    public WindowFunction SelectedWindowFunction
-    {
-        get => _selectedWindowFunction;
-        set => this.RaiseAndSetIfChanged(ref _selectedWindowFunction, value);
-    }
+    [Reactive] public EnumOption SelectedSampleRate { get; set; }
 
-    private bool _removeDc;
+    [Reactive] public bool EnableFilter { get; set; }
 
-    public bool RemoveDc
-    {
-        get => _removeDc;
-        set => this.RaiseAndSetIfChanged(ref _removeDc, value);
-    }
+    [Reactive] public FilterType FilterType { get; set; } = FilterType.LowPass;
 
-    private bool _selectedSignalTypeEnable = true;
+    [Reactive] public double LowPass { get; set; } = 500;
 
-    public bool SelectedSignalTypeEnable
-    {
-        get => _selectedSignalTypeEnable;
-        set => this.RaiseAndSetIfChanged(ref _selectedSignalTypeEnable, value);
-    }
+    [Reactive] public double HighPass { get; set; } = 500;
 
-    private double _sampleRate;
+    [Reactive] public double BandPassFirst { get; set; } = 100;
 
-    public double SampleRate
-    {
-        get => _sampleRate;
-        set => this.RaiseAndSetIfChanged(ref _sampleRate, value);
-    }
+    [Reactive] public double BandPassSecond { get; set; } = 500;
 
-    private bool _controlEnable;
+    [Reactive] public double SaveProgress { get; set; }
 
-    public bool ControlEnable
-    {
-        get => _controlEnable;
-        set => this.RaiseAndSetIfChanged(ref _controlEnable, value);
-    }
+    [Reactive] public string TestStatus { get; set; } = "";
 
-    private List<EnumOption> _sampleRateList;
+    [Reactive] public bool IsTestRunning { get; set; }
 
-    public List<EnumOption> SampleRateList
-    {
-        get => _sampleRateList;
-        set => this.RaiseAndSetIfChanged(ref _sampleRateList, value);
-    }
+    [Reactive] public double ReceivedProgress { get; set; }
 
-    private EnumOption _selectedSampleRate;
+    [Reactive] public SolidColorBrush StatusColor { get; set; } = new(Colors.Black);
 
-    public EnumOption SelectedSampleRate
-    {
-        get => _selectedSampleRate;
-        set => this.RaiseAndSetIfChanged(ref _selectedSampleRate, value);
-    }
+    [Reactive] public bool ShowDataStorageInfo { get; set; }
 
-    private bool _enableFilter;
+    [Reactive] public string TriggerStatus { get; set; } = "准备就绪";
 
-    public bool EnableFilter
-    {
-        get => _enableFilter;
-        set => this.RaiseAndSetIfChanged(ref _enableFilter, value);
-    }
+    [Reactive] public bool ShoudUpdate { get; set; }
 
-    private FilterType _filterType = FilterType.LowPass;
-
-    public FilterType FilterType
-    {
-        get => _filterType;
-        set => this.RaiseAndSetIfChanged(ref _filterType, value);
-    }
-
-    private double _lowPass = 500;
-
-    public double LowPass
-    {
-        get => _lowPass;
-        set => this.RaiseAndSetIfChanged(ref _lowPass, value);
-    }
-
-    private double _highPass = 500;
-
-    public double HighPass
-    {
-        get => _highPass;
-        set => this.RaiseAndSetIfChanged(ref _highPass, value);
-    }
-
-    private double _bandPassFirst = 100;
-
-    public double BandPassFirst
-    {
-        get => _bandPassFirst;
-        set => this.RaiseAndSetIfChanged(ref _bandPassFirst, value);
-    }
-
-    private double _bandPassSecond = 500;
-
-    public double BandPassSecond
-    {
-        get => _bandPassSecond;
-        set => this.RaiseAndSetIfChanged(ref _bandPassSecond, value);
-    }
-
-    private double _saveProgress;
-
-    public double SaveProgress
-    {
-        get => _saveProgress;
-        set => this.RaiseAndSetIfChanged(ref _saveProgress, value);
-    }
-
-    private string _testStatus = "";
-
-    public string TestStatus
-    {
-        get => _testStatus;
-        set => this.RaiseAndSetIfChanged(ref _testStatus, value);
-    }
-
-    private bool _isTestRunning;
-
-    public bool IsTestRunning
-    {
-        get => _isTestRunning;
-        set => this.RaiseAndSetIfChanged(ref _isTestRunning, value);
-    }
-
-    private double _receivedProgress;
-
-    public double ReceivedProgress
-    {
-        get => _receivedProgress;
-        set => this.RaiseAndSetIfChanged(ref _receivedProgress, value);
-    }
-
-    private SolidColorBrush _statusColor = new(Colors.Black);
-
-    public SolidColorBrush StatusColor
-    {
-        get => _statusColor;
-        set => this.RaiseAndSetIfChanged(ref _statusColor, value);
-    }
-
-    private bool _showDataStorageInfo;
-
-    public bool ShowDataStorageInfo
-    {
-        get => _showDataStorageInfo;
-        set => this.RaiseAndSetIfChanged(ref _showDataStorageInfo, value);
-    }
-
-    private string _triggerStatus = "准备就绪";
-
-    public string TriggerStatus
-    {
-        get => _triggerStatus;
-        set => this.RaiseAndSetIfChanged(ref _triggerStatus, value);
-    }
-
-    private bool _shoudUpdate;
-
-    public bool ShoudUpdate
-    {
-        get => _shoudUpdate;
-        set => this.RaiseAndSetIfChanged(ref _shoudUpdate, value);
-    }
-
-    private TriggerType _selectedTriggerType;
-
-    public TriggerType SelectedTriggerType
-    {
-        get => _selectedTriggerType;
-        private set => this.RaiseAndSetIfChanged(ref _selectedTriggerType, value);
-    }
+    [Reactive] public TriggerType SelectedTriggerType { get; private set; }
 
     #endregion
 

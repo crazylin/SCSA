@@ -51,33 +51,29 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Grid Grid.Row="0" RowDefinitions="Auto,*">
-         <Grid  Grid.Row="0" ColumnDefinitions="*,Auto" >
+          <Grid ColumnDefinitions="*,Auto" Grid.Row="0"  Margin="50 0 0 0" >
 
-             <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal"  Margin="50 0 0 0" >
-    
-                <StackPanel Orientation="Horizontal" Spacing="1" IsVisible="{Binding PlotModel.ShowToolBar}">
-                    <RadioButton x:Name="BtnPan"   Content="&#xE616;" GroupName="ToolBar" Classes="toggle-like"
-                                 IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Pan}" />
-                    <RadioButton x:Name="BtnZoom"  Content="&#xE7FF;" GroupName="ToolBar" Classes="toggle-like"
-                                 IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Zoom}" />
-                    <RadioButton x:Name="BtnRange" Content="&#xE7FC;" GroupName="ToolBar" Classes="toggle-like"
-                                 IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=RangeSelect}" />
-                    <ToggleButton x:Name="BtnLog"  Content="&#xE690;" IsChecked="{Binding IsLogEnabled, Mode=TwoWay}" />
-                    <ToggleButton x:Name="BtnLock" Content="&#xE676;" IsChecked="{Binding IsLockEnabled, Mode=TwoWay}" />
-                    <Button Content="&#xE706;" Command="{Binding CopyCommand}" />
-                    <Button Content="&#xE642;" Command="{Binding ScreenshotCommand}" />
-                    <Button Content="&#xE79B;" Command="{Binding ResetCommand}" />
-                </StackPanel>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="1" IsVisible="{Binding PlotModel.ShowToolBar}">
+              <RadioButton x:Name="BtnPan"   Content="&#xE616;" GroupName="ToolBar" Classes="toggle-like"
+                           IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Pan}" />
+              <RadioButton x:Name="BtnZoom"  Content="&#xE7FF;" GroupName="ToolBar" Classes="toggle-like"
+                           IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Zoom}" />
+              <RadioButton x:Name="BtnRange" Content="&#xE7FC;" GroupName="ToolBar" Classes="toggle-like"
+                           IsChecked="{Binding SelectedMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=RangeSelect}" />
+              <ToggleButton x:Name="BtnLog"  Content="&#xE690;" IsChecked="{Binding IsLogEnabled, Mode=TwoWay}" />
+              <ToggleButton x:Name="BtnLock" Content="&#xE676;" IsChecked="{Binding IsLockEnabled, Mode=TwoWay}" />
+              <Button Content="&#xE706;" Command="{Binding CopyCommand}" />
+              <Button Content="&#xE642;" Command="{Binding ScreenshotCommand}" />
+              <Button Content="&#xE79B;" Command="{Binding ResetCommand}" />
+              <TextBlock FontFamily="Consolas"
+                         Text="{Binding PlotModel.SubTitle}"
+                         VerticalAlignment="Center"
+                         Margin="10 0 0 0"></TextBlock>
+            </StackPanel>
 
-                 <TextBlock FontFamily="Consolas" 
-                            Text="{Binding PlotModel.SubTitle}" 
-                            VerticalAlignment="Center" 
-                            Margin="10 0 0 0"></TextBlock>
-               
-             </StackPanel>
+            <TextBlock Grid.Column="1" Text="{Binding PlotModel.Title}" VerticalAlignment="Center" FontWeight="Bold" Margin="0 0 10 0"></TextBlock>
 
-             <TextBlock Grid.Column="1" Text="{Binding PlotModel.Title}" VerticalAlignment="Center" FontWeight="Bold" Margin="0 0 10 0"></TextBlock>
-         </Grid>
+          </Grid>
             
 
             <avalonia:PlotView Grid.Row="1" x:Name="PlotView" Background="Transparent" Model="{Binding PlotModel}" Controller="{Binding PlotModel.Controller}" />

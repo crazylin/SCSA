@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using SCSA.IO.Net.TCP;
 using SCSA.Models;
 using SCSA.Services;
@@ -24,14 +25,6 @@ public class ConnectionViewModel : ViewModelBase
     private readonly ParameterViewModel _parameterViewModel;
     private readonly IAppSettingsService _settingsService;
     private readonly PipelineTcpServer<PipelineNetDataPackage> _tcpServer;
-
-    private int _port = 9123;
-
-    private DeviceConnection _selectedDevice;
-
-    private NetworkInterfaceInfo _selectedInterface;
-
-    private string _statusMessage = "准备就绪";
 
     public ConnectionViewModel(PipelineTcpServer<PipelineNetDataPackage> tcpServer, IAppSettingsService settingsService,
         ParameterViewModel parameterViewModel)
@@ -97,29 +90,13 @@ public class ConnectionViewModel : ViewModelBase
         ParameterViewModel = parameterViewModel;
     }
 
-    public int Port
-    {
-        get => _port;
-        set => this.RaiseAndSetIfChanged(ref _port, value);
-    }
+    [Reactive] public int Port { get; set; } = 9123;
 
-    public DeviceConnection SelectedDevice
-    {
-        get => _selectedDevice;
-        set => this.RaiseAndSetIfChanged(ref _selectedDevice, value);
-    }
+    [Reactive] public DeviceConnection SelectedDevice { get; set; }
 
-    public string StatusMessage
-    {
-        get => _statusMessage;
-        set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
-    }
+    [Reactive] public NetworkInterfaceInfo SelectedInterface { get; set; }
 
-    public NetworkInterfaceInfo SelectedInterface
-    {
-        get => _selectedInterface;
-        set => this.RaiseAndSetIfChanged(ref _selectedInterface, value);
-    }
+    [Reactive] public string StatusMessage { get; set; } = "准备就绪";
 
     public ObservableCollection<NetworkInterfaceInfo> NetworkInterfaces { get; } = new();
     public ObservableCollection<DeviceConnection> ConnectedDevices { get; } = new();

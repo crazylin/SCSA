@@ -32,6 +32,8 @@
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.3" />
     <PackageReference Include="Oxyplot.AvaloniaCore" Version="2.1.3" />
+    <PackageReference Include="ReactiveUI.Fody" Version="19.5.41" />
+    <PackageReference Include="Fody" Version="6.8.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

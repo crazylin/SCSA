@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace SCSA.Models;
 
@@ -10,10 +11,11 @@ public abstract class DeviceParameter : ReactiveObject
     public string Description { get; set; }
     public int Address { get; init; }
     public int DataLength { get; init; }
-    public abstract object Value { get; set; }
     public Type ValueType { get; set; }
 
     public string Category { get; set; } = "默认";
+
+    public abstract object Value { get; set; }
 }
 
 public class ParameterCategory
@@ -29,75 +31,43 @@ public class ParameterCategory
 
 public class StringParameter : DeviceParameter
 {
-    private string _value;
-
-    public override object Value
-    {
-        get => _value;
-        set => this.RaiseAndSetIfChanged(ref _value, (string)value);
-    }
+    [Reactive] public override object Value { get; set; }
 }
 
 public class BoolParameter : DeviceParameter
 {
-    private bool _value;
-
-    public override object Value
-    {
-        get => _value;
-        set => this.RaiseAndSetIfChanged(ref _value, Convert.ToBoolean(value));
-    }
+    [Reactive] public override object Value { get; set; }
 }
 
 public class NumberParameter : DeviceParameter
 {
-    private double _value;
     public double MinValue { get; set; } = 0;
     public double MaxValue { get; set; } = 100;
 
-    public override object Value
-    {
-        get => _value;
-        set => this.RaiseAndSetIfChanged(ref _value, Convert.ToDouble(value));
-    }
+    [Reactive] public override object Value { get; set; }
 }
 
 public class FloatNumberParameter : DeviceParameter
 {
-    private float _value;
     public float MinValue { get; set; } = 0;
     public float MaxValue { get; set; } = 100;
 
-    public override object Value
-    {
-        get => _value;
-        set => this.RaiseAndSetIfChanged(ref _value, Convert.ToSingle(value));
-    }
+    [Reactive] public override object Value { get; set; }
 }
 
 public class IntegerNumberParameter : DeviceParameter
 {
-    private int _value;
     public int MinValue { get; set; } = 0;
     public int MaxValue { get; set; } = 100;
 
-    public override object Value
-    {
-        get => _value;
-        set => this.RaiseAndSetIfChanged(ref _value, Convert.ToInt32(value));
-    }
+    [Reactive] public override object Value { get; set; }
 }
 
 public class EnumParameter : DeviceParameter
 {
-    private object _value;
     public List<EnumOption> Options { set; get; } = new();
 
-    public override object Value
-    {
-        get => _value;
-        set => this.RaiseAndSetIfChanged(ref _value, value);
-    }
+    [Reactive] public override object Value { get; set; }
 }
 
 public record EnumOption(string DisplayName, object RealValue);
@@ -142,14 +112,9 @@ public class EnumCheckParameter : DeviceParameter
 
 public class EnumRadioParameter : DeviceParameter
 {
-    private object _value;
     public List<EnumOption> Options { set; get; } = new();
 
-    public override object Value
-    {
-        get => _value;
-        set => this.RaiseAndSetIfChanged(ref _value, value);
-    }
+    [Reactive] public override object Value { get; set; }
 }
 //public class EnumRadioParameter : DeviceParameter
 //{

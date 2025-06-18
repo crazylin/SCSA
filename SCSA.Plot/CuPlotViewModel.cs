@@ -5,6 +5,7 @@ using System.Reactive.Linq;
 using ReactiveUI;
 using SCSA.Plot;
 using SCSA.Utils;
+using ReactiveUI.Fody.Helpers;
 
 namespace SCSA.Plot;
 
@@ -15,25 +16,25 @@ public class CuPlotViewModel : ReactiveObject
         // Property Change Subscriptions
         this.WhenAnyValue(x => x.SelectedMode)
             .Skip(1)
-            .Subscribe(sm => _plotModel.SelectedMode = sm);
+            .Subscribe(sm => { if (PlotModel != null) PlotModel.SelectedMode = sm; });
 
         this.WhenAnyValue(x => x.IsLogEnabled)
             .Skip(1)
-            .Subscribe(sm => _plotModel.ToggleLog(_isLogEnabled));
+            .Subscribe(flag => { if (PlotModel != null) PlotModel.ToggleLog(flag); });
 
         this.WhenAnyValue(x => x.IsLockEnabled)
             .Skip(1)
-            .Subscribe(sm => _plotModel.ToggleLog(_isLockEnabled));
+            .Subscribe(flag => { if (PlotModel != null) PlotModel.ToggleLock(flag); });
 
         this.WhenAnyValue(x => x.PlotModel)
             .Skip(1)
             .Subscribe(_ =>
             {
-                if(_plotModel==null)
+                if(PlotModel==null)
                     return;
-                _plotModel.SelectedMode = _selectedMode;
-                _plotModel.ToggleLog(_isLogEnabled);
-                _plotModel.ToggleLock(_isLockEnabled);
+                PlotModel.SelectedMode = SelectedMode;
+                PlotModel.ToggleLog(IsLogEnabled);
+                PlotModel.ToggleLock(IsLockEnabled);
             });
 
 
@@ -46,40 +47,19 @@ public class CuPlotViewModel : ReactiveObject
 
     private void DoReset()
     {
-        _plotModel?.ResetPlot();
+        PlotModel?.ResetPlot();
         IsLogEnabled = false;
         IsLockEnabled = false;
         SelectedMode = InteractionMode.None;
     }
 
-    public CuPlotModel PlotModel
-    {
-        set=> this.RaiseAndSetIfChanged(ref _plotModel, value);
-        get => _plotModel;
-    }
+    [Reactive] public InteractionMode SelectedMode { get; set; }
 
-    private InteractionMode _selectedMode;
-    public InteractionMode SelectedMode
-    {
-        get => _selectedMode;
-        set => this.RaiseAndSetIfChanged(ref _selectedMode, value);
-    }
+    [Reactive] public bool IsLogEnabled { get; set; }
 
-    private bool _isLogEnabled;
-    public bool IsLogEnabled
-    {
-        get => _isLogEnabled;
-        set => this.RaiseAndSetIfChanged(ref _isLogEnabled, value);
-    }
+    [Reactive] public bool IsLockEnabled { get; set; }
 
-    private bool _isLockEnabled;
-    private CuPlotModel _plotModel;
-
-    public bool IsLockEnabled
-    {
-        get => _isLockEnabled;
-        set=> this.RaiseAndSetIfChanged(ref _isLockEnabled, value);
-    }
+    [Reactive] public CuPlotModel PlotModel { get; set; }
 
     public ReactiveCommand<Unit, Unit> CopyCommand { get; }
     public ReactiveCommand<Unit, Unit> ScreenshotCommand { get; }

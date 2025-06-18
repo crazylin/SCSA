@@ -1,11 +1,23 @@
 ﻿using System.Collections.Generic;
+using System.Reactive.Linq;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace SCSA.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
     private NavItem _selectedItem;
+
+    public NavItem SelectedItem
+    {
+        get => _selectedItem;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedItem, value);
+            this.RaisePropertyChanged(nameof(CurrentPage));
+        }
+    }
 
     public MainWindowViewModel(ConnectionViewModel connectionViewModel,
         RealTimeTestViewModel realTimeTestViewModel,
@@ -31,16 +43,6 @@ public class MainWindowViewModel : ViewModelBase
     }
 
     public IReadOnlyList<NavItem> NavItems { get; }
-
-    public NavItem SelectedItem
-    {
-        get => _selectedItem;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _selectedItem, value);
-            this.RaisePropertyChanged(nameof(CurrentPage));
-        }
-    }
 
     public IReadOnlyList<NavItem> FooterNavItems { get; set; }
 

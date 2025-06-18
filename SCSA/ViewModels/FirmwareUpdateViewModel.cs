@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace SCSA.ViewModels;
 
@@ -14,21 +15,23 @@ public class FirmwareUpdateViewModel : ViewModelBase
 {
     private readonly ConnectionViewModel _connectionVm;
 
-    private string _buttonText = "开始升级";
-
-    private bool _controlEnable;
     private CancellationTokenSource _cts;
-    private string _currentVersion = "1.0.0";
 
-    private double _maxPercentage = 100;
+    [Reactive] public string ButtonText { get; set; } = "开始升级";
 
-    private string _newVersion = "1.1.0";
+    [Reactive] public bool ControlEnable { get; set; }
 
-    private double _progressPercentage;
+    [Reactive] public string CurrentVersion { get; set; } = "1.0.0";
 
-    private string _selectedFilePath;
+    [Reactive] public double MaxPercentage { get; set; } = 100;
 
-    private string _statusMessage = "准备就绪";
+    [Reactive] public string NewVersion { get; set; } = "1.1.0";
+
+    [Reactive] public double ProgressPercentage { get; set; }
+
+    [Reactive] public string SelectedFilePath { get; set; }
+
+    [Reactive] public string StatusMessage { get; set; } = "准备就绪";
 
     public FirmwareUpdateViewModel(ConnectionViewModel connectionViewModel)
     {
@@ -39,54 +42,6 @@ public class FirmwareUpdateViewModel : ViewModelBase
         var canStart = this.WhenAnyValue(x => x.ControlEnable);
         StartUpgradeCommand = ReactiveCommand.CreateFromTask(StartOrCancelUpgradeAsync, canStart);
         BrowseCommand = ReactiveCommand.CreateFromTask<Control>(BrowseAsync);
-    }
-
-    public string CurrentVersion
-    {
-        get => _currentVersion;
-        set => this.RaiseAndSetIfChanged(ref _currentVersion, value);
-    }
-
-    public string NewVersion
-    {
-        get => _newVersion;
-        set => this.RaiseAndSetIfChanged(ref _newVersion, value);
-    }
-
-    public double ProgressPercentage
-    {
-        get => _progressPercentage;
-        set => this.RaiseAndSetIfChanged(ref _progressPercentage, value);
-    }
-
-    public double MaxPercentage
-    {
-        get => _maxPercentage;
-        set => this.RaiseAndSetIfChanged(ref _maxPercentage, value);
-    }
-
-    public string StatusMessage
-    {
-        get => _statusMessage;
-        set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
-    }
-
-    public string ButtonText
-    {
-        get => _buttonText;
-        set => this.RaiseAndSetIfChanged(ref _buttonText, value);
-    }
-
-    public string SelectedFilePath
-    {
-        get => _selectedFilePath;
-        set => this.RaiseAndSetIfChanged(ref _selectedFilePath, value);
-    }
-
-    public bool ControlEnable
-    {
-        get => _controlEnable;
-        set => this.RaiseAndSetIfChanged(ref _controlEnable, value);
     }
 
     public byte[] FirmwareData { get; private set; }

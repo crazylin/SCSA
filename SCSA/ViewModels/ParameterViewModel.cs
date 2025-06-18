@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 using FluentAvalonia.UI.Controls;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using SCSA.Models;
 using SCSA.ViewModels.Messages;
 
@@ -18,8 +19,6 @@ namespace SCSA.ViewModels;
 public class ParameterViewModel : ViewModelBase
 {
     private readonly IStorageProvider _storageProvider;
-
-    private DeviceConnection? _currentDevice;
 
     public ParameterViewModel(IStorageProvider storageProvider)
     {
@@ -48,11 +47,7 @@ public class ParameterViewModel : ViewModelBase
     public DeviceConfiguration Config { get; }
     public ObservableCollection<ParameterCategory> Categories { get; }
 
-    public DeviceConnection? CurrentDevice
-    {
-        get => _currentDevice;
-        private set => this.RaiseAndSetIfChanged(ref _currentDevice, value);
-    }
+    [Reactive] public DeviceConnection? CurrentDevice { get; private set; }
 
     public ReactiveCommand<Unit, Unit> ReadParametersFromDeviceCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }

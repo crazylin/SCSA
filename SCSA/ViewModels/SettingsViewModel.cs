@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using SCSA.Models;
 using SCSA.Services;
 using SCSA.ViewModels.Messages;
@@ -39,29 +40,29 @@ public class SettingsViewModel : ViewModelBase
 
     private readonly ObservableAsPropertyHelper<string> _storageTimeDisplay;
 
-    private int _dataLength = 102400;
+    [Reactive] public int DataLength { get; set; } = 102400;
 
-    private string _dataStoragePath;
+    [Reactive] public string DataStoragePath { get; set; }
 
-    private bool _enableDataStorage = true;
+    [Reactive] public bool EnableDataStorage { get; set; } = true;
 
-    private FileFormatType _selectedFileFormat = FileFormatType.UFF;
+    [Reactive] public FileFormatType SelectedFileFormat { get; set; } = FileFormatType.UFF;
 
-    private StorageType _selectedStorageType = StorageType.Length;
+    [Reactive] public StorageType SelectedStorageType { get; set; } = StorageType.Length;
 
-    private TriggerType _selectedTriggerType = TriggerType.FreeTrigger;
+    [Reactive] public TriggerType SelectedTriggerType { get; set; } = TriggerType.FreeTrigger;
 
-    private UFFFormatType _selectedUFFFormat = UFFFormatType.Binary;
+    [Reactive] public UFFFormatType SelectedUFFFormat { get; set; } = UFFFormatType.Binary;
 
-    private bool _showDataLengthSettings = true;
+    [Reactive] public bool ShowDataLengthSettings { get; set; } = true;
 
-    private bool _showUFFFormatSettings;
+    [Reactive] public bool ShowUFFFormatSettings { get; set; }
 
-    private int _storageTime = 10;
+    [Reactive] public int StorageTime { get; set; } = 10;
 
-    private ObservableCollection<TriggerType> _triggerTypes;
+    [Reactive] public ObservableCollection<TriggerType> TriggerTypes { get; set; }
 
-    private bool _enableLogging = true;
+    [Reactive] public bool EnableLogging { get; set; } = true;
 
     public SettingsViewModel(IAppSettingsService settingsService)
     {
@@ -111,70 +112,6 @@ public class SettingsViewModel : ViewModelBase
         BrowseStoragePathCommand = ReactiveCommand.CreateFromTask(BrowseStoragePath);
     }
 
-    public bool EnableDataStorage
-    {
-        get => _enableDataStorage;
-        set => this.RaiseAndSetIfChanged(ref _enableDataStorage, value);
-    }
-
-    public string DataStoragePath
-    {
-        get => _dataStoragePath;
-        set => this.RaiseAndSetIfChanged(ref _dataStoragePath, value);
-    }
-
-    public int DataLength
-    {
-        get => _dataLength;
-        set => this.RaiseAndSetIfChanged(ref _dataLength, value);
-    }
-
-    public ObservableCollection<TriggerType> TriggerTypes
-    {
-        get => _triggerTypes;
-        set => this.RaiseAndSetIfChanged(ref _triggerTypes, value);
-    }
-
-    public TriggerType SelectedTriggerType
-    {
-        get => _selectedTriggerType;
-        set => this.RaiseAndSetIfChanged(ref _selectedTriggerType, value);
-    }
-
-    public string DataLengthDisplay => _dataLengthDisplay.Value;
-
-    public StorageType SelectedStorageType
-    {
-        get => _selectedStorageType;
-        set => this.RaiseAndSetIfChanged(ref _selectedStorageType, value);
-    }
-
-    public int StorageTime
-    {
-        get => _storageTime;
-        set => this.RaiseAndSetIfChanged(ref _storageTime, value);
-    }
-
-    public string StorageTimeDisplay => _storageTimeDisplay.Value;
-
-    public bool ShowDataLengthSettings
-    {
-        get => _showDataLengthSettings;
-        set => this.RaiseAndSetIfChanged(ref _showDataLengthSettings, value);
-    }
-
-    public FileFormatType SelectedFileFormat
-    {
-        get => _selectedFileFormat;
-        set => this.RaiseAndSetIfChanged(ref _selectedFileFormat, value);
-    }
-
-    public UFFFormatType SelectedUFFFormat
-    {
-        get => _selectedUFFFormat;
-        set => this.RaiseAndSetIfChanged(ref _selectedUFFFormat, value);
-    }
-
     public ObservableCollection<StorageType> StorageTypes { get; }
     public ObservableCollection<FileFormatType> FileFormatTypes { get; }
     public ObservableCollection<UFFFormatType> UFFFormatTypes { get; }
@@ -182,14 +119,9 @@ public class SettingsViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> SaveSettingsCommand { get; }
     public ReactiveCommand<Unit, Unit> BrowseStoragePathCommand { get; }
 
+    public string DataLengthDisplay => _dataLengthDisplay.Value;
 
-
-
-    public bool EnableLogging
-    {
-        get => _enableLogging;
-        set => this.RaiseAndSetIfChanged(ref _enableLogging, value);
-    }
+    public string StorageTimeDisplay => _storageTimeDisplay.Value;
 
     private void LoadSettings()
     {

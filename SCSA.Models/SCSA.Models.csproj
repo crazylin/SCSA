@@ -8,6 +8,8 @@
   <ItemGroup>
     <PackageReference Include="System.IO.Hashing" Version="9.0.5" />
     <PackageReference Include="Avalonia.ReactiveUI" Version="11.2.5" />
+    <PackageReference Include="ReactiveUI.Fody" Version="19.5.41" />
+    <PackageReference Include="Fody" Version="6.8.0" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SCSA.IO\SCSA.IO.csproj" />
