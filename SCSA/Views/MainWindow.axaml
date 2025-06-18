@@ -74,7 +74,7 @@
         <controls:NavigationView Grid.Row="1"
                                  MenuItemsSource="{Binding NavItems}"
                                  FooterMenuItemsSource="{Binding FooterNavItems}"
-                                 SelectedItem="{Binding SelectedItem}"
+                                 SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                                  PaneDisplayMode="Left" IsPaneOpen="False" OpenPaneLength="150"
                                  IsSettingsVisible="False">
             <controls:NavigationView.MenuItemTemplate>
@@ -83,8 +83,82 @@
                 </DataTemplate>
             </controls:NavigationView.MenuItemTemplate>
             <controls:NavigationView.Content>
-                <ContentControl Content="{Binding CurrentPage}" />
+                <Grid RowDefinitions="*,Auto">
+                    <!--<ContentControl Grid.Row="0" Content="{Binding CurrentPage}" />-->
+                    <Grid Grid.Row="0">
+                        <scsa:ConnectionView DataContext="{Binding ConnectionViewModel}"
+                                           IsVisible="{Binding Path=DataContext.IsConnectionPageVisible, Mode=OneWay, FallbackValue=True,
+                                                             RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <scsa:RealTimeTestView DataContext="{Binding RealTimeTestViewModel}"
+                                              IsVisible="{Binding Path=DataContext.IsRealTimeTestPageVisible, Mode=OneWay, FallbackValue=False,
+                                                             RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <scsa:FirmwareUpdateView DataContext="{Binding FirmwareUpdateViewModel}"
+                                               IsVisible="{Binding Path=DataContext.IsFirmwareUpdatePageVisible, Mode=OneWay, FallbackValue=False,
+                                                             RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <scsa:SettingsView DataContext="{Binding SettingsViewModel}"
+                                        IsVisible="{Binding Path=DataContext.IsSettingsPageVisible, Mode=OneWay, FallbackValue=False,
+                                                             RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    </Grid>
+                    <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource ControlStrokeColorDefault}" Padding="10,5">
+                       
+                        <Grid ColumnDefinitions="*,Auto">
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="20">
+
+                                <!-- Test-related info on the left -->
+                                <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding StatusBarViewModel.IsTestRunning}">
+                                    <controls:SymbolIcon Symbol="Target" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StatusBarViewModel.AcquisitionMode}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding StatusBarViewModel.IsTestRunning}">
+                                    <controls:SymbolIcon Symbol="Sync" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StatusBarViewModel.TriggerMode}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding StatusBarViewModel.ShowTriggerStatus}">
+                                    <controls:SymbolIcon Symbol="Play" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StatusBarViewModel.TriggerStatus}" VerticalAlignment="Center" />
+                                </StackPanel>
+
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20">
+                                <!-- Progress and general info on the right -->
+                                <StackPanel Orientation="Horizontal" Spacing="5" Width="80" IsVisible="{Binding StatusBarViewModel.ShowDataStorageInfo}">
+                                  <controls:SymbolIcon Symbol="Switch" FontSize="16" VerticalAlignment="Center"/>
+                                  <TextBlock Text="{Binding StatusBarViewModel.ReceivedProgress, StringFormat='接收: {0}%'}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="5" Width="80" IsVisible="{Binding StatusBarViewModel.ShowDataStorageInfo}">
+                                    <controls:SymbolIcon Symbol="Save" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StatusBarViewModel.SaveProgress, StringFormat='存储: {0}%'}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="5" Width="120" IsVisible="{Binding StatusBarViewModel.IsTestRunning}">
+                                    <controls:SymbolIcon Symbol="Clock" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StatusBarViewModel.TestRunningTime}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <controls:SymbolIcon Symbol="Wifi4" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StatusBarViewModel.ListeningEndpoint}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <controls:SymbolIcon Symbol="Link" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StatusBarViewModel.ConnectedDevice}" VerticalAlignment="Center" />
+                                </StackPanel>
+                
+                            </StackPanel>
+                       
+                        </Grid>
+
+                      </Border>
+                </Grid>
+            
             </controls:NavigationView.Content>
         </controls:NavigationView>
+        <controls:InfoBar x:Name="NotificationInfoBar"
+                          Grid.Row="1"
+                          IsOpen="False"
+                          Width="500"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Bottom"
+                          Margin="10,0,10,10" />
+
     </Grid>
 </Window>

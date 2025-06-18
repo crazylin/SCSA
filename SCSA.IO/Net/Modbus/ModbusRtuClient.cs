@@ -2,11 +2,11 @@
 using System.ComponentModel.Composition;
 using System.IO.Ports;
 using System.Text;
+using SCSA.Utils;
 
 namespace SCSA.IO.Net.Modbus;
 
-[Export(typeof(IModbusClient))]
-[PartCreationPolicy(CreationPolicy.NonShared)]
+
 public class ModbusRtuClient : IModbusClient, IDisposable
 {
     private readonly AutoResetEvent _writeLock = new(false);
@@ -50,8 +50,9 @@ public class ModbusRtuClient : IModbusClient, IDisposable
 
             _serialPort.ReadExisting();
         }
-        catch
+        catch (Exception e)
         {
+            Log.Error($"ModbusRtuClient start open port {name} failed", e);
             return;
         }
 
@@ -145,11 +146,15 @@ public class ModbusRtuClient : IModbusClient, IDisposable
 
                     //Debug.WriteLine(message.ToString());
                 }
-                catch
+                catch (Exception e)
                 {
+                    Log.Error("ModbusRtuClient read data failed", e);
                     ++exceptionCount;
                     if (exceptionCount > 10)
+                    {
+                        Log.Error("ModbusRtuClient read data failed too many times, thread exit.");
                         break;
+                    }
                     OnSessionClosed?.Invoke(this, EventArgs.Empty);
                 }
         });
@@ -157,11 +162,11 @@ public class ModbusRtuClient : IModbusClient, IDisposable
         {
             while (_isRunning)
             {
-                while (_writeQueue.Count > 0)
+                _writeLock.WaitOne();
+                while (_writeQueue.TryDequeue(out var ds))
                 {
-                    ModbusMessage ds;
-                    _writeQueue.TryDequeue(out ds);
-                    if (ds != null)
+                    if (ds == null) continue;
+                    try
                     {
                         if (ds.Extend)
                         {
@@ -174,13 +179,15 @@ public class ModbusRtuClient : IModbusClient, IDisposable
                             if (_serialPort.IsOpen)
                                 _serialPort.Write(data, 0, data.Length);
                         }
-                        //Console.WriteLine("write -> " + HexToString(ds.Data));
                     }
+                    catch (Exception e)
+                    {
+                        Log.Error("ModbusRtuClient write data failed", e);
+                    }
+                    //Console.WriteLine("write -> " + HexToString(ds.Data));
 
                     Thread.Sleep(10);
                 }
-
-                _writeLock.WaitOne(1000);
             }
         });
         _readThread.IsBackground = true;
@@ -199,8 +206,9 @@ public class ModbusRtuClient : IModbusClient, IDisposable
             _serialPort?.Close();
             _readThread?.Join();
         }
-        catch
+        catch (Exception e)
         {
+            Log.Error("ModbusRtuClient stop failed", e);
         }
     }
 }

@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
 using PipeOptions = System.IO.Pipelines.PipeOptions;
-
+using SCSA.Utils;
 
 namespace SCSA.IO.Net.TCP;
 
@@ -87,10 +87,12 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
                     // socket 异常或断开
                     catch (SocketException e) when (e.SocketErrorCode == SocketError.ConnectionReset)
                     {
+                        Log.Error("PipelineTcpClient socket connection reset", e);
                         break;
                     }
                     catch (Exception e)
                     {
+                        Log.Error("PipelineTcpClient socket receive failed", e);
                         break;
                     }
 
@@ -110,6 +112,7 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
             }
             catch (Exception e)
             {
+                Log.Error("PipelineTcpClient pipe writing failed", e);
             }
             finally
             {
@@ -139,15 +142,16 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
                         buffer = buffer.Slice(frameEnd);
                     }
 
-                    // 拆不出完整帧时，把“检查到的最前”标记给 examined
+                    // 拆不出完整帧时，把"检查到的最前"标记给 examined
                     examined = buffer.Start;
                 }
                 catch (Exception e)
                 {
+                    Log.Error("PipelineTcpClient parse packet failed", e);
                     break;
                 }
 
-                // 通知管道：从 buffer.Start 到 consumed 的字节已经消费掉；buffer.Start 到 examined 的字节已经“检查过”
+                // 通知管道：从 buffer.Start 到 consumed 的字节已经消费掉；buffer.Start 到 examined 的字节已经"检查过"
                 _pipe.Reader.AdvanceTo(consumed, examined);
 
                 if (readResult.IsCompleted)
@@ -159,8 +163,9 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
             {
                 await _pipe.Reader.CompleteAsync();
             }
-            catch
+            catch (Exception e)
             {
+                Log.Error("PipelineTcpClient pipe reader complete failed", e);
             }
 
             _running = false;
@@ -168,8 +173,9 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
             {
                 _socket.Close();
             }
-            catch
+            catch (Exception e)
             {
+                Log.Error("PipelineTcpClient socket close failed", e);
             }
 
             _processingChannel.Writer.Complete();
@@ -187,7 +193,7 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
 
         // 假设 T 自己能提供 "ToArray()" 或 "GetBytes()"，代表一个完整帧
         // 这里新版约定：你在实现 IPipelineDataPackage<T> 的类里，必须提供一个 ToArray() 方法，
-        // 它返回一个“可直接 socket.Send 的字节数组”，包含 Magic/Ver/Cmd/CmdId/Len/Body/CRC
+        // 它返回一个"可直接 socket.Send 的字节数组"，包含 Magic/Ver/Cmd/CmdId/Len/Body/CRC
         if (packet is IPacketWritable w)
         {
             var data = w.GetBytes();
@@ -198,6 +204,7 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
             }
             catch (Exception e)
             {
+                Log.Error("PipelineTcpClient send message failed", e);
                 return false;
             }
         }
@@ -215,16 +222,18 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
         {
             _socket.Shutdown(SocketShutdown.Both);
         }
-        catch
+        catch (Exception e)
         {
+            Log.Error("PipelineTcpClient socket shutdown failed", e);
         }
 
         try
         {
             _socket.Close();
         }
-        catch
+        catch (Exception e)
         {
+            Log.Error("PipelineTcpClient socket close failed", e);
         }
     }
 }

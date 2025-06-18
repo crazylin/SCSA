@@ -10,8 +10,8 @@ public interface IRecorderService
 {
     string StoragePath { get; set; }
 
-    Task StartRecordingAsync(Parameter.DataChannelType signalType, TriggerType triggerType,
-        double sampleRate, IProgress<int> saveProgress, IProgress<int> receivedProgress, long targetDataLength = 0,
+    Task<long> StartRecordingAsync(Parameter.DataChannelType signalType, TriggerType triggerType,
+        double sampleRate, IProgress<int> saveProgress, long targetDataLength = 0,
         double targetTimeSeconds = 0,
         StorageType storageType = StorageType.Length, FileFormatType fileFormat = FileFormatType.Binary,
         bool useBinaryUFF = true);

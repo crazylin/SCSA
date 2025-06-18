@@ -67,6 +67,7 @@ public class App : Application
         services.AddSingleton<RealTimeTestViewModel>();
         services.AddSingleton<FirmwareUpdateViewModel>();
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<StatusBarViewModel>();
 
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<PipelineTcpServer<PipelineNetDataPackage>>();

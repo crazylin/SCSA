@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using SCSA.Utils;
 
 namespace SCSA.IO.Net.TCP;
 
@@ -66,8 +67,9 @@ public class EasyTcpServer<T> : ITcpServer<T> where T : class, new()
                     _clientList.Add(client);
                     OnSessionConnected(this, client);
                 }
-                catch
+                catch (Exception e)
                 {
+                    Log.Error("EasyTcpServer accept client failed", e);
                 }
         });
         _acceptThread.IsBackground = true;
@@ -77,12 +79,30 @@ public class EasyTcpServer<T> : ITcpServer<T> where T : class, new()
     public void Stop()
     {
         _running = false;
-        //_server.Shutdown(SocketShutdown.Both);
-        if (_server != null)
-            _server.Close();
+        try
+        {
+            //_server.Shutdown(SocketShutdown.Both);
+            if (_server != null)
+                _server.Close();
+        }
+        catch (Exception e)
+        {
+            Log.Error("EasyTcpServer socket close failed", e);
+        }
+
         if (_clientList != null)
         {
-            foreach (var client in _clientList) client?.Stop();
+            foreach (var client in _clientList)
+            {
+                try
+                {
+                    client?.Stop();
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"EasyTcpServer stop client {client?.IpEndPoint} failed", e);
+                }
+            }
             _clientList.Clear();
         }
 

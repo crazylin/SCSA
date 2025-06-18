@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using SCSA.Utils;
 
 namespace SCSA.IO.Net.TCP;
 
@@ -39,8 +40,17 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
         _listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         _clients = new ConcurrentDictionary<EndPoint, PipelineTcpClient<T>>();
 
-        _listener.Bind(_localEndPoint);
-        _listener.Listen(1024);
+        try
+        {
+            _listener.Bind(_localEndPoint);
+            _listener.Listen(1024);
+        }
+        catch (Exception e)
+        {
+            Log.Error("PipelineTcpServer start failed", e);
+            _running = false;
+            return;
+        }
         _running = true;
         AcceptLoop();
     }
@@ -55,11 +65,22 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
         {
             _listener?.Close();
         }
-        catch
+        catch (Exception e)
         {
+            Log.Error("PipelineTcpServer listener close failed", e);
         }
 
-        foreach (var kv in _clients) kv.Value.Close();
+        foreach (var kv in _clients)
+        {
+            try
+            {
+                kv.Value.Close();
+            }
+            catch (Exception e)
+            {
+                Log.Error($"PipelineTcpServer close client {kv.Key} failed", e);
+            }
+        }
         _clients.Clear();
     }
 
@@ -77,8 +98,9 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
                         _listener.EndAccept,
                         null);
                 }
-                catch
+                catch (Exception e)
                 {
+                    Log.Error("PipelineTcpServer accept client failed", e);
                     break;
                 }
 
@@ -96,7 +118,7 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
                     ClientDisconnected?.Invoke(this, pipelineClient);
                 };
 
-                // 4) 通知外层“新的客户端连上来了”
+                // 4) 通知外层"新的客户端连上来了"
                 ClientConnected?.Invoke(this, pipelineClient);
 
                 // 5) 启动它的拆包/接收循环

@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using SCSA.Utils;
 
 namespace SCSA.IO.Net.TCP;
 
@@ -26,6 +27,7 @@ public class EasyTcpClient<T> : ITcpClient<T> where T : class, new()
                 }
                 catch (Exception e)
                 {
+                    Log.Error("EasyTcpClient receive data failed", e);
                     TcpServer.OnSessionClosed(TcpServer, this);
                     _socket?.Close();
                     _socket = null;
@@ -52,8 +54,9 @@ public class EasyTcpClient<T> : ITcpClient<T> where T : class, new()
                     ((INetDataPackage)netDataPackage).Read(stream);
                     DataReceived?.Invoke(this, netDataPackage);
                 }
-                catch
+                catch (Exception e)
                 {
+                    Log.Error("EasyTcpClient receive data failed", e);
                     TcpServer.OnSessionClosed(TcpServer, this);
                     _socket?.Close();
                     _socket = null;
@@ -79,15 +82,30 @@ public class EasyTcpClient<T> : ITcpClient<T> where T : class, new()
     public void Stop()
     {
         _running = false;
-        _socket?.Close();
+        try
+        {
+            _socket?.Close();
+        }
+        catch (Exception e)
+        {
+            Log.Error("EasyTcpClient socket close failed", e);
+        }
         _socket = null;
         _reciveThread.Join();
     }
 
     public bool SendMessage(T netDataPackage) //发送消息
     {
-        var bytes = ((INetDataPackage)netDataPackage).Get();
-        return _socket?.Send(bytes) == bytes.Length;
+        try
+        {
+            var bytes = ((INetDataPackage)netDataPackage).Get();
+            return _socket?.Send(bytes) == bytes.Length;
+        }
+        catch (Exception e)
+        {
+            Log.Error("EasyTcpClient send message failed", e);
+            return false;
+        }
     }
 
     public bool? Connected => _socket?.Connected;
