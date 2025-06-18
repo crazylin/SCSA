@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
+using Avalonia.Media;
 
 namespace SCSA.ViewModels;
 
@@ -33,6 +34,8 @@ public class FirmwareUpdateViewModel : ViewModelBase
 
     [Reactive] public string StatusMessage { get; set; } = "准备就绪";
 
+    [Reactive] public IBrush StatusColor { get; private set; } = Brushes.Black;
+
     public FirmwareUpdateViewModel(ConnectionViewModel connectionViewModel)
     {
         _connectionVm = connectionViewModel;
@@ -42,6 +45,32 @@ public class FirmwareUpdateViewModel : ViewModelBase
         var canStart = this.WhenAnyValue(x => x.ControlEnable);
         StartUpgradeCommand = ReactiveCommand.CreateFromTask(StartOrCancelUpgradeAsync, canStart);
         BrowseCommand = ReactiveCommand.CreateFromTask<Control>(BrowseAsync);
+
+        // Update color based on status text
+        this.WhenAnyValue(x => x.StatusMessage)
+            .Subscribe(msg =>
+            {
+                if (string.IsNullOrEmpty(msg))
+                {
+                    StatusColor = Brushes.Black;
+                }
+                else if (msg.Contains("失败") || msg.Contains("异常"))
+                {
+                    StatusColor = Brushes.Red;
+                }
+                else if (msg.Contains("完成"))
+                {
+                    StatusColor = Brushes.Green;
+                }
+                else if (msg.Contains("取消"))
+                {
+                    StatusColor = Brushes.Orange;
+                }
+                else
+                {
+                    StatusColor = Brushes.Black;
+                }
+            });
     }
 
     public byte[] FirmwareData { get; private set; }

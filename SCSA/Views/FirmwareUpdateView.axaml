@@ -39,7 +39,6 @@
 
         <Button Content="{Binding ButtonText}"
                 Command="{Binding StartUpgradeCommand}"
-                IsEnabled="{Binding CanExecute}"
                 Width="120" HorizontalAlignment="Center"
                 Margin="0 20" />
     </StackPanel>
