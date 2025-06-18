@@ -36,4 +36,20 @@ See *通讯协议.docx* for full details.
 Self-contained binaries are placed under `SCSA/bin/Release/*`.
 
 ---
+
+## Key Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| **Avalonia** / **Avalonia.ReactiveUI** | 11.2.x | Cross-platform UI framework (desktop) & ReactiveUI integration |
+| **ReactiveUI** | 19.x | MVVM framework with powerful reactive extensions |
+| **ReactiveUI.Fody** + **Fody** | 19.x / 6.x | Compile-time weaving – transforms `[Reactive]` auto-properties into fast `INotifyPropertyChanged` code |
+| **FluentAvaloniaUI** | 2.x | Fluent Design System controls & styles for Avalonia |
+| **OxyPlot.AvaloniaCore** | 2.1.x | High-performance charting / plotting engine |
+| **MathNet.Numerics** | 5.x | Numerical algorithms (FFT, window functions, filters) |
+| **Microsoft.Extensions.DependencyInjection** | 9.x | Lightweight DI container used throughout the app |
+
+> All packages are referenced via *PackageReference* in the individual project `.csproj` files – no manual installation steps are required.
+
+---
 Copyright © 2025 SCSA contributors. Licensed under MIT.
