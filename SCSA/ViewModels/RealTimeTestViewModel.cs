@@ -330,7 +330,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             IsTestRunning = true;
             _statusBar.IsTestRunning = true;
             SelectedSignalTypeEnable = false;
-            _cacheBuffers = new List<SCSA.Utils.CircularBuffer<double>>();
+            _cacheBuffers = new List<CircularBuffer<double>>();
 
             _statusBar.AcquisitionMode = $"采集模式: {SelectedSignalType}";
             _statusBar.TriggerMode = $"触发模式: {SelectedTriggerType}";
@@ -597,6 +597,13 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 // ------------------ 切回 UI 线程进行渲染 ------------------
                 Dispatcher.UIThread.InvokeAsync(() =>
                 {
+                    // If test has been stopped during processing, don't restart timer
+                    if (!IsTestRunning)
+                    {
+                        _isProcessing = false;
+                        return;
+                    }
+
                     ApplyPlotData(result);
                     _isProcessing = false;
                     _timer.Start();
@@ -742,6 +749,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         {
             if (ShoudUpdate && channelDatas.TryGetValue(SelectedSignalType, out var rawData))
             {
+                //Debug.WriteLine(rawData.GetLength(1));
                 // 更新接收进度
                 if (IsTestRunning && _targetDataLength > 0)
                 {
