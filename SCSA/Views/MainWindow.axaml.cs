@@ -7,12 +7,21 @@ using Avalonia.Styling;
 using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Media;
 using FluentAvalonia.UI.Windowing;
-using Color = Avalonia.Media.Color;
+
+using SCSA.ViewModels;
+using Avalonia.Controls.ApplicationLifetimes;
+using FluentAvalonia.UI.Controls;
+using System.Threading.Tasks;
+using Avalonia.Media;
+using System.Threading;
 
 namespace SCSA.Views;
 
 public partial class MainWindow : AppWindow
 {
+
+    private TeachingTip _notificationTip;
+    private CancellationTokenSource _notifCts;
     public MainWindow()
     {
         InitializeComponent();
@@ -21,7 +30,65 @@ public partial class MainWindow : AppWindow
         TitleBar.Height = 32;
         TitleBar.TitleBarHitTestType = TitleBarHitTestType.Complex;
 
+        ViewModelBase.NotificationRequested += OnNotificationRequested;
         //Application.Current.ActualThemeVariantChanged += Current_ActualThemeVariantChanged;
+    }
+
+    private async void OnNotificationRequested(string message, FluentAvalonia.UI.Controls.InfoBarSeverity severity)
+    {
+        NotificationInfoBar.Title = message;
+        NotificationInfoBar.Severity = severity;
+        NotificationInfoBar.IsOpen = true;
+
+        // 重置隐藏计时器，只以最后一次通知为准
+        _notifCts?.Cancel();
+        _notifCts = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(3000, _notifCts.Token);
+            NotificationInfoBar.IsOpen = false;
+        }
+        catch (TaskCanceledException)
+        {
+            // 新通知到来，计时器被取消，忽略
+        }
+
+        //if (_notificationTip == null)
+        //{
+        //    _notificationTip = new TeachingTip
+        //    {
+        //        Title = "提示",
+        //        Subtitle = message,
+        //        IsLightDismissEnabled = true,
+        //        PreferredPlacement = TeachingTipPlacementMode.Auto,
+        //        IsOpen = true,
+        //    };
+
+        //    // 获取主窗口并添加通知
+        //    if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        //    {
+        //        if (desktop.MainWindow?.Content is Panel panel)
+        //        {
+        //            panel.Children.Add(_notificationTip);
+        //        }
+        //    }
+        //}
+        //else
+        //{
+        //    _notificationTip.Subtitle = message;
+
+        //    _notificationTip.IsOpen = true;
+        //}
+
+        //// 3秒后自动关闭
+        //Task.Delay(3000).ContinueWith(_ =>
+        //{
+        //    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        //    {
+        //        _notificationTip.IsOpen = false;
+        //    });
+        //});
     }
 
     private void Current_ActualThemeVariantChanged(object? sender, EventArgs e)

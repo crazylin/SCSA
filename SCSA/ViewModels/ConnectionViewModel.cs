@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -17,6 +18,7 @@ using SCSA.Models;
 using SCSA.Services;
 using SCSA.Services.Device;
 using SCSA.ViewModels.Messages;
+using SCSA.Utils;
 
 namespace SCSA.ViewModels;
 
@@ -25,22 +27,29 @@ public class ConnectionViewModel : ViewModelBase
     private readonly ParameterViewModel _parameterViewModel;
     private readonly IAppSettingsService _settingsService;
     private readonly PipelineTcpServer<PipelineNetDataPackage> _tcpServer;
+    private readonly StatusBarViewModel _statusBar;
 
     public ConnectionViewModel(PipelineTcpServer<PipelineNetDataPackage> tcpServer, IAppSettingsService settingsService,
-        ParameterViewModel parameterViewModel)
+        ParameterViewModel parameterViewModel, StatusBarViewModel statusBar)
     {
         _tcpServer = tcpServer;
         _settingsService = settingsService;
         _parameterViewModel = parameterViewModel;
+        _statusBar = statusBar;
 
-        var appSettings = _settingsService.Load();
-        Port = appSettings.ListenPort;
-
-        InitializeNetworkInterfaces();
-
-        // restore interface
-        if (!string.IsNullOrEmpty(appSettings.SelectedInterfaceName))
-            SelectedInterface = NetworkInterfaces.FirstOrDefault(ni => ni.Name == appSettings.SelectedInterfaceName);
+        try
+        {
+            var appSettings = _settingsService.Load();
+            Port = appSettings.ListenPort;
+            InitializeNetworkInterfaces();
+            if (!string.IsNullOrEmpty(appSettings.SelectedInterfaceName))
+                SelectedInterface = NetworkInterfaces.FirstOrDefault(ni => ni.Name == appSettings.SelectedInterfaceName);
+        }
+        catch (Exception e)
+        {
+            Log.Error("初始化连接视图模型失败", e);
+            ShowNotification("加载设置失败，使用默认值");
+        }
 
         // When SelectedDevice changes, send a message
         this.WhenAnyValue(x => x.SelectedDevice)
@@ -49,9 +58,16 @@ public class ConnectionViewModel : ViewModelBase
             {
                 if (device != null)
                 {
-                    ShowNotification($"已选中设备: {device.DeviceId}");
-                    MessageBus.Current.SendMessage(new SelectedDeviceChangedMessage(device));
+                    _statusBar.ConnectedDevice = $"设备: {device.EndPoint}";
+                    ShowNotification($"已选中设备: {device.EndPoint}");
                 }
+                else
+                {
+                    _statusBar.ConnectedDevice = "无连接";
+                }
+
+                // 无论连接或断开，都广播设备变化消息
+                MessageBus.Current.SendMessage(new SelectedDeviceChangedMessage(device));
             });
 
         // Listen for parameter read/write requests
@@ -88,6 +104,14 @@ public class ConnectionViewModel : ViewModelBase
             .Subscribe(_ => SaveNetworkSettings());
 
         ParameterViewModel = parameterViewModel;
+
+        ToggleServerCommand = ReactiveCommand.Create(() =>
+        {
+            if (IsServerRunning)
+                StopServer();
+            else
+                StartServer();
+        }, canStart.Merge(this.WhenAnyValue(x=>x.IsServerRunning).Select(_=>true)));
     }
 
     [Reactive] public int Port { get; set; } = 9123;
@@ -95,8 +119,6 @@ public class ConnectionViewModel : ViewModelBase
     [Reactive] public DeviceConnection SelectedDevice { get; set; }
 
     [Reactive] public NetworkInterfaceInfo SelectedInterface { get; set; }
-
-    [Reactive] public string StatusMessage { get; set; } = "准备就绪";
 
     public ObservableCollection<NetworkInterfaceInfo> NetworkInterfaces { get; } = new();
     public ObservableCollection<DeviceConnection> ConnectedDevices { get; } = new();
@@ -106,9 +128,13 @@ public class ConnectionViewModel : ViewModelBase
     public ReactiveCommand<DeviceConnection, Unit> DisconnectCommand { get; }
     public ReactiveCommand<DeviceConnection, Unit> SelectDeviceCommand { get; }
     public ReactiveCommand<DeviceConnection, Unit> ReadParameterCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleServerCommand { get; }
 
     public ParameterViewModel ParameterViewModel { get; }
     public bool ConnectionViewVisible => true;
+
+    [Reactive]
+    public bool IsServerRunning { get; private set; }
 
     private void StartServer()
     {
@@ -116,25 +142,53 @@ public class ConnectionViewModel : ViewModelBase
         {
             var endPoint = GetEndPoint(SelectedInterface, Port);
             _tcpServer.Start(endPoint);
+            _statusBar.ListeningEndpoint = $"正在监听: {SelectedInterface.Name}:{Port}";
             ShowNotification($"正在监听 {SelectedInterface.Name}:{Port}");
+            IsServerRunning = true;
         }
         catch (Exception ex)
         {
+            Log.Error("启动服务器失败", ex);
             ShowNotification($"启动失败: {ex.Message}");
         }
     }
 
     private void StopServer()
     {
-        _tcpServer.Stop();
-        ShowNotification("已停止监听");
+        try
+        {
+            _tcpServer.Stop();
+            _statusBar.ListeningEndpoint = "未监听";
+            ShowNotification("已停止监听");
+            IsServerRunning = false;
+        }
+        catch (Exception e)
+        {
+            Log.Error("停止服务器失败", e);
+            ShowNotification($"停止失败: {e.Message}");
+        }
     }
 
     private void DisconnectDevice(DeviceConnection device)
     {
-        device.Client.Close();
-        ConnectedDevices.Remove(device);
-        ShowNotification($"已断开设备连接: {device.EndPoint}");
+        try
+        {
+            device?.Client?.Close();
+            if (device != null)
+            {
+                ConnectedDevices.Remove(device);
+                if (SelectedDevice == device)
+                {
+                    SelectedDevice = null;
+                }
+                ShowNotification($"已断开设备连接: {device.EndPoint}");
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Error($"断开设备 {device?.EndPoint} 失败", e);
+            ShowNotification($"断开设备失败: {e.Message}");
+        }
     }
 
     private async Task SelectDeviceAsync(DeviceConnection device)
@@ -154,6 +208,10 @@ public class ConnectionViewModel : ViewModelBase
             if (device != null)
             {
                 ConnectedDevices.Remove(device);
+                if (SelectedDevice == device)
+                {
+                    SelectedDevice = null;
+                }
                 ShowNotification($"设备已断开连接: {e.RemoteEndPoint}");
             }
         });
@@ -185,7 +243,7 @@ public class ConnectionViewModel : ViewModelBase
 
         ShowNotification("正在读取参数...");
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var parametersToRead = Enum.GetValues<ParameterType>()
+        var parametersToRead = device.SupportParameterTypes
             .Select(p => new Parameter { Address = p }).ToList();
 
         try
@@ -199,6 +257,7 @@ public class ConnectionViewModel : ViewModelBase
                     })
                     .ToList();
                 device.DeviceParameters = deviceParams;
+                
                 MessageBus.Current.SendMessage(new ParametersChangedMessage(device));
                 ShowNotification("参数读取成功");
             }
@@ -209,6 +268,7 @@ public class ConnectionViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            Log.Error($"读取设备 {device?.DeviceId} 参数失败", ex);
             ShowNotification($"参数读取出错: {ex.Message}");
         }
     }
@@ -224,7 +284,7 @@ public class ConnectionViewModel : ViewModelBase
             var result = await device.DeviceControlApi.SetParameters(parameters, cts.Token);
             if (result)
             {
-                await ReadParametersAsync(device);
+                //await ReadParametersAsync(device);
                 ShowNotification("参数写入成功");
             }
             else
@@ -234,27 +294,36 @@ public class ConnectionViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            Log.Error($"写入设备 {device?.DeviceId} 参数失败", ex);
             ShowNotification($"参数写入出错: {ex.Message}");
         }
     }
 
     private void InitializeNetworkInterfaces()
     {
-        var physicalInterfaces = NetworkInterface.GetAllNetworkInterfaces()
-            .Where(ni =>
-                ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet ||
-                ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
-            .Select(ni => new NetworkInterfaceInfo
-            {
-                Name = ni.Name,
-                Description = ni.Description,
-                IPAddress = GetIpAddress(ni),
-                RawInterface = ni
-            })
-            .OrderBy(ni => ni.Name);
+        try
+        {
+            var physicalInterfaces = NetworkInterface.GetAllNetworkInterfaces()
+                .Where(ni =>
+                    ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet ||
+                    ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
+                .Select(ni => new NetworkInterfaceInfo
+                {
+                    Name = ni.Name,
+                    Description = ni.Description,
+                    IPAddress = GetIpAddress(ni),
+                    RawInterface = ni
+                })
+                .OrderBy(ni => ni.Name);
 
-        foreach (var ni in physicalInterfaces) NetworkInterfaces.Add(ni);
-        SelectedInterface = NetworkInterfaces.FirstOrDefault();
+            foreach (var ni in physicalInterfaces) NetworkInterfaces.Add(ni);
+            SelectedInterface = NetworkInterfaces.FirstOrDefault();
+        }
+        catch (Exception e)
+        {
+            Log.Error("初始化网络接口列表失败", e);
+            ShowNotification("无法获取网络接口列表");
+        }
     }
 
     private string GetIpAddress(NetworkInterface networkInterface)
@@ -276,9 +345,17 @@ public class ConnectionViewModel : ViewModelBase
 
     private void SaveNetworkSettings()
     {
-        var s = _settingsService.Load();
-        s.ListenPort = Port;
-        s.SelectedInterfaceName = SelectedInterface?.Name ?? string.Empty;
-        _settingsService.Save(s);
+        try
+        {
+            var s = _settingsService.Load();
+            s.ListenPort = Port;
+            s.SelectedInterfaceName = SelectedInterface?.Name ?? string.Empty;
+            _settingsService.Save(s);
+        }
+        catch (Exception e)
+        {
+            Log.Error("保存网络设置失败", e);
+            ShowNotification("保存网络设置失败");
+        }
     }
 }

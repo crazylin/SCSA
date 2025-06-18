@@ -25,6 +25,7 @@ using System.Threading;
 using System.Collections.Concurrent;
 using System.Linq;
 using ReactiveUI.Fody.Helpers;
+using System.Diagnostics;
 
 namespace SCSA.ViewModels;
 
@@ -33,12 +34,17 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     private readonly object _cacheLock = new();
     private readonly ConnectionViewModel _connectionVm;
     private readonly IRecorderService _recorderService;
+    private readonly StatusBarViewModel _statusBar;
     private List<CircularBuffer<double>> _cacheBuffers;
 
+    private long _receivedDataPoints;
+    private long _targetDataLength;
     private CancellationTokenSource _cts;
     private DeviceConnection? _currentDevice;
     private AppSettings _currentSettings;
     private DispatcherTimer _timer;
+    private DispatcherTimer _runTimeTimer;
+    private Stopwatch _stopwatch;
     // 标记后台处理是否正在进行，避免重入
     private volatile bool _isProcessing;
 
@@ -46,15 +52,36 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     private int _hasCleaned;
 
     public RealTimeTestViewModel(IRecorderService recorderService, IAppSettingsService appSettingsService,
-        ConnectionViewModel connectionViewModel)
+        ConnectionViewModel connectionViewModel, StatusBarViewModel statusBar)
     {
-
-        // Load initial settings
-        _currentSettings = appSettingsService.Load();
+        try
+        {
+            // Load initial settings
+            _currentSettings = appSettingsService.Load();
+        }
+        catch (Exception e)
+        {
+            Log.Error("加载应用设置失败", e);
+            _currentSettings = new AppSettings(); // 使用默认设置
+        }
 
         _recorderService = recorderService;
         _connectionVm = connectionViewModel;
+        _statusBar = statusBar;
     
+
+        //this.WhenActivated((CompositeDisposable disposables) =>
+        //{
+        //    // 当视图激活时，同步设备状态
+        //    if (_connectionVm.SelectedDevice != null && _currentDevice != _connectionVm.SelectedDevice)
+        //    {
+        //        OnSelectedDeviceChanged(new SelectedDeviceChangedMessage(_connectionVm.SelectedDevice));
+        //    }
+        //    else if (_connectionVm.SelectedDevice == null && _currentDevice != null)
+        //    {
+        //        OnSelectedDeviceChanged(new SelectedDeviceChangedMessage(null));
+        //    }
+        //});
 
         // Message Bus Subscriptions
         MessageBus.Current.Listen<SelectedDeviceChangedMessage>()
@@ -76,12 +103,27 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             (enable, isRunning) => enable && !isRunning);
 
         StartTestCommand = ReactiveCommand.CreateFromTask(StartTestAsync, canStart);
-        StopTestCommand =
-            ReactiveCommand.CreateFromTask(StopTestAsync, this.WhenAnyValue(x => x.IsTestRunning));
+        StopTestCommand = ReactiveCommand.CreateFromTask(StopTestAsync, this.WhenAnyValue(x => x.IsTestRunning));
+
+        ToggleTestCommand = ReactiveCommand.CreateFromTask(async () =>
+        {
+            if (IsTestRunning)
+                await StopTestAsync();
+            else
+                await StartTestAsync();
+        });
 
         // Exception Handling
-        StartTestCommand.ThrownExceptions.Subscribe(ex => TestStatus = $"启动测试失败: {ex.Message}");
-        StopTestCommand.ThrownExceptions.Subscribe(ex => TestStatus = $"停止测试失败: {ex.Message}");
+        StartTestCommand.ThrownExceptions.Subscribe(ex =>
+        {
+            Log.Error("启动测试命令执行失败", ex);
+            TestStatus = $"启动测试失败: {ex.Message}";
+        });
+        StopTestCommand.ThrownExceptions.Subscribe(ex =>
+        {
+            Log.Error("停止测试命令执行失败", ex);
+            TestStatus = $"停止测试失败: {ex.Message}";
+        });
 
 
         SelectedTriggerType = _currentSettings.SelectedTriggerType;
@@ -100,11 +142,23 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
         this.WhenAnyValue(x => x.SelectedSampleRate)
             .Skip(1)
-            .Subscribe(sr => SampleRate = Parameter.GetSampleRate((byte)sr.RealValue));
+            .Subscribe(sr =>
+            {
+                if (sr != null) SampleRate = Parameter.GetSampleRate((byte)sr.RealValue);
+            });
 
         this.WhenAnyValue(x => x.IsTestRunning)
-            .Subscribe(running => ShowDataStorageInfo = _currentSettings.EnableDataStorage && running);
+            .Subscribe(running =>
+            {
+                ShowDataStorageInfo = _currentSettings.EnableDataStorage && running;
+                if (_statusBar != null) _statusBar.ShowDataStorageInfo = ShowDataStorageInfo;
+            });
 
+        this.WhenAnyValue(x => x.TriggerStatus)
+            .Subscribe(status =>
+            {
+                if (_statusBar != null) _statusBar.TriggerStatus = status;
+            });
     }
 
     public ViewModelActivator Activator { get; } = new();
@@ -126,7 +180,16 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     {
         _currentDevice = msg.Value;
         ControlEnable = _currentDevice != null;
-        if (_currentDevice?.DeviceParameters != null) UpdateParameters(_currentDevice.DeviceParameters);
+        if (_currentDevice?.DeviceParameters != null)
+        {
+            UpdateParameters(_currentDevice.DeviceParameters);
+        }
+        else
+        {
+            // 如果设备为空，也需要清空参数相关的UI
+            SelectedSampleRate = null;
+            // 可以根据需要清空其他依赖于设备的属性
+        }
     }
 
     private void UpdateParameters(List<DeviceParameter> parameters)
@@ -260,22 +323,27 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
         // 重置清理标记
         _hasCleaned = 0;
-
+        _receivedDataPoints = 0;
+        ReceivedProgress = 0;
         try
         {
             IsTestRunning = true;
+            _statusBar.IsTestRunning = true;
             SelectedSignalTypeEnable = false;
             _cacheBuffers = new List<SCSA.Utils.CircularBuffer<double>>();
 
+            _statusBar.AcquisitionMode = $"采集模式: {SelectedSignalType}";
+            _statusBar.TriggerMode = $"触发模式: {SelectedTriggerType}";
+            _statusBar.ShowTriggerStatus = SelectedTriggerType != TriggerType.FreeTrigger;
             if (_currentSettings.EnableDataStorage)
             {
-                var saveProgress = new Progress<int>(p => SaveProgress = p);
-                var receivedProgress = new Progress<int>(p =>
+                var saveProgress = new Progress<int>(p =>
                 {
-                    ReceivedProgress = p;TriggerStatus = "触发采集中...";
+                    SaveProgress = p;
+                    _statusBar.SaveProgress = p;
                 });
-                await _recorderService.StartRecordingAsync(SelectedSignalType, _currentSettings.SelectedTriggerType,
-                    SampleRate, saveProgress, receivedProgress,
+                _targetDataLength = await _recorderService.StartRecordingAsync(SelectedSignalType, _currentSettings.SelectedTriggerType,
+                    SampleRate, saveProgress,
                     _currentSettings.DataLength, _currentSettings.StorageTime, _currentSettings.SelectedStorageType,
                     _currentSettings.SelectedFileFormat, _currentSettings.SelectedUFFFormat == UFFFormatType.Binary);
             }
@@ -317,7 +385,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await _currentDevice.DeviceControlApi.Start(_cts.Token);
             TestStatus = "测试进行中...";
-            StatusColor = new SolidColorBrush(Colors.Green);
+
             ShoudUpdate = true;
             _timer = new DispatcherTimer
             {
@@ -325,11 +393,17 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             };
             _timer.Tick += _timer_Tick;
             _timer.Start();
+
+            _stopwatch = Stopwatch.StartNew();
+            _runTimeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _runTimeTimer.Tick += (s, e) => _statusBar.TestRunningTime = $"运行时: {_stopwatch.Elapsed:hh\\:mm\\:ss}";
+            _runTimeTimer.Start();
         }
         catch (Exception e)
         {
+            Log.Error("启动测试失败", e);
             TestStatus = $"启动测试失败: {e.Message}";
-            StatusColor = new SolidColorBrush(Colors.Red);
+
             IsTestRunning = false;
             SelectedSignalTypeEnable = true;
         }
@@ -369,160 +443,169 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
         Task.Run(() =>
         {
-            // -----------------------------  后台线程：数据预处理  -----------------------------
-            var processedData = new List<double[]>();      // 时域显示使用
-            var fftInputData = new List<double[]>();       // 用于 FFT
-
-            foreach (var ch in latestData)
+            try
             {
-                var data = new double[ch.Length];
-                Array.Copy(ch, data, ch.Length);
+                // -----------------------------  后台线程：数据预处理  -----------------------------
+                var processedData = new List<double[]>();      // 时域显示使用
+                var fftInputData = new List<double[]>();       // 用于 FFT
 
-                // 1) 去直流
-                if (removeDc)
+                foreach (var ch in latestData)
                 {
-                    var mean = data.Average();
+                    var data = new double[ch.Length];
+                    Array.Copy(ch, data, ch.Length);
+
+                    // 1) 去直流
+                    if (removeDc)
+                    {
+                        var mean = data.Average();
+                        for (int i = 0; i < data.Length; i++)
+                            data[i] -= mean;
+                    }
+
+                    // 2) 加窗（FFT 使用）
+                    var window = Window.GetWindow(windowFunc, data.Length);
+                    var winData = new double[data.Length];
                     for (int i = 0; i < data.Length; i++)
-                        data[i] -= mean;
+                        winData[i] = data[i] * window[i];
+                    fftInputData.Add(winData);
+
+                    // 3) 滤波
+                    if (enableFilter)
+                    {
+                        data = SignalProcessingService.FilterSamples(
+                            filterType,
+                            data,
+                            sampleRate,
+                            lowPass,
+                            highPass,
+                            bandPassFirst,
+                            bandPassSecond);
+                    }
+
+                    processedData.Add(data);
                 }
 
-                // 2) 加窗（FFT 使用）
-                var window = Window.GetWindow(windowFunc, data.Length);
-                var winData = new double[data.Length];
-                for (int i = 0; i < data.Length; i++)
-                    winData[i] = data[i] * window[i];
-                fftInputData.Add(winData);
+                // 生成时域 DataPoints
+                var timeSeriesPoints = new List<List<DataPoint>>();
+                for (int i = 0; i < processedData.Count; i++)
+                {
+                    var seriesPts = new List<DataPoint>(processedData[i].Length);
+                    for (int j = 0; j < processedData[i].Length; j++)
+                        seriesPts.Add(new DataPoint(j / sampleRate, processedData[i][j]));
+                    timeSeriesPoints.Add(seriesPts);
+                }
 
-                // 3) 滤波
+                // 计算时域峰值字符串
+                string fmta(double d) => $"{d,9:+0.000;-0.000;0.000}";
+                string fmt(double d) => $"{d,8:0.000}";
+                var timePeakResults = processedData.Select(SignalProcessingService.CalculateTimePeak).ToList();
+                var timeSubTitle = string.Join(" / ",
+                    timePeakResults.Select(r =>
+                        $"Avg:{fmta(r.AveragePeak)} Pk-Pk:{fmt(r.PeakToPeak)} RMS:{fmt(r.EffectivePeak)} ({yUnit})"));
+
+                // -----------------------------  FFT  -----------------------------
+                var fftData = fftInputData.Select(pd => SignalProcessingService.ComputeFft(pd)).ToList();
+
+                var freqSeriesPoints = new List<List<DataPoint>>();
+                for (int i = 0; i < fftData.Count; i++)
+                {
+                    var pts = new List<DataPoint>(fftData[i].Length);
+                    var freqStep = sampleRate / processedData[i].Length;
+                    for (int j = 0; j < fftData[i].Length; j++)
+                        pts.Add(new DataPoint(j * freqStep, fftData[i][j]));
+                    freqSeriesPoints.Add(pts);
+                }
+
+                // 计算频域峰值
+                string fmtFreq(double d) => $"{d,8:0.000;0.000}";
+                var freqPeakResults = freqSeriesPoints.Select((pts) =>
+                    SignalProcessingService.CalculateFreqPeak(pts.ToArray())).ToList();
+                var freqSubTitle = string.Join(" / ",
+                    freqPeakResults.Select(r => $"F:{fmtFreq(r.Position)}Hz Pk:{fmtFreq(r.Peak)} ({yUnit})"));
+
+                // 轴范围
+                double nyquist = sampleRate / 2;
+                double minFreq = 0;
+                double maxFreq = nyquist;
                 if (enableFilter)
                 {
-                    data = SignalProcessingService.FilterSamples(
-                        filterType,
-                        data,
-                        sampleRate,
-                        lowPass,
-                        highPass,
-                        bandPassFirst,
-                        bandPassSecond);
+                    switch (filterType)
+                    {
+                        case FilterType.LowPass:
+                            maxFreq = lowPass;
+                            break;
+                        case FilterType.HighPass:
+                            minFreq = highPass;
+                            break;
+                        case FilterType.BandPass:
+                            minFreq = bandPassFirst;
+                            maxFreq = bandPassSecond;
+                            break;
+                    }
+                    if (maxFreq <= 0) maxFreq = nyquist;
+                    if (minFreq < 0) minFreq = 0;
+                    if (maxFreq <= minFreq) maxFreq = minFreq + nyquist / 10;
                 }
 
-                processedData.Add(data);
-            }
-
-            // 生成时域 DataPoints
-            var timeSeriesPoints = new List<List<DataPoint>>();
-            for (int i = 0; i < processedData.Count; i++)
-            {
-                var seriesPts = new List<DataPoint>(processedData[i].Length);
-                for (int j = 0; j < processedData[i].Length; j++)
-                    seriesPts.Add(new DataPoint(j / sampleRate, processedData[i][j]));
-                timeSeriesPoints.Add(seriesPts);
-            }
-
-            // 计算时域峰值字符串
-            string fmta(double d) => $"{d,9:+0.000;-0.000;0.000}";
-            string fmt(double d) => $"{d,8:0.000}";
-            var timePeakResults = processedData.Select(SignalProcessingService.CalculateTimePeak).ToList();
-            var timeSubTitle = string.Join(" / ",
-                timePeakResults.Select(r =>
-                    $"Avg:{fmta(r.AveragePeak)} Pk-Pk:{fmt(r.PeakToPeak)} RMS:{fmt(r.EffectivePeak)} ({yUnit})"));
-
-            // -----------------------------  FFT  -----------------------------
-            var fftData = fftInputData.Select(pd => SignalProcessingService.ComputeFft(pd)).ToList();
-
-            var freqSeriesPoints = new List<List<DataPoint>>();
-            for (int i = 0; i < fftData.Count; i++)
-            {
-                var pts = new List<DataPoint>(fftData[i].Length);
-                var freqStep = sampleRate / processedData[i].Length;
-                for (int j = 0; j < fftData[i].Length; j++)
-                    pts.Add(new DataPoint(j * freqStep, fftData[i][j]));
-                freqSeriesPoints.Add(pts);
-            }
-
-            // 计算频域峰值
-            string fmtFreq(double d) => $"{d,8:0.000;0.000}";
-            var freqPeakResults = freqSeriesPoints.Select((pts) =>
-                SignalProcessingService.CalculateFreqPeak(pts.ToArray())).ToList();
-            var freqSubTitle = string.Join(" / ",
-                freqPeakResults.Select(r => $"F:{fmtFreq(r.Position)}Hz Pk:{fmtFreq(r.Peak)} ({yUnit})"));
-
-            // 轴范围
-            double nyquist = sampleRate / 2;
-            double minFreq = 0;
-            double maxFreq = nyquist;
-            if (enableFilter)
-            {
-                switch (filterType)
+                // -----------------------------  IQ 李萨如图 -----------------------------
+                List<ScatterPoint>? lissaPts = null;
+                string? lissaSubTitle = null;
+                double strength = 0;
+                if (isIQ && processedData.Count >= 2)
                 {
-                    case FilterType.LowPass:
-                        maxFreq = lowPass;
-                        break;
-                    case FilterType.HighPass:
-                        minFreq = highPass;
-                        break;
-                    case FilterType.BandPass:
-                        minFreq = bandPassFirst;
-                        maxFreq = bandPassSecond;
-                        break;
+                    var iSig = processedData[0];
+                    var qSig = processedData[1];
+                    int lenSig = iSig.Length;
+                    lissaPts = new List<ScatterPoint>(lenSig);
+                    for (int k = 0; k < lenSig; k++)
+                        lissaPts.Add(new ScatterPoint(iSig[k], qSig[k]));
+
+                    // 相关系数
+                    double sumI = 0, sumQ = 0, sumI2 = 0, sumQ2 = 0, sumIQ = 0;
+                    for (int m = 0; m < lenSig; m++)
+                    {
+                        var i = iSig[m];
+                        var q = qSig[m];
+                        sumI += i;
+                        sumQ += q;
+                        sumI2 += i * i;
+                        sumQ2 += q * q;
+                        sumIQ += i * q;
+                    }
+                    double meanI = sumI / lenSig;
+                    double meanQ = sumQ / lenSig;
+                    double cov = (sumIQ / lenSig) - meanI * meanQ;
+                    double stdI = Math.Sqrt(Math.Max((sumI2 / lenSig) - meanI * meanI, 1e-12));
+                    double stdQ = Math.Sqrt(Math.Max((sumQ2 / lenSig) - meanQ * meanQ, 1e-12));
+                    double den = Math.Sqrt((lenSig * sumI2 - sumI * sumI) * (lenSig * sumQ2 - sumQ * qSig.Sum()));
+                    strength = den == 0 ? 0 : (lenSig * sumIQ - sumI * sumQ) / den;
+
+                    double corr = cov / (stdI * stdQ);
+                    // 信号强度
+                    double strengthRms = 0;
+                    for (int m = 0; m < lenSig; m++)
+                        strengthRms += iSig[m] * iSig[m] + qSig[m] * qSig[m];
+                    strengthRms = Math.Sqrt(strengthRms / lenSig);
+                    strength = Math.Min(1.0, strengthRms / 100.0);
+
+                    string fmt8(double d) => $"{d,8:0.000}";
+                    lissaSubTitle = $"Corr:{fmt8(corr)}  RMS:{fmt8(strengthRms)}";
                 }
-                if (maxFreq <= 0) maxFreq = nyquist;
-                if (minFreq < 0) minFreq = 0;
-                if (maxFreq <= minFreq) maxFreq = minFreq + nyquist / 10;
-            }
 
-            // -----------------------------  IQ 李萨如图 -----------------------------
-            List<ScatterPoint>? lissaPts = null;
-            string? lissaSubTitle = null;
-            double strength = 0;
-            if (isIQ && processedData.Count >= 2)
-            {
-                var iSig = processedData[0];
-                var qSig = processedData[1];
-                int lenSig = iSig.Length;
-                lissaPts = new List<ScatterPoint>(lenSig);
-                for (int k = 0; k < lenSig; k++)
-                    lissaPts.Add(new ScatterPoint(iSig[k], qSig[k]));
+                var result = new PlotData(timeSeriesPoints, timeSubTitle, freqSeriesPoints, freqSubTitle, lissaPts, lissaSubTitle, minFreq, maxFreq, strength);
 
-                // 相关系数
-                double sumI = 0, sumQ = 0, sumI2 = 0, sumQ2 = 0, sumIQ = 0;
-                for (int m = 0; m < lenSig; m++)
+                // ------------------ 切回 UI 线程进行渲染 ------------------
+                Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    var i = iSig[m];
-                    var q = qSig[m];
-                    sumI += i;
-                    sumQ += q;
-                    sumI2 += i * i;
-                    sumQ2 += q * q;
-                    sumIQ += i * q;
-                }
-                double meanI = sumI / lenSig;
-                double meanQ = sumQ / lenSig;
-                double cov = (sumIQ / lenSig) - meanI * meanQ;
-                double stdI = Math.Sqrt(Math.Max((sumI2 / lenSig) - meanI * meanI, 1e-12));
-                double stdQ = Math.Sqrt(Math.Max((sumQ2 / lenSig) - meanQ * meanQ, 1e-12));
-                double corr = cov / (stdI * stdQ);
-
-                // 信号强度
-                double strengthRms = 0;
-                for (int m = 0; m < lenSig; m++)
-                    strengthRms += iSig[m] * iSig[m] + qSig[m] * qSig[m];
-                strengthRms = Math.Sqrt(strengthRms / lenSig);
-                strength = Math.Min(1.0, strengthRms / 100.0);
-
-                string fmt8(double d) => $"{d,8:0.000}";
-                lissaSubTitle = $"Corr:{fmt8(corr)}  RMS:{fmt8(strengthRms)}";
+                    ApplyPlotData(result);
+                    _isProcessing = false;
+                    _timer.Start();
+                });
             }
-
-            var result = new PlotData(timeSeriesPoints, timeSubTitle, freqSeriesPoints, freqSubTitle, lissaPts, lissaSubTitle, minFreq, maxFreq, strength);
-
-            // ------------------ 切回 UI 线程进行渲染 ------------------
-            Dispatcher.UIThread.InvokeAsync(() =>
+            catch (Exception ex)
             {
-                ApplyPlotData(result);
-                _isProcessing = false;
-                _timer.Start();
-            });
+                Log.Error("后台数据处理失败", ex);
+            }
         });
     }
 
@@ -596,8 +679,9 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         }
         catch (Exception e)
         {
+            Log.Error("停止测试失败", e);
             TestStatus = $"停止测试失败:{e.Message}";
-            StatusColor = new SolidColorBrush(Colors.Red);
+
         }
     }
 
@@ -607,6 +691,16 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     private async Task CleanupAfterTestAsync(string finalStatus)
     {
         if (Interlocked.Exchange(ref _hasCleaned, 1) == 1) return;
+
+        _statusBar.IsTestRunning = false;
+        _statusBar.ShowTriggerStatus = false;
+        _runTimeTimer?.Stop();
+        _stopwatch?.Stop();
+        _statusBar.SaveProgress = 0;
+        _statusBar.ReceivedProgress = 0;
+        _targetDataLength = 0;
+        _receivedDataPoints = 0;
+        _statusBar.TestRunningTime = "运行时: 00:00:00";
 
         try
         {
@@ -619,8 +713,9 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 {
                     await _currentDevice.DeviceControlApi.Stop(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
                 }
-                catch
+                catch(Exception ex)
                 {
+                    Log.Error("请求设备停止失败", ex);
                     // 忽略停止设备时的异常
                 }
             }
@@ -631,84 +726,94 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             TriggerStatus = "准备就绪";
 
             TestStatus = finalStatus;
-            StatusColor = new SolidColorBrush(Colors.Black);
 
-            // 若进度未满，补齐
-            SaveProgress = 100;
-            ReceivedProgress = 100;
         }
         catch (Exception ex)
         {
+            Log.Error("测试清理失败", ex);
             TestStatus = $"停止测试失败:{ex.Message}";
-            StatusColor = new SolidColorBrush(Colors.Red);
+
         }
     }
 
     private void DeviceControlApi_DataReceived(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
     {
-        if (ShoudUpdate && channelDatas.TryGetValue(SelectedSignalType, out var rawData))
+        try
         {
-            // 根据信号类型决定缩放因子
-            double factor = 1.0;
-            switch (SelectedSignalType)
+            if (ShoudUpdate && channelDatas.TryGetValue(SelectedSignalType, out var rawData))
             {
-                case Parameter.DataChannelType.Velocity:
-                    factor = SampleRate;
-                    break;
-                case Parameter.DataChannelType.Acceleration:
-                    factor = SampleRate * SampleRate;
-                    break;
-            }
-
-            // 若需要缩放，复制并乘以因子；否则直接复用原数据
-            double[,] dataForProcess;
-            if (Math.Abs(factor - 1.0) > double.Epsilon)
-            {
-                var rows = rawData.GetLength(0);
-                var cols = rawData.GetLength(1);
-                dataForProcess = new double[rows, cols];
-                Parallel.For(0, rows, r =>
+                // 更新接收进度
+                if (IsTestRunning && _targetDataLength > 0)
                 {
-                    for (int c = 0; c < cols; c++)
+                    TriggerStatus = "触发采集中...";
+                    _receivedDataPoints += rawData.GetLength(1);
+                    var progress = (int)((double)_receivedDataPoints / _targetDataLength * 100);
+                    progress = Math.Min(progress, 100);
+                    ReceivedProgress = progress;
+                    _statusBar.ReceivedProgress = progress;
+                    if (progress >= 100)
                     {
-                        dataForProcess[r, c] = rawData[r, c] * factor;
+                        TriggerStatus = "采集完成";
                     }
-                });
-            }
-            else
-            {
-                dataForProcess = rawData;
-            }
+                }
+                
+                // 根据信号类型决定缩放因子
+                double factor = 1.0;
+                switch (SelectedSignalType)
+                {
+                    case Parameter.DataChannelType.Velocity:
+                        factor = SampleRate;
+                        break;
+                    case Parameter.DataChannelType.Acceleration:
+                        factor = SampleRate * SampleRate;
+                        break;
+                }
 
-            // 构建新的 channelDatas 以确保写盘和后续处理使用相同缩放
-            var scaledDict = new Dictionary<Parameter.DataChannelType, double[,]> { { SelectedSignalType, dataForProcess } };
+                // 若需要缩放，复制并乘以因子；否则直接复用原数据
+                double[,] dataForProcess;
+                if (Math.Abs(factor - 1.0) > double.Epsilon)
+                {
+                    var rows = rawData.GetLength(0);
+                    var cols = rawData.GetLength(1);
+                    dataForProcess = new double[rows, cols];
+                    Parallel.For(0, rows, r =>
+                    {
+                        for (int c = 0; c < cols; c++)
+                        {
+                            dataForProcess[r, c] = rawData[r, c] * factor;
+                        }
+                    });
+                }
+                else
+                {
+                    dataForProcess = rawData;
+                }
 
-            if (IsTestRunning && _currentSettings.EnableDataStorage) _recorderService.WriteDataAsync(scaledDict);
+                // 构建新的 channelDatas 以确保写盘和后续处理使用相同缩放
+                var scaledDict = new Dictionary<Parameter.DataChannelType, double[,]> { { SelectedSignalType, dataForProcess } };
 
-            lock (_cacheLock)
-            {
-                var channelCount = dataForProcess.GetLength(0);
-                var sampleCount = dataForProcess.GetLength(1);
+                if (IsTestRunning && _currentSettings.EnableDataStorage) _recorderService.WriteDataAsync(scaledDict);
 
-                while (_cacheBuffers.Count < channelCount)
-                    _cacheBuffers.Add(new CircularBuffer<double>(DisplayPointCount));
+                lock (_cacheLock)
+                {
+                    var channelCount = dataForProcess.GetLength(0);
+                    var sampleCount = dataForProcess.GetLength(1);
 
-                for (var i = 0; i < channelCount; i++)
-                    for (var j = 0; j < sampleCount; j++)
-                        _cacheBuffers[i].Add(dataForProcess[i, j]);
+                    while (_cacheBuffers.Count < channelCount)
+                        _cacheBuffers.Add(new CircularBuffer<double>(DisplayPointCount));
+
+                    for (var i = 0; i < channelCount; i++)
+                        for (var j = 0; j < sampleCount; j++)
+                            _cacheBuffers[i].Add(dataForProcess[i, j]);
+                }
             }
         }
-    }
-
-    private void SyncDeviceState()
-    {
-        if (_connectionVm.SelectedDevice != null)
+        catch (Exception e)
         {
-            _currentDevice = _connectionVm.SelectedDevice;
-            ControlEnable = true;
-            if (_currentDevice.DeviceParameters != null) UpdateParameters(_currentDevice.DeviceParameters);
+            Log.Error("处理接收到的数据时出错", e);
         }
     }
+
 
     // 波形数据类
     public class Waveform : ReactiveObject
@@ -717,8 +822,8 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         public CuPlotViewModel TimeDomainModel { get; set; }
         public CuPlotViewModel FrequencyDomainModel { get; set; }
         public CuPlotViewModel LissajousModel { get; set; }
-
-        [Reactive] public double Strength { get; set; }
+        
+        [Reactive]public double Strength { set; get; }
 
         public void InvalidatePlot(bool t)
         {
@@ -773,8 +878,6 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     [Reactive] public double ReceivedProgress { get; set; }
 
-    [Reactive] public SolidColorBrush StatusColor { get; set; } = new(Colors.Black);
-
     [Reactive] public bool ShowDataStorageInfo { get; set; }
 
     [Reactive] public string TriggerStatus { get; set; } = "准备就绪";
@@ -789,6 +892,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     public ReactiveCommand<Unit, Unit> StartTestCommand { get; }
     public ReactiveCommand<Unit, Unit> StopTestCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleTestCommand { get; }
 
     #endregion
 
