@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SCSA.IO.Net.TCP;
 using SCSA.Models;
+using SCSA.Utils;
 
 namespace SCSA.Services.Device;
 
@@ -18,6 +19,7 @@ public class PipelineDeviceControlApiAsync : IDisposable
         _pendingCommands;
 
     private readonly PipelineTcpClient<PipelineNetDataPackage> _tcpClient;
+    private DateTime? _lastDataReceivedTime;
     private short _flag;
 
     public PipelineDeviceControlApiAsync(PipelineTcpClient<PipelineNetDataPackage> tcpClient)
@@ -61,6 +63,14 @@ public class PipelineDeviceControlApiAsync : IDisposable
                 break;
             case DeviceCommand.ReplyUploadData:
                 //数据上传
+                var now = DateTime.Now;
+                if (_lastDataReceivedTime.HasValue)
+                {
+                    var interval = now - _lastDataReceivedTime.Value;
+                    Log.Info($"ReplyUploadData time interval: {interval.TotalMilliseconds:F2} ms");
+                }
+                _lastDataReceivedTime = now;
+
                 var data = ProcessChannelData(netDataPackage.Data);
                 DataReceived?.Invoke(data);
 
