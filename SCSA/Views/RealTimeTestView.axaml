@@ -83,6 +83,12 @@
                   SelectedItem="{Binding SelectedWindowFunction}" />
       </StackPanel>
       <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
+          <TextBlock Text="频谱类型：" FontSize="14" FontWeight="Bold" />
+          <ComboBox ItemsSource="{Binding SpectrumTypes}"
+                    SelectedItem="{Binding SelectedSpectrumType}"
+                    HorizontalAlignment="Stretch" />
+      </StackPanel>
+      <StackPanel Orientation="Vertical" Spacing="5" Margin="0,10,0,0">
         <TextBlock Text="滤波：" FontSize="14" FontWeight="Bold" />
 
         <CheckBox Content="启用滤波" FontSize="14" IsChecked="{Binding EnableFilter}" />
@@ -149,6 +155,7 @@
 
         </StackPanel>
       </StackPanel>
+
 
     </StackPanel>
     <GridSplitter Grid.Column="1" />

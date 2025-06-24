@@ -9,6 +9,8 @@ using Avalonia.Platform.Storage;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using Avalonia.Media;
+using SCSA.Utils;
+using System.Collections.Generic;
 
 namespace SCSA.ViewModels;
 
@@ -133,7 +135,7 @@ public class FirmwareUpdateViewModel : ViewModelBase
             ButtonText = "开始升级";
         }
     }
-
+    int perLen = 1280;
     private async Task PerformFirmwareUpdate(CancellationToken token)
     {
         if (!await _connectionVm.SelectedDevice.DeviceControlApi.FirmwareUpgradeStart(FirmwareData.Length,
@@ -142,8 +144,7 @@ public class FirmwareUpdateViewModel : ViewModelBase
             StatusMessage = "开始升级失败！";
             return;
         }
-
-        var perLen = 1280;
+        // 同步模式：逐个发送
         for (var offset = 0; offset <= FirmwareData.Length; offset += perLen)
         {
             token.ThrowIfCancellationRequested();
@@ -151,6 +152,8 @@ public class FirmwareUpdateViewModel : ViewModelBase
             StatusMessage = $"升级中... {offset}/{MaxPercentage}";
             var chunk = FirmwareData.Skip(offset).Take(perLen).ToArray();
             var pkgId = offset / perLen + 1;
+
+
             if (!await _connectionVm.SelectedDevice.DeviceControlApi.FirmwareUpgradeTransfer(pkgId, chunk,
                     new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token))
             {
@@ -158,7 +161,6 @@ public class FirmwareUpdateViewModel : ViewModelBase
                 return;
             }
         }
-
         StatusMessage = "升级完成！";
     }
 

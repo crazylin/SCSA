@@ -135,6 +135,9 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         WindowFunctions = new ObservableCollection<WindowFunction>(Enum.GetValues<WindowFunction>());
         SampleRateList = Parameter.GetSampleOptions();
 
+
+        SpectrumTypes = new ObservableCollection<SpectrumType>(Enum.GetValues<SpectrumType>());
+        SelectedSpectrumType = SpectrumTypes.FirstOrDefault();
         // Property Change Subscriptions
         this.WhenAnyValue(x => x.SelectedSignalType)
             .Skip(1)
@@ -159,6 +162,10 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             {
                 if (_statusBar != null) _statusBar.TriggerStatus = status;
             });
+
+        this.WhenAnyValue(x => x.SelectedSpectrumType)
+            .Skip(1)
+            .Subscribe(_ => UpdateFrequencyDomainUnits());
     }
 
     public ViewModelActivator Activator { get; } = new();
@@ -168,6 +175,9 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     {
         _currentSettings = msg.Value;
         SelectedTriggerType = _currentSettings.SelectedTriggerType;
+
+        // 单位设置变更后，更新UI
+        SetChannelType();
     }
 
     private void OnParametersChanged(ParametersChangedMessage msg)
@@ -215,24 +225,29 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     public void SetChannelType()
     {
         Waveforms = new ObservableCollection<Waveform>();
+
+        string unitString = "V"; // 默认
         switch (SelectedSignalType)
         {
             case Parameter.DataChannelType.Velocity:
-                Waveforms.Add(CreateWaveform(SelectedSignalType, "mm/s", new[] { SelectedSignalType.ToString() }));
+                unitString = UnitConverter.GetUnitString(_currentSettings.VelocityUnit);
                 break;
             case Parameter.DataChannelType.Displacement:
-                Waveforms.Add(CreateWaveform(SelectedSignalType, "µm", new[] { SelectedSignalType.ToString() }));
+                unitString = UnitConverter.GetUnitString(_currentSettings.DisplacementUnit);
                 break;
             case Parameter.DataChannelType.Acceleration:
-                Waveforms.Add(CreateWaveform(SelectedSignalType, "m/s\u00b2", new[] { SelectedSignalType.ToString() }));
-                break;
-            case Parameter.DataChannelType.ISignalAndQSignal:
-                Waveforms.Add(CreateWaveform(SelectedSignalType, "V", new[] { "I Signal", "Q Signal" }));
-                break;
-            default:
-                Waveforms.Add(CreateWaveform(SelectedSignalType, "V", new[] { SelectedSignalType.ToString() }));
+                unitString = UnitConverter.GetUnitString(_currentSettings.AccelerationUnit);
                 break;
         }
+
+        var seriesTitles = SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal
+            ? new[] { "I Signal", "Q Signal" }
+            : new[] { SelectedSignalType.ToString() };
+
+        Waveforms.Add(CreateWaveform(SelectedSignalType, unitString, seriesTitles));
+        
+        // 更新频域单位
+        UpdateFrequencyDomainUnits();
     }
 
     private Waveform CreateWaveform(Parameter.DataChannelType channelType, string yUnit, string[] seriesTitles)
@@ -266,7 +281,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 XTitle = "频率",
                 XUint = "Hz",
                 YTitle = channelType.ToString(),
-                YUnit = yUnit
+                YUnit = ConvertSpectrumUnit(yUnit)
             }
         };
         waveform.FrequencyDomainModel.PlotModel.Axes.Add(new LinearAxis
@@ -504,7 +519,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                         $"Avg:{fmta(r.AveragePeak)} Pk-Pk:{fmt(r.PeakToPeak)} RMS:{fmt(r.EffectivePeak)} ({yUnit})"));
 
                 // -----------------------------  FFT  -----------------------------
-                var fftData = fftInputData.Select(pd => SignalProcessingService.ComputeFft(pd)).ToList();
+                var fftData = fftInputData.Select(pd => SignalProcessingService.ComputeFft(pd,sampleRate, windowFunc, SelectedSpectrumType)).ToList();
 
                 var freqSeriesPoints = new List<List<DataPoint>>();
                 for (int i = 0; i < fftData.Count; i++)
@@ -765,32 +780,43 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                     }
                 }
                 
-                // 根据信号类型决定缩放因子
-                double factor = 1.0;
+                // 确定源单位和目标单位
+                PhysicalUnit fromUnit = PhysicalUnit.Meter; // Default, will be overridden
+                PhysicalUnit toUnit = PhysicalUnit.Meter; // Default, will be overridden
+                bool needsConversion = false;
+
                 switch (SelectedSignalType)
                 {
+                    case Parameter.DataChannelType.Displacement:
+                        fromUnit = PhysicalUnit.Micrometer;
+                        toUnit = _currentSettings.DisplacementUnit;
+                        needsConversion = true;
+                        break;
                     case Parameter.DataChannelType.Velocity:
-                        factor = SampleRate;
+                        fromUnit = PhysicalUnit.MicrometerPerSecond;
+                        toUnit = _currentSettings.VelocityUnit;
+                        needsConversion = true;
                         break;
                     case Parameter.DataChannelType.Acceleration:
-                        factor = SampleRate * SampleRate;
+                        fromUnit = PhysicalUnit.MicrometerPerSecond2;
+                        toUnit = _currentSettings.AccelerationUnit;
+                        needsConversion = true;
                         break;
                 }
 
-                // 若需要缩放，复制并乘以因子；否则直接复用原数据
                 double[,] dataForProcess;
-                if (Math.Abs(factor - 1.0) > double.Epsilon)
+                if (needsConversion && fromUnit != toUnit)
                 {
                     var rows = rawData.GetLength(0);
                     var cols = rawData.GetLength(1);
                     dataForProcess = new double[rows, cols];
-                    Parallel.For(0, rows, r =>
+                    for (int r = 0; r < rows; r++)
                     {
                         for (int c = 0; c < cols; c++)
                         {
-                            dataForProcess[r, c] = rawData[r, c] * factor;
+                            dataForProcess[r, c] = UnitConverter.Convert(rawData[r, c], fromUnit, toUnit);
                         }
-                    });
+                    }
                 }
                 else
                 {
@@ -894,6 +920,11 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     [Reactive] public TriggerType SelectedTriggerType { get; private set; }
 
+
+    [Reactive] public ObservableCollection<SpectrumType> SpectrumTypes { get; set; }
+
+    [Reactive] public SpectrumType SelectedSpectrumType { get; set; }
+    
     #endregion
 
     #region Commands
@@ -904,4 +935,40 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     #endregion
 
+    private string GetBaseUnit(Parameter.DataChannelType channelType)
+    {
+        // 根据通道类型返回幅值单位
+        return channelType switch
+        {
+            Parameter.DataChannelType.Velocity => UnitConverter.GetUnitString(_currentSettings.VelocityUnit),
+            Parameter.DataChannelType.Displacement => UnitConverter.GetUnitString(_currentSettings.DisplacementUnit),
+            Parameter.DataChannelType.Acceleration => UnitConverter.GetUnitString(_currentSettings.AccelerationUnit),
+            _ => "V"
+        };
+    }
+
+    private string ConvertSpectrumUnit(string baseUnit)
+    {
+        return SelectedSpectrumType switch
+        {
+            SpectrumType.Power => $"{baseUnit}²",
+            SpectrumType.PowerSpectralDensity => $"{baseUnit}²/Hz",
+            _ => baseUnit // Amplitude
+        };
+    }
+
+    private void UpdateFrequencyDomainUnits()
+    {
+        if (Waveforms == null || Waveforms.Count == 0) return;
+
+        foreach (var wf in Waveforms)
+        {
+            var baseUnit = GetBaseUnit(wf.DataChannelType);
+            var unit = ConvertSpectrumUnit(baseUnit);
+            // 更新 PlotModel 的 YUnit
+            wf.FrequencyDomainModel.PlotModel.YUnit = unit;
+            // 立即刷新绘图
+            wf.FrequencyDomainModel.PlotModel.InvalidatePlot(false);
+        }
+    }
 }

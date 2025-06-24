@@ -10,6 +10,7 @@
     <reactiveUi:ReactiveUserControl.Resources>
         <converters:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <converters:EnumToDisplayNameConverter x:Key="EnumToDisplayNameConverter" />
+        <converters:PhysicalUnitToStringConverter x:Key="PhysicalUnitToStringConverter" />
     </reactiveUi:ReactiveUserControl.Resources>
     <DockPanel>
         <ScrollViewer>
@@ -87,6 +88,33 @@
                                        Increment="0.1" Minimum="0.1" />
                         <TextBlock Text="{Binding StorageTimeDisplay}" VerticalAlignment="Center" Foreground="Green" />
                     </StackPanel>
+                </StackPanel>
+                <TextBlock Text="单位设置" FontSize="14" FontWeight="Bold" />
+                <StackPanel Orientation="Vertical" Spacing="5">
+                    <TextBlock Text="位移" />
+                    <ComboBox ItemsSource="{Binding DisplacementUnits}" SelectedItem="{Binding SelectedDisplacementUnit}" MinWidth="200">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource PhysicalUnitToStringConverter}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="速度" />
+                    <ComboBox ItemsSource="{Binding VelocityUnits}" SelectedItem="{Binding SelectedVelocityUnit}" MinWidth="200">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource PhysicalUnitToStringConverter}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="加速度" />
+                    <ComboBox ItemsSource="{Binding AccelerationUnits}" SelectedItem="{Binding SelectedAccelerationUnit}" MinWidth="200">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource PhysicalUnitToStringConverter}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

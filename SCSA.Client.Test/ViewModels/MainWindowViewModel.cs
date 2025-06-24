@@ -407,6 +407,7 @@ public class MainWindowViewModel : ViewModelBase
                             var size = reader.ReadInt32();
 
                             var returnNetPackage = new NetDataPackage();
+                            returnNetPackage.Flag = netPackage.Flag;
                             returnNetPackage.DeviceCommand = DeviceCommand.ReplyStartFirmwareUpgrade;
                             returnNetPackage.Data = BitConverter.GetBytes(0)
                                 .Concat(BitConverter.GetBytes((short)0)).ToArray();
@@ -424,7 +425,8 @@ public class MainWindowViewModel : ViewModelBase
                             Debug.WriteLine("Update PacketId: " + packetId);
                             var returnNetPackage = new NetDataPackage();
                             returnNetPackage.DeviceCommand = DeviceCommand.ReplyTransferFirmwareUpgrade;
-                            var list = new List<byte>();
+                            returnNetPackage.Flag = netPackage.Flag;
+                                var list = new List<byte>();
 
                             list.AddRange(BitConverter.GetBytes(type));
                             list.AddRange(BitConverter.GetBytes(packetId));

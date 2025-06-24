@@ -1,4 +1,6 @@
-using SCSA.ViewModels;
+
+using SCSA.Models;
+using SCSA.Utils;
 
 namespace SCSA.Models;
 
@@ -18,4 +20,8 @@ public class AppSettings
     public string SelectedInterfaceName { get; set; } = string.Empty;
 
     public bool EnableLogging { get; set; } = false;
+
+    public PhysicalUnit DisplacementUnit { get; set; } = PhysicalUnit.Micrometer;
+    public PhysicalUnit VelocityUnit { get; set; } = PhysicalUnit.MicrometerPerSecond;
+    public PhysicalUnit AccelerationUnit { get; set; } = PhysicalUnit.MicrometerPerSecond2;
 }

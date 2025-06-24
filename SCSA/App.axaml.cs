@@ -6,8 +6,13 @@ using SCSA.IO.Net.TCP;
 using SCSA.Models;
 using SCSA.Services;
 using SCSA.Services.Recording;
+using SCSA.Services.Recording.Writers;
 using SCSA.ViewModels;
 using SCSA.Views;
+using System;
+using System.IO;
+using System.Linq;
+using SCSA.Utils;
 
 namespace SCSA;
 
@@ -23,11 +28,9 @@ public class App : Application
         var services = new ServiceCollection();
         ConfigureServices(services);
 
-
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
-
             services.AddSingleton(desktop.MainWindow.StorageProvider);
 
             var serviceProvider = services.BuildServiceProvider(
@@ -40,12 +43,12 @@ public class App : Application
             // 初始化日志系统
             var appSettingsService = serviceProvider.GetRequiredService<IAppSettingsService>();
             var appSettings = appSettingsService.Load();
-            SCSA.Utils.Log.Initialize(appSettings.EnableLogging);
+            Log.Initialize(appSettings.EnableLogging);
 
             desktop.MainWindow.DataContext = serviceProvider.GetRequiredService<MainWindowViewModel>();
 
             // 应用退出时关闭日志后台线程
-            desktop.Exit += (_, _) => SCSA.Utils.Log.Shutdown();
+            desktop.Exit += (_, _) => Log.Shutdown();
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
         {
@@ -55,12 +58,12 @@ public class App : Application
             //};
         }
 
-
         base.OnFrameworkInitializationCompleted();
     }
 
     private void ConfigureServices(IServiceCollection services)
     {
+        // ViewModels
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<ConnectionViewModel>();
         services.AddSingleton<ParameterViewModel>();
@@ -68,16 +71,19 @@ public class App : Application
         services.AddSingleton<FirmwareUpdateViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<StatusBarViewModel>();
+        services.AddSingleton<PlaybackViewModel>();
 
+        // Services
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<PipelineTcpServer<PipelineNetDataPackage>>();
         services.AddSingleton<IRecorderService, RecorderService>();
 
-        services.AddTransient<MainWindow>();
+        // Views
         services.AddTransient<ConnectionView>();
         services.AddTransient<RealTimeTestView>();
         services.AddTransient<FirmwareUpdateView>();
         services.AddTransient<ParameterView>();
         services.AddTransient<SettingsView>();
+        services.AddTransient<PlaybackView>();
     }
 }

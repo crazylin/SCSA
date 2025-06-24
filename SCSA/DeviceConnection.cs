@@ -16,6 +16,8 @@ public class DeviceConnection : ReactiveObject
     [Reactive] public IPEndPoint EndPoint { get; set; }
     [Reactive] public DateTime ConnectTime { get; set; }
 
+    public bool IsConnected => Client!=null;
+
     [Reactive] public PipelineTcpClient<PipelineNetDataPackage> Client { get; set; }
 
     [Reactive] public List<DeviceParameter> DeviceParameters { get; set; }

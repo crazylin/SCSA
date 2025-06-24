@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FluentAvalonia.UI.Media;
 using OxyPlot;
+using OxyPlot.Annotations;
 using OxyPlot.Avalonia;
 using OxyPlot.Axes;
 using SCSA.Utils;
@@ -20,6 +21,7 @@ using LineSeries = OxyPlot.Series.LineSeries;
 using ScatterSeries = OxyPlot.Series.ScatterSeries;
 using LogarithmicAxis = OxyPlot.Axes.LogarithmicAxis;
 using RectangleAnnotation = OxyPlot.Annotations.RectangleAnnotation;
+using LineAnnotation = OxyPlot.Annotations.LineAnnotation;
 
 namespace SCSA.Plot;
 
@@ -764,4 +766,27 @@ public class CuPlotModel : PlotModel, IPlotModel, INotifyPropertyChanged
     }
 
     #endregion
+
+    public void UpdatePlaybackCursor(double time)
+    {
+        var cursor = Annotations.OfType<LineAnnotation>().FirstOrDefault(a => a.Tag as string == "PlaybackCursor");
+        if (cursor == null)
+        {
+            cursor = new LineAnnotation
+            {
+                Type = LineAnnotationType.Vertical,
+                X = time,
+                Color = OxyColors.Red,
+                LineStyle = LineStyle.Solid,
+                StrokeThickness = 2,
+                Tag = "PlaybackCursor"
+            };
+            Annotations.Add(cursor);
+        }
+        else
+        {
+            cursor.X = time;
+        }
+        InvalidatePlot(false);
+    }
 }

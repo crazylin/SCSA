@@ -5,12 +5,13 @@ using SCSA.Utils;
 
 namespace SCSA.IO.Net.TCP;
 
-public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPacketWritable, new()
+public class PipelineTcpServer<T> : IDisposable where T : class, IPipelineDataPackage<T>, IPacketWritable, new()
 {
     private ConcurrentDictionary<EndPoint, PipelineTcpClient<T>> _clients;
-    private Socket _listener;
+    private TcpListener _listener;
     private IPEndPoint _localEndPoint;
     private bool _running;
+    private bool _disposed;
 
     /// <summary>
     ///     新客户端连接时触发
@@ -37,13 +38,13 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
 
         _localEndPoint = localEndPoint;
 
-        _listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        _listener = new TcpListener(_localEndPoint);
+        _listener.Server.NoDelay = true;
         _clients = new ConcurrentDictionary<EndPoint, PipelineTcpClient<T>>();
 
         try
         {
-            _listener.Bind(_localEndPoint);
-            _listener.Listen(1024);
+            _listener.Start(1024);
         }
         catch (Exception e)
         {
@@ -63,11 +64,11 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
         _running = false;
         try
         {
-            _listener?.Close();
+            _listener?.Stop();
         }
         catch (Exception e)
         {
-            Log.Error("PipelineTcpServer listener close failed", e);
+            Log.Error("PipelineTcpServer listener stop failed", e);
         }
 
         foreach (var kv in _clients)
@@ -90,17 +91,17 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
         {
             while (_running)
             {
-                Socket clientSocket;
+                TcpClient clientSocket;
                 try
                 {
-                    clientSocket = await Task.Factory.FromAsync(
-                        _listener.BeginAccept,
-                        _listener.EndAccept,
-                        null);
+                    clientSocket = await _listener.AcceptTcpClientAsync();
                 }
                 catch (Exception e)
                 {
-                    Log.Error("PipelineTcpServer accept client failed", e);
+                    if (_running) // 只有在运行状态下才记录错误
+                    {
+                        Log.Error("PipelineTcpServer accept client failed", e);
+                    }
                     break;
                 }
 
@@ -108,7 +109,7 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
                 var pipelineClient = new PipelineTcpClient<T>(clientSocket);
 
                 // 2) 把它加入到客户端字典里
-                _clients.TryAdd(clientSocket.RemoteEndPoint, pipelineClient);
+                _clients.TryAdd(clientSocket.Client.RemoteEndPoint, pipelineClient);
 
                 // 3) 订阅该 client 的事件，用于转发给外层订阅者
                 pipelineClient.DataReceived += (s, packet) => { DataReceived?.Invoke(this, (pipelineClient, packet)); };
@@ -134,5 +135,24 @@ public class PipelineTcpServer<T> where T : class, IPipelineDataPackage<T>, IPac
     {
         if (_clients.TryGetValue(remoteEP, out var client)) return await client.SendAsync(packet);
         return false;
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                Stop();
+            }
+
+            _disposed = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 }

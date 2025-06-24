@@ -7,22 +7,48 @@ using SCSA.Utils;
 
 namespace SCSA.IO.Net.TCP;
 
-public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new()
+public class PipelineTcpClient<T> : IDisposable where T : class, IPipelineDataPackage<T>, new()
 {
     private readonly T _parserPrototype; // 用来调用 TryParse 解析
     private readonly Pipe _pipe;
+    private readonly TcpClient _tcpClient;
     private readonly Socket _socket;
+    private bool _disposed;
 
     private Channel<T> _processingChannel;
     private bool _running;
 
+    public PipelineTcpClient(TcpClient tcpClient)
+    {
+        _tcpClient = tcpClient ?? throw new ArgumentNullException(nameof(tcpClient));
+        _socket = tcpClient.Client;
+
+        _socket.ReceiveBufferSize = 1024 * 1024;
+        _socket.SendBufferSize = 1024 * 1024;
+        _socket.NoDelay = true;
+
+        RemoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
+
+        // 1MB / 512KB 门限避免管道高峰写阻塞
+        _pipe = new Pipe(new PipeOptions(
+            readerScheduler: PipeScheduler.ThreadPool,
+            writerScheduler: PipeScheduler.ThreadPool,
+            pauseWriterThreshold: 1 << 20, // 1 MB
+            resumeWriterThreshold: 1 << 19 // 512 KB
+        ));
+
+        _parserPrototype = new T();
+    }
+
+    // 保持向后兼容的构造函数
     public PipelineTcpClient(Socket socket)
     {
         _socket = socket ?? throw new ArgumentNullException(nameof(socket));
-        _socket.NoDelay = false;
+        _tcpClient = null;
+
         _socket.ReceiveBufferSize = 1024 * 1024;
         _socket.SendBufferSize = 1024 * 1024;
-
+        _socket.NoDelay = true;
         RemoteEndPoint = socket.RemoteEndPoint as IPEndPoint;
 
         // 1MB / 512KB 门限避免管道高峰写阻塞
@@ -38,6 +64,21 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
 
     public IPEndPoint RemoteEndPoint { set; get; }
 
+    /// <summary>
+    /// 检查连接是否健康
+    /// </summary>
+    public bool IsConnected => _socket?.Connected == true && _running;
+
+    /// <summary>
+    /// 获取连接状态信息
+    /// </summary>
+    public string GetConnectionStatus()
+    {
+        if (_socket == null) return "Socket未初始化";
+        if (!_socket.Connected) return "Socket未连接";
+        if (!_running) return "连接已停止";
+        return $"已连接 - 远程端点: {RemoteEndPoint}";
+    }
 
     /// <summary>
     ///     当收到一个完整的 T 才会触发该事件
@@ -191,6 +232,13 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
         if (!_running || packet == null)
             return false;
 
+        // 检查连接状态
+        if (_socket == null || !_socket.Connected)
+        {
+            Log.Error("Socket未连接，无法发送数据");
+            return false;
+        }
+
         // 假设 T 自己能提供 "ToArray()" 或 "GetBytes()"，代表一个完整帧
         // 这里新版约定：你在实现 IPipelineDataPackage<T> 的类里，必须提供一个 ToArray() 方法，
         // 它返回一个"可直接 socket.Send 的字节数组"，包含 Magic/Ver/Cmd/CmdId/Len/Body/CRC
@@ -199,8 +247,18 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
             var data = w.GetBytes();
             try
             {
-                var sent = await _socket.SendAsync(data, SocketFlags.None);
-                return sent == data.Length;
+                var sent = await _socket.SendAsync(data);
+                if (sent != data.Length)
+                {
+                    Log.Error($"发送数据不完整: 期望{sent}字节，实际发送{data.Length}字节");
+                    return false;
+                }
+                return true;
+            }
+            catch (SocketException ex)
+            {
+                Log.Error($"Socket发送异常: {ex.SocketErrorCode} - {ex.Message}");
+                return false;
             }
             catch (Exception e)
             {
@@ -229,11 +287,38 @@ public class PipelineTcpClient<T> where T : class, IPipelineDataPackage<T>, new(
 
         try
         {
-            _socket.Close();
+            if (_tcpClient != null)
+            {
+                _tcpClient.Close();
+            }
+            else
+            {
+                _socket.Close();
+            }
         }
         catch (Exception e)
         {
-            Log.Error("PipelineTcpClient socket close failed", e);
+            Log.Error("PipelineTcpClient close failed", e);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+            Close();
+            
+            try
+            {
+                _pipe?.Reader?.Complete();
+                _pipe?.Writer?.Complete();
+                _processingChannel?.Writer?.Complete();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PipelineTcpClient dispose failed", ex);
+            }
         }
     }
 }

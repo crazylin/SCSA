@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Diagnostics;
 using System.IO.Hashing;
 using SCSA.IO.Net.TCP;
 
@@ -75,6 +76,8 @@ public class PipelineNetDataPackage : IPipelineDataPackage<PipelineNetDataPackag
         buffer[idx++] = (byte)((Crc >> 8) & 0xFF);
         buffer[idx++] = (byte)((Crc >> 16) & 0xFF);
         buffer[idx++] = (byte)((Crc >> 24) & 0xFF);
+
+        Debug.WriteLine(buffer.Select(b => b.ToString("x2")).Aggregate((p, n) => p + " " + n));
 
         return buffer;
     }

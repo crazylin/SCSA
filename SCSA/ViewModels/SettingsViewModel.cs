@@ -11,27 +11,11 @@ using ReactiveUI.Fody.Helpers;
 using SCSA.Models;
 using SCSA.Services;
 using SCSA.ViewModels.Messages;
+using SCSA.Utils;
 
 namespace SCSA.ViewModels;
 
-public enum StorageType
-{
-    Time,
-    Length
-}
 
-public enum FileFormatType
-{
-    Binary,
-    UFF,
-    WAV
-}
-
-public enum UFFFormatType
-{
-    ASCII,
-    Binary
-}
 
 public class SettingsViewModel : ViewModelBase
 {
@@ -54,6 +38,10 @@ public class SettingsViewModel : ViewModelBase
 
     [Reactive] public UFFFormatType SelectedUFFFormat { get; set; } = UFFFormatType.Binary;
 
+    [Reactive] public PhysicalUnit SelectedDisplacementUnit { get; set; } = PhysicalUnit.Micrometer;
+    [Reactive] public PhysicalUnit SelectedVelocityUnit { get; set; } = PhysicalUnit.MicrometerPerSecond;
+    [Reactive] public PhysicalUnit SelectedAccelerationUnit { get; set; } = PhysicalUnit.MicrometerPerSecond2;
+
     [Reactive] public bool ShowDataLengthSettings { get; set; } = true;
 
     [Reactive] public bool ShowUFFFormatSettings { get; set; }
@@ -73,6 +61,12 @@ public class SettingsViewModel : ViewModelBase
             new ObservableCollection<TriggerType>(new[] { TriggerType.FreeTrigger, TriggerType.DebugTrigger });
         FileFormatTypes = new ObservableCollection<FileFormatType>(Enum.GetValues<FileFormatType>());
         UFFFormatTypes = new ObservableCollection<UFFFormatType>(Enum.GetValues<UFFFormatType>());
+        DisplacementUnits = new ObservableCollection<PhysicalUnit>(new[]
+            { PhysicalUnit.Micrometer, PhysicalUnit.Millimeter, PhysicalUnit.Meter });
+        VelocityUnits = new ObservableCollection<PhysicalUnit>(new[]
+            { PhysicalUnit.MicrometerPerSecond, PhysicalUnit.MillimeterPerSecond, PhysicalUnit.MeterPerSecond });
+        AccelerationUnits = new ObservableCollection<PhysicalUnit>(new[]
+            { PhysicalUnit.MicrometerPerSecond2, PhysicalUnit.MillimeterPerSecond2, PhysicalUnit.MeterPerSecond2, PhysicalUnit.G });
 
         LoadSettings();
 
@@ -92,6 +86,12 @@ public class SettingsViewModel : ViewModelBase
         // 监听日志开关单独保存，避免 WhenAnyValue 参数数量超限导致编译错误
         this.WhenAnyValue(x => x.EnableLogging)
             .Subscribe(_ => SaveSettingsCommand.Execute().Subscribe());
+
+        this.WhenAnyValue(
+            x => x.SelectedDisplacementUnit,
+            x => x.SelectedVelocityUnit,
+            x => x.SelectedAccelerationUnit
+        ).Subscribe(_ => SaveSettingsCommand.Execute().Subscribe());
 
         // reactive derived displays
         this.WhenAnyValue(x => x.SelectedStorageType, x => x.DataLength)
@@ -115,6 +115,9 @@ public class SettingsViewModel : ViewModelBase
     public ObservableCollection<StorageType> StorageTypes { get; }
     public ObservableCollection<FileFormatType> FileFormatTypes { get; }
     public ObservableCollection<UFFFormatType> UFFFormatTypes { get; }
+    public ObservableCollection<PhysicalUnit> DisplacementUnits { get; }
+    public ObservableCollection<PhysicalUnit> VelocityUnits { get; }
+    public ObservableCollection<PhysicalUnit> AccelerationUnits { get; }
 
     public ReactiveCommand<Unit, Unit> SaveSettingsCommand { get; }
     public ReactiveCommand<Unit, Unit> BrowseStoragePathCommand { get; }
@@ -135,6 +138,9 @@ public class SettingsViewModel : ViewModelBase
         SelectedFileFormat = settings.SelectedFileFormat;
         SelectedUFFFormat = settings.SelectedUFFFormat;
         EnableLogging = settings.EnableLogging;
+        SelectedDisplacementUnit = settings.DisplacementUnit;
+        SelectedVelocityUnit = settings.VelocityUnit;
+        SelectedAccelerationUnit = settings.AccelerationUnit;
 
         // triggers calculations immediately
         this.RaisePropertyChanged(nameof(DataLengthDisplay));
@@ -153,7 +159,10 @@ public class SettingsViewModel : ViewModelBase
             SelectedTriggerType = SelectedTriggerType,
             SelectedFileFormat = SelectedFileFormat,
             SelectedUFFFormat = SelectedUFFFormat,
-            EnableLogging = this.EnableLogging
+            EnableLogging = this.EnableLogging,
+            DisplacementUnit = SelectedDisplacementUnit,
+            VelocityUnit = SelectedVelocityUnit,
+            AccelerationUnit = SelectedAccelerationUnit
         };
 
         _settingsService.Save(settings);

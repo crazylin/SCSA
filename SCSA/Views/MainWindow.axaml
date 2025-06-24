@@ -95,6 +95,9 @@
                         <scsa:FirmwareUpdateView DataContext="{Binding FirmwareUpdateViewModel}"
                                                IsVisible="{Binding Path=DataContext.IsFirmwareUpdatePageVisible, Mode=OneWay, FallbackValue=False,
                                                              RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <scsa:PlaybackView DataContext="{Binding PlaybackViewModel}"
+                                         IsVisible="{Binding Path=DataContext.IsPlaybackPageVisible, Mode=OneWay, FallbackValue=False,
+                                                             RelativeSource={RelativeSource AncestorType=Window}}"/>
                         <scsa:SettingsView DataContext="{Binding SettingsViewModel}"
                                         IsVisible="{Binding Path=DataContext.IsSettingsPageVisible, Mode=OneWay, FallbackValue=False,
                                                              RelativeSource={RelativeSource AncestorType=Window}}"/>

@@ -11,6 +11,7 @@ public class MainWindowViewModel : ViewModelBase
     private readonly ObservableAsPropertyHelper<bool> _isRealTimeTestPageVisible;
     private readonly ObservableAsPropertyHelper<bool> _isFirmwareUpdatePageVisible;
     private readonly ObservableAsPropertyHelper<bool> _isSettingsPageVisible;
+    private readonly ObservableAsPropertyHelper<bool> _isPlaybackPageVisible;
     private NavItem _selectedItem;
 
     public NavItem SelectedItem
@@ -26,12 +27,14 @@ public class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(ConnectionViewModel connectionViewModel,
         RealTimeTestViewModel realTimeTestViewModel,
         FirmwareUpdateViewModel firmwareUpdateViewModel,
+        PlaybackViewModel playbackViewModel,
         SettingsViewModel settingsViewModel,
         StatusBarViewModel statusBarViewModel)
     {
         ConnectionViewModel = connectionViewModel;
         RealTimeTestViewModel = realTimeTestViewModel;
         FirmwareUpdateViewModel = firmwareUpdateViewModel;
+        PlaybackViewModel = playbackViewModel;
         SettingsViewModel = settingsViewModel;
         StatusBarViewModel = statusBarViewModel;
 
@@ -39,6 +42,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             new("设备管理", ConnectionViewModel, "ViewAll"),
             new("实时测试", RealTimeTestViewModel, "Play"),
+            //new("数据回放", PlaybackViewModel, "Replay"),
             new("固件升级", FirmwareUpdateViewModel, "Sync")
         };
 
@@ -62,6 +66,10 @@ public class MainWindowViewModel : ViewModelBase
         _isSettingsPageVisible = this.WhenAnyValue(x => x.CurrentPage)
             .Select(page => page == SettingsViewModel)
             .ToProperty(this, x => x.IsSettingsPageVisible);
+
+        _isPlaybackPageVisible = this.WhenAnyValue(x => x.CurrentPage)
+            .Select(page => page == PlaybackViewModel)
+            .ToProperty(this, x => x.IsPlaybackPageVisible);
     }
 
     public IReadOnlyList<NavItem> NavItems { get; }
@@ -74,10 +82,12 @@ public class MainWindowViewModel : ViewModelBase
     public bool IsRealTimeTestPageVisible => _isRealTimeTestPageVisible?.Value ?? false;
     public bool IsFirmwareUpdatePageVisible => _isFirmwareUpdatePageVisible?.Value ?? false;
     public bool IsSettingsPageVisible => _isSettingsPageVisible?.Value ?? false;
+    public bool IsPlaybackPageVisible => _isPlaybackPageVisible?.Value ?? false;
 
     public ConnectionViewModel ConnectionViewModel { get; }
     public RealTimeTestViewModel RealTimeTestViewModel { get; }
     public FirmwareUpdateViewModel FirmwareUpdateViewModel { get; }
+    public PlaybackViewModel PlaybackViewModel { get; }
     public SettingsViewModel SettingsViewModel { get; }
     public StatusBarViewModel StatusBarViewModel { get; }
 

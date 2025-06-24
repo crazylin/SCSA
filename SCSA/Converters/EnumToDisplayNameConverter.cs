@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
+using SCSA.Models;
 using SCSA.ViewModels;
 
 namespace SCSA.Converters;
