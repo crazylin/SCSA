@@ -780,6 +780,39 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                     }
                 }
                 
+
+
+                // 根据信号类型决定缩放因子
+                double factor = 1.0;
+                switch (SelectedSignalType)
+                {
+                    case Parameter.DataChannelType.Velocity:
+                        factor = SampleRate;
+                        break;
+                    case Parameter.DataChannelType.Acceleration:
+                        factor = SampleRate * SampleRate;
+                        break;
+                }
+                double[,] dataForProcess;
+                if (Math.Abs(factor - 1.0) > double.Epsilon)
+                {
+                    var rows = rawData.GetLength(0);
+                    var cols = rawData.GetLength(1);
+                    dataForProcess = new double[rows, cols];
+                    Parallel.For(0, rows, r =>
+                    {
+                        for (int c = 0; c < cols; c++)
+                        {
+                            dataForProcess[r, c] = rawData[r, c] * factor;
+                        }
+                    });
+                }
+                else
+                {
+                    dataForProcess = rawData;
+                }
+
+
                 // 确定源单位和目标单位
                 PhysicalUnit fromUnit = PhysicalUnit.Meter; // Default, will be overridden
                 PhysicalUnit toUnit = PhysicalUnit.Meter; // Default, will be overridden
@@ -804,23 +837,17 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                         break;
                 }
 
-                double[,] dataForProcess;
                 if (needsConversion && fromUnit != toUnit)
                 {
-                    var rows = rawData.GetLength(0);
-                    var cols = rawData.GetLength(1);
-                    dataForProcess = new double[rows, cols];
+                    var rows = dataForProcess.GetLength(0);
+                    var cols = dataForProcess.GetLength(1);
                     for (int r = 0; r < rows; r++)
                     {
                         for (int c = 0; c < cols; c++)
                         {
-                            dataForProcess[r, c] = UnitConverter.Convert(rawData[r, c], fromUnit, toUnit);
+                            dataForProcess[r, c] = UnitConverter.Convert(dataForProcess[r, c], fromUnit, toUnit);
                         }
                     }
-                }
-                else
-                {
-                    dataForProcess = rawData;
                 }
 
                 // 构建新的 channelDatas 以确保写盘和后续处理使用相同缩放

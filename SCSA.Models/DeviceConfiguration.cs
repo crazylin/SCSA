@@ -25,8 +25,22 @@ public class DeviceConfiguration
                 new("加速度", (byte)0x02),
                 new("I、Q路信号", (byte)0x03)
             }); // 上传数据类型
-        AddParameter("基础配置", "激光功率", (int)ParameterType.LaserPower, sizeof(byte), typeof(byte), (byte)0x64,
-            typeof(IntegerNumberParameter), min: 0, max: 100); // 激光功率 (0-100%)
+        AddParameter("基础配置", "指示激光功率", (int)ParameterType.LaserPower, sizeof(byte), typeof(byte), (byte)0x0A,
+            typeof(EnumParameter),
+            new List<EnumOption>
+            {
+                new("0", (byte)0x00),
+                new("1", (byte)0x01),
+                new("2", (byte)0x02),
+                new("3", (byte)0x03),
+                new("4", (byte)0x04),
+                new("5", (byte)0x05),
+                new("6", (byte)0x06),
+                new("7", (byte)0x07),
+                new("8", (byte)0x08),
+                new("9", (byte)0x09),
+                new("10", (byte)0x0A)
+            }); // 激光功率 (0-100%)
 
         // 信号处理参数
         AddParameter("信号处理", "低通滤波", (int)ParameterType.LowPassFilter, sizeof(byte), typeof(byte), (byte)0x00,
@@ -52,31 +66,41 @@ public class DeviceConfiguration
             typeof(EnumParameter),
             new List<EnumOption>
             {
-                new("档位1", (byte)0x00),
-                new("档位2", (byte)0x01),
-                new("档位3", (byte)0x02),
-                new("档位4", (byte)0x03),
-                new("档位5", (byte)0x04),
-                new("档位6", (byte)0x05),
-                new("档位7", (byte)0x06),
-                new("档位8", (byte)0x07),
-                new("档位9", (byte)0x08),
-                new("档位10", (byte)0x09)
+                new("24.5 μm/s", (byte)0x00),
+                new("122.5 μm/s", (byte)0x01),
+                new("245 μm/s", (byte)0x02),
+                new("1225 μm/s", (byte)0x03),
+                new("2450 μm/s", (byte)0x04),
+                new("4900 μm/s", (byte)0x05),
+                new("12250 μm/s", (byte)0x06),
+                new("24500 μm/s", (byte)0x07),
+                new("49000 μm/s", (byte)0x08),
+                new("122500 μm/s", (byte)0x09),
+                new("245000 μm/s", (byte)0x0A),
+                new("490000 μm/s", (byte)0x0B),
+                new("1225000 μm/s", (byte)0x0C),
+                new("2450000 μm/s", (byte)0x0D),
+                new("4900000 μm/s", (byte)0x0E)
             }); // 速度量程
         AddParameter("量程配置", "位移量程", (int)ParameterType.DisplacementRange, sizeof(byte), typeof(byte), (byte)0x00,
             typeof(EnumParameter),
             new List<EnumOption>
             {
-                new("档位1", (byte)0x00),
-                new("档位2", (byte)0x01),
-                new("档位3", (byte)0x02),
-                new("档位4", (byte)0x03),
-                new("档位5", (byte)0x04),
-                new("档位6", (byte)0x05),
-                new("档位7", (byte)0x06),
-                new("档位8", (byte)0x07),
-                new("档位9", (byte)0x08),
-                new("档位10", (byte)0x09)
+                new("2.45 μm", (byte)0x00),
+                new("4.9 μm", (byte)0x01),
+                new("12.25 μm", (byte)0x02),
+                new("24.5μm", (byte)0x03),
+                new("49 μm", (byte)0x04),
+                new("122.5 μm", (byte)0x05),
+                new("245 μm", (byte)0x06),
+                new("490 μm", (byte)0x07),
+                new("1225 μm", (byte)0x08),
+                new("2450 μm", (byte)0x09),
+                new("4900 μm", (byte)0x0A),
+                new("12250 μm", (byte)0x0B),
+                new("24500 μm", (byte)0x0C),
+                new("49000 μm", (byte)0x0D),
+                new("122500 μm", (byte)0x0E)
             }); // 位移量程
         AddParameter("量程配置", "加速度量程", (int)ParameterType.AccelerationRange, sizeof(byte), typeof(byte), (byte)0x00,
             typeof(EnumParameter),
@@ -91,7 +115,12 @@ public class DeviceConfiguration
                 new("档位7", (byte)0x06),
                 new("档位8", (byte)0x07),
                 new("档位9", (byte)0x08),
-                new("档位10", (byte)0x09)
+                new("档位10", (byte)0x09),
+                new("档位11", (byte)0x0A),
+                new("档位12", (byte)0x0B),
+                new("档位13", (byte)0x0C),
+                new("档位14", (byte)0x0D),
+                new("档位15", (byte)0x0E)
             }); // 加速度量程
 
 
