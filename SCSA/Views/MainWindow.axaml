@@ -151,7 +151,10 @@
                                     <TextBlock Text="{Binding StatusBarViewModel.RunningState}" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding StatusBarViewModel.ShowDeviceStatus}">
-                                    <TextBlock Text="{Binding StatusBarViewModel.BoardTemperature, StringFormat='板温: {0:F1}°C'}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding StatusBarViewModel.TEC_NTC, StringFormat='TEC NTC: {0:F2}Ω'}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding StatusBarViewModel.ShowDeviceStatus}">
+                                    <TextBlock Text="{Binding StatusBarViewModel.BoardTemperature, StringFormat='板温: {0:F2}°C'}" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding StatusBarViewModel.ShowDeviceStatus}">
                                     <TextBlock Text="{Binding StatusBarViewModel.PdCurrent, StringFormat='PD: {0:F2}mA'}" VerticalAlignment="Center" />

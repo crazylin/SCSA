@@ -21,8 +21,9 @@ namespace SCSA.ViewModels
         [Reactive] public bool IsTestRunning { get; set; }
         [Reactive] public bool ShowDataStorageInfo { get; set; }
         [Reactive] public bool ShowTriggerStatus { get; set; }
-        
+
         // Device Status Properties
+        [Reactive] public Int32 TEC_NTC { get; set; }
         [Reactive] public float BoardTemperature { get; set; }
         [Reactive] public float PdCurrent { get; set; }
         [Reactive] public string RunningState { get; set; }
@@ -54,6 +55,10 @@ namespace SCSA.ViewModels
                                     _ => $"运行状态: 异常"
                                 };
                                 break;
+                            case DeviceStatusType.TecNtc:
+                                if (status.Value is Int32 tec)
+                                    TEC_NTC = tec;
+                                break;
                             case DeviceStatusType.BoardTemperature:
                                 if (status.Value is float temp)
                                     BoardTemperature = temp;
@@ -62,6 +67,7 @@ namespace SCSA.ViewModels
                                 if (status.Value is float current)
                                     PdCurrent = current;
                                 break;
+                            
                         }
                     }
                 });
