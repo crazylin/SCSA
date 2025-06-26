@@ -1,4 +1,5 @@
 # SCSA – Signal Capture & Spectrum Analysis
+[![Build and Release SCSA](https://github.com/crazylin/SCSA/actions/workflows/release.yml/badge.svg)](https://github.com/crazylin/SCSA/actions/workflows/release.yml)
 
 ## Overview
 SCSA is a cross-platform signal-acquisition and analysis toolkit built with .NET 8 + Avalonia. It offers:
