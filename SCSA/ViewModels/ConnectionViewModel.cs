@@ -68,7 +68,7 @@ public class ConnectionViewModel : ViewModelBase
                 {
                     _statusBar.ConnectedDevice = "无连接";
                     _statusDispatcherTimer.Stop();
-
+                    MessageBus.Current.SendMessage(new SupportedParametersChangedMessage(device));
                 }
 
                 // 无论连接或断开，都广播设备变化消息
@@ -95,7 +95,6 @@ public class ConnectionViewModel : ViewModelBase
         StopCommand = ReactiveCommand.Create(StopServer);
 
         DisconnectCommand = ReactiveCommand.Create<DeviceConnection>(DisconnectDevice);
-
         SelectDeviceCommand = ReactiveCommand.CreateFromTask<DeviceConnection>(SelectDeviceAsync);
         ReadParameterCommand = ReactiveCommand.CreateFromTask<DeviceConnection>(ReadParametersAsync);
 

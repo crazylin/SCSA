@@ -16,7 +16,7 @@ public class DeviceConfiguration
         // 采样率
         AddParameter("基础配置", "采样率", (int)ParameterType.SamplingRate, sizeof(byte), typeof(byte), (byte)0x00,
             typeof(EnumParameter), Parameter.GetSampleOptions());
-
+        // 上传数据类型
         AddParameter("基础配置", "数据类型", (int)ParameterType.UploadDataType, sizeof(byte), typeof(byte), (byte)0x00,
             typeof(EnumParameter), new List<EnumOption>
             {
@@ -24,8 +24,29 @@ public class DeviceConfiguration
                 new("位移", (byte)0x01),
                 new("加速度", (byte)0x02),
                 new("I、Q路信号", (byte)0x03)
-            }); // 上传数据类型
-        AddParameter("基础配置", "指示激光功率", (int)ParameterType.LaserPower, sizeof(byte), typeof(byte), (byte)0x0A,
+            }); 
+
+
+        // 添加硬件相关参数
+        AddParameter("硬件参数", "激光器电流", (int)ParameterType.LaserCurrent, sizeof(float), typeof(float), (float)1000,
+            typeof(FloatNumberParameter), min: 0, max: 100000); // mA, range 0~500
+
+        AddParameter("硬件参数", "测量激光等级", (int)ParameterType.InfraredLaserIndicatorLevel, sizeof(byte), typeof(byte), (byte)0,
+            typeof(EnumParameter), new List<EnumOption>
+            {
+                new("0", (byte)0x00),
+                new("1", (byte)0x01),
+                new("2", (byte)0x02),
+                new("3", (byte)0x03),
+                new("4", (byte)0x04),
+                new("5", (byte)0x05),
+                new("6", (byte)0x06),
+                new("7", (byte)0x07),
+                new("8", (byte)0x08),
+                new("9", (byte)0x09),
+                new("10", (byte)0x0A)
+            });
+        AddParameter("硬件参数", "指示激光等级", (int)ParameterType.LaserPowerIndicatorLevel, sizeof(byte), typeof(byte), (byte)0x0A,
             typeof(EnumParameter),
             new List<EnumOption>
             {
@@ -41,6 +62,9 @@ public class DeviceConfiguration
                 new("9", (byte)0x09),
                 new("10", (byte)0x0A)
             }); // 激光功率 (0-100%)
+
+        AddParameter("硬件参数", "TEC目标温度", (int)ParameterType.TECTargetTemperature, sizeof(float), typeof(float), (float)25,
+            typeof(FloatNumberParameter), min: 0, max: 9999); // ℃, default 25
 
         // 信号处理参数
         AddParameter("信号处理", "低通滤波", (int)ParameterType.LowPassFilter, sizeof(byte), typeof(byte), (byte)0x00,
@@ -124,7 +148,7 @@ public class DeviceConfiguration
             }); // 加速度量程
 
 
-        AddParameter("输出接口1配置", "输出类型", (int)ParameterType.AnalogOutputType1, sizeof(byte), typeof(byte),
+        AddParameter("模拟口1配置", "输出类型", (int)ParameterType.AnalogOutputType1, sizeof(byte), typeof(byte),
             (byte)0x00,
             typeof(EnumParameter), new List<EnumOption>
             {
@@ -133,11 +157,11 @@ public class DeviceConfiguration
                 new("加速度", (byte)0x02)
             });
 
-        AddParameter("输出接口1配置", "模拟输出", (int)ParameterType.AnalogOutputSwitch1, sizeof(byte), typeof(byte),
+        AddParameter("模拟口1配置", "模拟输出", (int)ParameterType.AnalogOutputSwitch1, sizeof(byte), typeof(byte),
             (byte)0x00,
             typeof(BoolParameter));
 
-        AddParameter("输出接口2配置", "输出类型", (int)ParameterType.AnalogOutputType2, sizeof(byte), typeof(byte),
+        AddParameter("模拟口2配置", "输出类型", (int)ParameterType.AnalogOutputType2, sizeof(byte), typeof(byte),
             (byte)0x00,
             typeof(EnumParameter), new List<EnumOption>
             {
@@ -146,7 +170,7 @@ public class DeviceConfiguration
                 new("加速度", (byte)0x02)
             });
 
-        AddParameter("输出接口2配置", "模拟输出", (int)ParameterType.AnalogOutputSwitch2, sizeof(byte), typeof(byte),
+        AddParameter("模拟口2配置", "模拟输出", (int)ParameterType.AnalogOutputSwitch2, sizeof(byte), typeof(byte),
             (byte)0x00,
             typeof(BoolParameter));
         //AddParameter("算法参数", "参数111", 0x10000000, sizeof(float), typeof(float), (float)0x00000001, typeof(FloatNumberParameter),
@@ -226,6 +250,8 @@ public class DeviceConfiguration
         //    new("下降沿", (byte)0x01)
         //});
         //AddParameter("触发采样", "采样长度", (int)ParameterType.TriggerSampleLength, sizeof(int), typeof(int), 1024, typeof(IntegerNumberParameter), min: 1, max: 1000000);
+
+
     }
 
     // 带分类的添加方法

@@ -22,7 +22,7 @@ public class Parameter
             case ParameterType.SamplingRate:
             case ParameterType.UploadDataType:
                 return [(byte)Value];
-            case ParameterType.LaserPower:
+            case ParameterType.LaserPowerIndicatorLevel:
                 return [Convert.ToByte(Value)];
             case ParameterType.SignalStrength:
             case ParameterType.LowPassFilter:
@@ -60,6 +60,11 @@ public class Parameter
             case ParameterType.TriggerSampleLength:
             case ParameterType.TriggerSampleDelay:
                 return BitConverter.GetBytes(Convert.ToInt32(Value));
+            case ParameterType.LaserCurrent:
+            case ParameterType.TECTargetTemperature:
+                return BitConverter.GetBytes(Convert.ToSingle(Value));
+            case ParameterType.InfraredLaserIndicatorLevel:
+                return [Convert.ToByte(Value)];
             default:
                 return [0];
         }
@@ -115,7 +120,7 @@ public class Parameter
         {
             case ParameterType.SamplingRate:
             case ParameterType.UploadDataType:
-            case ParameterType.LaserPower:
+            case ParameterType.LaserPowerIndicatorLevel:
             case ParameterType.SignalStrength:
             case ParameterType.LowPassFilter:
             case ParameterType.HighPassFilter:
@@ -152,6 +157,11 @@ public class Parameter
             case ParameterType.TriggerSampleLength:
             case ParameterType.TriggerSampleDelay:
                 return typeof(int);
+            case ParameterType.LaserCurrent:
+            case ParameterType.TECTargetTemperature:
+                return typeof(float);
+            case ParameterType.InfraredLaserIndicatorLevel:
+                return typeof(byte);
             default:
                 return typeof(byte);
         }
@@ -205,7 +215,7 @@ public class Parameter
         {
             case ParameterType.SamplingRate:
             case ParameterType.UploadDataType:
-            case ParameterType.LaserPower:
+            case ParameterType.LaserPowerIndicatorLevel:
             case ParameterType.SignalStrength:
             case ParameterType.LowPassFilter:
             case ParameterType.HighPassFilter:
@@ -242,6 +252,11 @@ public class Parameter
             case ParameterType.TriggerSampleLength:
             case ParameterType.TriggerSampleDelay:
                 return BitConverter.ToInt32(RawValue);
+            case ParameterType.LaserCurrent:
+            case ParameterType.TECTargetTemperature:
+                return BitConverter.ToSingle(RawValue);
+            case ParameterType.InfraredLaserIndicatorLevel:
+                return RawValue[0];
             default:
                 return RawValue[0];
         }

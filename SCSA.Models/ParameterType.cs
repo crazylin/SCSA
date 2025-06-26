@@ -4,7 +4,7 @@ public enum ParameterType : uint
 {
     SamplingRate = 0x00000000,
     UploadDataType = 0x00000001,
-    LaserPower = 0x00000002,
+    LaserPowerIndicatorLevel = 0x00000002,
     SignalStrength = 0x00000003,
 
     ///// <summary>
@@ -39,5 +39,10 @@ public enum ParameterType : uint
     TriggerSampleLevel = 0x00000010, // 触发采样-触发采样模式-硬（触发电平）
     TriggerSampleChannel = 0x00000011, // 触发通道
     TriggerSampleLength = 0x00000012, // 触发采样长度
-    TriggerSampleDelay = 0x00000013 // 触发前置点数
+    TriggerSampleDelay = 0x00000013, // 触发前置点数
+
+    // 新增硬件相关参数
+    LaserCurrent = 0x00000014,              // 激光器电流 (mA) float
+    InfraredLaserIndicatorLevel = 0x00000015, // 红外激光指示灯等级 byte
+    TECTargetTemperature = 0x00000016        // TEC目标温度 (℃) float
 }

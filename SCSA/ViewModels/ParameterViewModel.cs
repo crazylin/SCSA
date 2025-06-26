@@ -45,6 +45,11 @@ public class ParameterViewModel : ViewModelBase
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(message =>
             {
+                if (message.DeviceConnection == null)
+                {
+                    Categories = new ObservableCollection<ParameterCategory>();
+                    return;
+                }
                 Categories = new ObservableCollection<ParameterCategory>(Config.Categories);
 
                 var removeCategories = new List<ParameterCategory>();
