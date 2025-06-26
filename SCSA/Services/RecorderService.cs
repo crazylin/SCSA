@@ -18,12 +18,12 @@ public class RecorderService : IRecorderService
 {
     private readonly IAppSettingsService _appSettingsService;
     //private readonly List<short> _cmdIds = new(); // 添加CmdId列表
-    private readonly Channel<Dictionary<Parameter.DataChannelType, double[,]>> _dataChannel;
+    private readonly Channel<Dictionary<DataChannelType, double[,]>> _dataChannel;
     private CancellationTokenSource _cancellationTokenSource;
     private List<IChannelWriter> _channelWriters;
     private List<string> _currentFileNames;
     private List<FileStream> _currentFileStreams;
-    private Parameter.DataChannelType _currentSignalType;
+    private DataChannelType _currentSignalType;
 
     private bool _isRecording;
     private Task _processingTask;
@@ -61,11 +61,11 @@ public class RecorderService : IRecorderService
             if (!Directory.Exists(StoragePath)) Directory.CreateDirectory(StoragePath);
         }
 
-        _dataChannel = Channel.CreateUnbounded<Dictionary<Parameter.DataChannelType, double[,]>>(
+        _dataChannel = Channel.CreateUnbounded<Dictionary<DataChannelType, double[,]>>(
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     }
 
-    public async Task<long> StartRecordingAsync(Parameter.DataChannelType signalType, TriggerType triggerType,
+    public async Task<long> StartRecordingAsync(DataChannelType signalType, TriggerType triggerType,
         double sampleRate, IProgress<int> saveProgress, long targetDataLength = 0,
         double targetTimeSeconds = 0,
         StorageType storageType = StorageType.Length, FileFormatType fileFormat = FileFormatType.Binary,
@@ -179,7 +179,7 @@ public class RecorderService : IRecorderService
         }
     }
 
-    public async Task<bool> WriteDataAsync(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
+    public async Task<bool> WriteDataAsync(Dictionary<DataChannelType, double[,]> channelDatas)
     {
         if (!_isRecording)
             return false;
@@ -226,7 +226,7 @@ public class RecorderService : IRecorderService
         return $"SR{_sampleRate}_{storageTypeStr}_{targetInfo}_{triggerType}_{timestamp}";
     }
 
-    private Task InitializeWritersAsync(Parameter.DataChannelType signalType, FileFormatType fileFormat,
+    private Task InitializeWritersAsync(DataChannelType signalType, FileFormatType fileFormat,
         string fileNameSuffix)
     {
         try
@@ -234,7 +234,7 @@ public class RecorderService : IRecorderService
             var fileExtension = GetFileExtension(fileFormat);
             var saveAsWav = fileFormat == FileFormatType.WAV;
 
-            if (signalType == Parameter.DataChannelType.ISignalAndQSignal)
+            if (signalType == DataChannelType.ISignalAndQSignal)
             {
                 if (_saveAsUFF)
                 {
@@ -273,7 +273,7 @@ public class RecorderService : IRecorderService
                             _channelWriters.Add(new WavChannelWriter(writer, (int)_sampleRate));
                         else
                             _channelWriters.Add(new BinChannelWriter(writer,
-                                _currentSignalType == Parameter.DataChannelType.ISignalAndQSignal
+                                _currentSignalType == DataChannelType.ISignalAndQSignal
                                     ? BinDataType.Int16
                                     : BinDataType.Float32));
                     }
@@ -289,9 +289,9 @@ public class RecorderService : IRecorderService
                 {
                     string unit = signalType switch
                     {
-                        Parameter.DataChannelType.Velocity => "mm/s",
-                        Parameter.DataChannelType.Displacement => "um",
-                        Parameter.DataChannelType.Acceleration => "m/s2",
+                        DataChannelType.Velocity => "mm/s",
+                        DataChannelType.Displacement => "um",
+                        DataChannelType.Acceleration => "m/s2",
                         _ => "V"
                     };
                     var uffStreamWriter = new UFFStreamWriter(fileName,
@@ -346,7 +346,7 @@ public class RecorderService : IRecorderService
                             if (remainDataLen >= perChannelDataLen)
                                 remainDataLen = perChannelDataLen;
 
-                            if (_currentSignalType == Parameter.DataChannelType.ISignalAndQSignal)
+                            if (_currentSignalType == DataChannelType.ISignalAndQSignal)
                             {
                                 var iSignal = new double[data.GetLength(1)];
                                 var qSignal = new double[data.GetLength(1)];

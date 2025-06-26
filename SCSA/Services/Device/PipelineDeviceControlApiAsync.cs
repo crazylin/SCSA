@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using SCSA.IO.Net.TCP;
@@ -90,7 +91,7 @@ public class PipelineDeviceControlApiAsync : IDisposable
         }
     }
 
-    public event Action<Dictionary<Parameter.DataChannelType, double[,]>> DataReceived;
+    public event Action<Dictionary<DataChannelType, double[,]>> DataReceived;
 
     /// <summary>
     /// 检查对象是否已被释放
@@ -124,15 +125,16 @@ public class PipelineDeviceControlApiAsync : IDisposable
             case DeviceCommand.ReplyStopCollection:
             case DeviceCommand.ReplySetParameters:
             case DeviceCommand.ReplyReadParameters:
-
             //暂时添加 固件问题
             case DeviceCommand.RequestReadParameters:
             //暂时添加 固件问题
+            case DeviceCommand.ReplyGetParameterIds:
+            case DeviceCommand.ReplyGetDeviceStatus:
             case DeviceCommand.ReplyStartFirmwareUpgrade:
-
             case DeviceCommand.ReplyTransferFirmwareUpgrade:
                 // 通过CmdId匹配等待的命令
                 if (_pendingCommands.TryRemove(netDataPackage.CmdId, out var tcs))
+
                 {
                     tcs.TrySetResult(netDataPackage);
                     // 清理相关记录
@@ -258,25 +260,28 @@ public class PipelineDeviceControlApiAsync : IDisposable
     public async Task<(bool success, List<Parameter> result)> ReadParameters(List<Parameter> parameters,
         CancellationToken cancellationToken)
     {
-        var data = Parameter.Get_GetParametersData(parameters.ToList());
+        var data = Parameter.Get_GetParametersData(parameters);
 
         var netDataPackage = await SendAsync(DeviceCommand.RequestReadParameters, data, cancellationToken);
         if (netDataPackage == null)
             return (false, parameters);
-
-        var resultParameters = Parameter.Get_GetParametersResult(netDataPackage.Data);
+    
+        var result = BitConverter.ToInt16(netDataPackage.Data) == 0;
+        if (!result)
+            return (false, new List<Parameter>());
+        var resultParameters = Parameter.Get_GetParametersResult(netDataPackage.Data.Skip(2).ToArray());
         var returnParameters = new List<Parameter>();
         foreach (var resultParameter in resultParameters)
         {
             var p = parameters.FirstOrDefault(p => p.Address == resultParameter.Address);
-            if (p != null && resultParameter.GetResult)
+            if (p != null)
             {
                 p.Value = resultParameter.ToParameterData();
                 returnParameters.Add(p);
             }
         }
 
-        return (true, returnParameters);
+        return (result, returnParameters);
     }
 
     public async Task<bool> SetParameters(List<Parameter> parameters,
@@ -290,6 +295,42 @@ public class PipelineDeviceControlApiAsync : IDisposable
 
         return BitConverter.ToInt16(netDataPackage.Data) == 0;
     }
+
+
+    public async Task<(bool success, List<Parameter> result)> GetParameterIds(CancellationToken cancellationToken)
+    {
+        var data = Array.Empty<byte>();
+
+        var netDataPackage = await SendAsync(DeviceCommand.RequestGetParameterIds, data, cancellationToken);
+        if (netDataPackage == null)
+            return (false,  new List<Parameter>());
+
+        var result = BitConverter.ToInt16(netDataPackage.Data) == 0;
+        if (!result)
+            return (false, new List<Parameter>());
+
+        var resultParameters = Parameter.Get_GetParameterIdsResult(netDataPackage.Data.Skip(2).ToArray());
+
+        return (result, resultParameters);
+    }
+
+    public async Task<(bool success, List<DeviceStatus> result)> GetDeviceStatus(List<DeviceStatusType> deviceStatusList, CancellationToken cancellationToken)
+    {
+        var data = DeviceStatus.Get_GetDeviceStatusData(deviceStatusList);
+
+        var netDataPackage = await SendAsync(DeviceCommand.RequestGetDeviceStatus, data, cancellationToken);
+        if (netDataPackage == null)
+            return (false, new List<DeviceStatus>());
+
+        var result = BitConverter.ToInt16(netDataPackage.Data) == 0;
+        if (!result)
+            return (false, new List<DeviceStatus>());
+
+        var resultDeviceStatus = DeviceStatus.Get_GetDeviceStatusResult(netDataPackage.Data.Skip(2).ToArray());
+
+        return (result, resultDeviceStatus);
+    }
+    
 
     public async Task<bool> FirmwareUpgradeStart(int size, CancellationToken cancellationToken)
     {
@@ -322,25 +363,25 @@ public class PipelineDeviceControlApiAsync : IDisposable
         return BitConverter.ToInt16(netDataPackage.Data.Skip(12).Take(2).ToArray()) == 0;
     }
 
-    private Dictionary<Parameter.DataChannelType, double[,]> ProcessChannelData(byte[] data)
+    private Dictionary<DataChannelType, double[,]> ProcessChannelData(byte[] data)
     {
         using var stream = new MemoryStream(data);
         using var reader = new BinaryReader(stream);
 
-        var channelType = (Parameter.DataChannelType)reader.ReadInt32();
+        var channelType = (DataChannelType)reader.ReadInt32();
         var dataLength = reader.ReadInt32();
-        var result = new Dictionary<Parameter.DataChannelType, double[,]>();
+        var result = new Dictionary<DataChannelType, double[,]>();
 
         switch (channelType)
         {
-            case Parameter.DataChannelType.Velocity:
-            case Parameter.DataChannelType.Displacement:
-            case Parameter.DataChannelType.Acceleration:
+            case DataChannelType.Velocity:
+            case DataChannelType.Displacement:
+            case DataChannelType.Acceleration:
                 result.Add(channelType, new double[1, dataLength]);
                 for (var i = 0; i < dataLength; i++)
                     result[channelType][0, i] = reader.ReadSingle();
                 break;
-            case Parameter.DataChannelType.ISignalAndQSignal:
+            case DataChannelType.ISignalAndQSignal:
                 result.Add(channelType, new double[2, dataLength]);
                 for (var i = 0; i < dataLength; i++)
                 {

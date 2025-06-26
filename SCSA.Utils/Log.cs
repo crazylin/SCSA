@@ -50,7 +50,7 @@ namespace SCSA.Utils
         }
 
         public static void Info(string message) => Write("INFO", message);
-
+        public static void Warning(string message) => Write("WARNING", message);
         public static void Error(string message, Exception? ex = null)
         {
             var msg = ex == null ? message : $"{message} | Exception: {ex}";

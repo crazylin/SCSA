@@ -29,6 +29,8 @@ public class ConnectionViewModel : ViewModelBase
     private readonly PipelineTcpServer<PipelineNetDataPackage> _tcpServer;
     private readonly StatusBarViewModel _statusBar;
 
+    private DispatcherTimer _statusDispatcherTimer;
+
     public ConnectionViewModel(PipelineTcpServer<PipelineNetDataPackage> tcpServer, IAppSettingsService settingsService,
         ParameterViewModel parameterViewModel, StatusBarViewModel statusBar)
     {
@@ -60,10 +62,13 @@ public class ConnectionViewModel : ViewModelBase
                 {
                     _statusBar.ConnectedDevice = $"设备: {device.EndPoint}";
                     ShowNotification($"已选中设备: {device.EndPoint}");
+                    _statusDispatcherTimer.Start();
                 }
                 else
                 {
                     _statusBar.ConnectedDevice = "无连接";
+                    _statusDispatcherTimer.Stop();
+
                 }
 
                 // 无论连接或断开，都广播设备变化消息
@@ -112,6 +117,15 @@ public class ConnectionViewModel : ViewModelBase
             else
                 StartServer();
         }, canStart.Merge(this.WhenAnyValue(x=>x.IsServerRunning).Select(_=>true)));
+
+        _statusDispatcherTimer = new DispatcherTimer();
+        _statusDispatcherTimer.Interval = TimeSpan.FromSeconds(2);
+        _statusDispatcherTimer.Tick += _statusDispatcherTimer_Tick;
+    }
+
+    private void _statusDispatcherTimer_Tick(object? sender, EventArgs e)
+    {
+        GetDeviceStatusAsync(SelectedDevice);
     }
 
     [Reactive] public int Port { get; set; } = 9123;
@@ -237,9 +251,12 @@ public class ConnectionViewModel : ViewModelBase
         });
     }
 
-    private async Task ReadParametersAsync(DeviceConnection device)
+    private async Task<bool> ReadParametersAsync(DeviceConnection device)
     {
-        if (device == null) return;
+        if(!await GetSupportParametersAsync(device))
+            return false;
+
+        if (device == null) return false;
 
         ShowNotification("正在读取参数...");
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -257,9 +274,12 @@ public class ConnectionViewModel : ViewModelBase
                     })
                     .ToList();
                 device.DeviceParameters = deviceParams;
-                
-                MessageBus.Current.SendMessage(new ParametersChangedMessage(device));
                 ShowNotification("参数读取成功");
+
+
+                MessageBus.Current.SendMessage(new ParametersChangedMessage(device));
+
+                return true;
             }
             else
             {
@@ -271,8 +291,67 @@ public class ConnectionViewModel : ViewModelBase
             Log.Error($"读取设备 {device?.DeviceId} 参数失败", ex);
             ShowNotification($"参数读取出错: {ex.Message}");
         }
+        return false;
     }
 
+    private async Task<bool> GetSupportParametersAsync(DeviceConnection device)
+    {
+        if (device == null) return false;
+
+        ShowNotification("正在读取参数列表...");
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        try
+        {
+            var result = await device.DeviceControlApi.GetParameterIds(cts.Token);
+            if (result.success)
+            {
+                device.SupportParameterTypes = result.result.Select(r => r.Address).ToList();
+
+                ShowNotification("参数读列表取成功");
+
+                MessageBus.Current.SendMessage(new SupportedParametersChangedMessage(device));
+                return true;
+            }
+            else
+            {
+                ShowNotification("参数列表读取失败");
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"读取设备 {device?.DeviceId} 参数列表失败", ex);
+            ShowNotification($"参数列表读取出错: {ex.Message}");
+        }
+        return false;
+    }
+
+    private async Task<bool> GetDeviceStatusAsync(DeviceConnection device)
+    {
+        if (device == null) return false;
+
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        try
+        {
+            var readDeviceStatus = Enum.GetValues(typeof(DeviceStatusType)).Cast<DeviceStatusType>().ToList();
+            var result = await device.DeviceControlApi.GetDeviceStatus(readDeviceStatus,cts.Token);
+            if (result.success)
+            {
+                device.DeviceStatuses = result.result;
+                MessageBus.Current.SendMessage(new DeviceStatusChangedMessage(device));
+                return true;
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"读取设备 {device?.DeviceId} 参数列表失败", ex);
+
+        }
+        return false;
+    }
     private async Task WriteParametersAsync(DeviceConnection device, List<Parameter> parameters)
     {
         if (device == null) return;

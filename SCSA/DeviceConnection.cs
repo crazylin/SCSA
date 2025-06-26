@@ -24,19 +24,21 @@ public class DeviceConnection : ReactiveObject
 
     [Reactive] public PipelineDeviceControlApiAsync DeviceControlApi { get; set; }
 
-    public List<ParameterType> SupportParameterTypes => DefaultParameters();
+    public List<DeviceStatus> DeviceStatuses { get; set; }
+
+    public List<ParameterType> SupportParameterTypes { set; get; }
 
 
-    public static List<ParameterType> DefaultParameters()
-    {
-        var list = Enum.GetValues(typeof(ParameterType)).Cast<ParameterType>().ToList();
+    //public static List<ParameterType> DefaultParameters()
+    //{
+    //    var list = Enum.GetValues(typeof(ParameterType)).Cast<ParameterType>().ToList();
 
-        list.Remove(ParameterType.TriggerSampleMode);
-        list.Remove(ParameterType.TriggerSampleLevel);
-        list.Remove(ParameterType.TriggerSampleChannel);
-        list.Remove(ParameterType.TriggerSampleLength);
-        list.Remove(ParameterType.TriggerSampleDelay);
+    //    list.Remove(ParameterType.TriggerSampleMode);
+    //    list.Remove(ParameterType.TriggerSampleLevel);
+    //    list.Remove(ParameterType.TriggerSampleChannel);
+    //    list.Remove(ParameterType.TriggerSampleLength);
+    //    list.Remove(ParameterType.TriggerSampleDelay);
 
-        return list;
-    }
+    //    return list;
+    //}
 }

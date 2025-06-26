@@ -128,7 +128,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
         SelectedTriggerType = _currentSettings.SelectedTriggerType;
 
-        SignalTypes = new ObservableCollection<Parameter.DataChannelType>(Enum.GetValues<Parameter.DataChannelType>());
+        SignalTypes = new ObservableCollection<DataChannelType>(Enum.GetValues<DataChannelType>());
         SelectedSignalType = SignalTypes.FirstOrDefault();
         SetChannelType();
 
@@ -210,7 +210,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
             SelectedSampleRate = SampleRateList.FirstOrDefault(sr => sr.RealValue.Equals(Convert.ToByte(samplingRateParam.Value)));
         var dataTypeParam = parameters.FirstOrDefault(p => p.Address == (int)ParameterType.UploadDataType);
         if (dataTypeParam != null) 
-            SelectedSignalType = (Parameter.DataChannelType)Convert.ToInt32(dataTypeParam.Value);
+            SelectedSignalType = (DataChannelType)Convert.ToInt32(dataTypeParam.Value);
     }
 
     private async void OnDataCollectionCompletedAsync(object? sender, EventArgs e)
@@ -229,18 +229,18 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         string unitString = "V"; // 默认
         switch (SelectedSignalType)
         {
-            case Parameter.DataChannelType.Velocity:
+            case DataChannelType.Velocity:
                 unitString = UnitConverter.GetUnitString(_currentSettings.VelocityUnit);
                 break;
-            case Parameter.DataChannelType.Displacement:
+            case DataChannelType.Displacement:
                 unitString = UnitConverter.GetUnitString(_currentSettings.DisplacementUnit);
                 break;
-            case Parameter.DataChannelType.Acceleration:
+            case DataChannelType.Acceleration:
                 unitString = UnitConverter.GetUnitString(_currentSettings.AccelerationUnit);
                 break;
         }
 
-        var seriesTitles = SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal
+        var seriesTitles = SelectedSignalType == DataChannelType.ISignalAndQSignal
             ? new[] { "I Signal", "Q Signal" }
             : new[] { SelectedSignalType.ToString() };
 
@@ -250,7 +250,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         UpdateFrequencyDomainUnits();
     }
 
-    private Waveform CreateWaveform(Parameter.DataChannelType channelType, string yUnit, string[] seriesTitles)
+    private Waveform CreateWaveform(DataChannelType channelType, string yUnit, string[] seriesTitles)
     {
         var waveform = new Waveform { DataChannelType = channelType };
 
@@ -298,7 +298,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         waveform.FrequencyDomainModel.PlotModel.ApplyTheme();
 
         // 若为 IQ 信号，创建李萨如图
-        if (channelType == Parameter.DataChannelType.ISignalAndQSignal)
+        if (channelType == DataChannelType.ISignalAndQSignal)
         {
             waveform.LissajousModel = new CuPlotViewModel()
             {
@@ -373,7 +373,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                     //上传数据类型
                     new Parameter
                     {
-                        Address = ParameterType.UploadDataType, Length = sizeof(Parameter.DataChannelType),
+                        Address = ParameterType.UploadDataType, Length = sizeof(DataChannelType),
                         Value = SelectedSignalType
                     },
                     //采样率
@@ -454,7 +454,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         var bandPassFirst = BandPassFirst;
         var bandPassSecond = BandPassSecond;
         var yUnit = Waveforms[0].FrequencyDomainModel.PlotModel.YUnit;
-        var isIQ = SelectedSignalType == Parameter.DataChannelType.ISignalAndQSignal;
+        var isIQ = SelectedSignalType == DataChannelType.ISignalAndQSignal;
 
         Task.Run(() =>
         {
@@ -758,7 +758,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
         }
     }
 
-    private void DeviceControlApi_DataReceived(Dictionary<Parameter.DataChannelType, double[,]> channelDatas)
+    private void DeviceControlApi_DataReceived(Dictionary<DataChannelType, double[,]> channelDatas)
     {
         try
         {
@@ -786,10 +786,10 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 double factor = 1.0;
                 switch (SelectedSignalType)
                 {
-                    case Parameter.DataChannelType.Velocity:
+                    case DataChannelType.Velocity:
                         factor = SampleRate;
                         break;
-                    case Parameter.DataChannelType.Acceleration:
+                    case DataChannelType.Acceleration:
                         factor = SampleRate * SampleRate;
                         break;
                 }
@@ -820,17 +820,17 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
                 switch (SelectedSignalType)
                 {
-                    case Parameter.DataChannelType.Displacement:
+                    case DataChannelType.Displacement:
                         fromUnit = PhysicalUnit.Micrometer;
                         toUnit = _currentSettings.DisplacementUnit;
                         needsConversion = true;
                         break;
-                    case Parameter.DataChannelType.Velocity:
+                    case DataChannelType.Velocity:
                         fromUnit = PhysicalUnit.MicrometerPerSecond;
                         toUnit = _currentSettings.VelocityUnit;
                         needsConversion = true;
                         break;
-                    case Parameter.DataChannelType.Acceleration:
+                    case DataChannelType.Acceleration:
                         fromUnit = PhysicalUnit.MicrometerPerSecond2;
                         toUnit = _currentSettings.AccelerationUnit;
                         needsConversion = true;
@@ -851,7 +851,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                 }
 
                 // 构建新的 channelDatas 以确保写盘和后续处理使用相同缩放
-                var scaledDict = new Dictionary<Parameter.DataChannelType, double[,]> { { SelectedSignalType, dataForProcess } };
+                var scaledDict = new Dictionary<DataChannelType, double[,]> { { SelectedSignalType, dataForProcess } };
 
                 if (IsTestRunning && _currentSettings.EnableDataStorage) _recorderService.WriteDataAsync(scaledDict);
 
@@ -879,7 +879,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
     // 波形数据类
     public class Waveform : ReactiveObject
     {
-        public Parameter.DataChannelType DataChannelType { get; set; }
+        public DataChannelType DataChannelType { get; set; }
         public CuPlotViewModel TimeDomainModel { get; set; }
         public CuPlotViewModel FrequencyDomainModel { get; set; }
         public CuPlotViewModel LissajousModel { get; set; }
@@ -897,11 +897,11 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     [Reactive] public int DisplayPointCount { get; set; } = 10240;
 
-    [Reactive] public Parameter.DataChannelType SelectedSignalType { get; set; }
+    [Reactive] public DataChannelType SelectedSignalType { get; set; }
 
     [Reactive] public ObservableCollection<Waveform> Waveforms { get; set; }
 
-    [Reactive] public ObservableCollection<Parameter.DataChannelType> SignalTypes { get; set; }
+    [Reactive] public ObservableCollection<DataChannelType> SignalTypes { get; set; }
 
     [Reactive] public ObservableCollection<WindowFunction> WindowFunctions { get; set; }
 
@@ -962,14 +962,14 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
     #endregion
 
-    private string GetBaseUnit(Parameter.DataChannelType channelType)
+    private string GetBaseUnit(DataChannelType channelType)
     {
         // 根据通道类型返回幅值单位
         return channelType switch
         {
-            Parameter.DataChannelType.Velocity => UnitConverter.GetUnitString(_currentSettings.VelocityUnit),
-            Parameter.DataChannelType.Displacement => UnitConverter.GetUnitString(_currentSettings.DisplacementUnit),
-            Parameter.DataChannelType.Acceleration => UnitConverter.GetUnitString(_currentSettings.AccelerationUnit),
+            DataChannelType.Velocity => UnitConverter.GetUnitString(_currentSettings.VelocityUnit),
+            DataChannelType.Displacement => UnitConverter.GetUnitString(_currentSettings.DisplacementUnit),
+            DataChannelType.Acceleration => UnitConverter.GetUnitString(_currentSettings.AccelerationUnit),
             _ => "V"
         };
     }

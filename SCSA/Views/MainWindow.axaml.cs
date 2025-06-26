@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -14,12 +15,15 @@ using FluentAvalonia.UI.Controls;
 using System.Threading.Tasks;
 using Avalonia.Media;
 using System.Threading;
+using Avalonia.ReactiveUI;
+using Avalonia.Threading;
+using ReactiveUI;
+
 
 namespace SCSA.Views;
 
 public partial class MainWindow : AppWindow
 {
-
     private TeachingTip _notificationTip;
     private CancellationTokenSource _notifCts;
     public MainWindow()
@@ -31,11 +35,13 @@ public partial class MainWindow : AppWindow
         TitleBar.TitleBarHitTestType = TitleBarHitTestType.Complex;
 
         ViewModelBase.NotificationRequested += OnNotificationRequested;
+
         //Application.Current.ActualThemeVariantChanged += Current_ActualThemeVariantChanged;
     }
 
     private async void OnNotificationRequested(string message, FluentAvalonia.UI.Controls.InfoBarSeverity severity)
     {
+        Debug.WriteLine(message);
         NotificationInfoBar.Title = message;
         NotificationInfoBar.Severity = severity;
         NotificationInfoBar.IsOpen = true;

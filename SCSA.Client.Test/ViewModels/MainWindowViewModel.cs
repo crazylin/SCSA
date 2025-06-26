@@ -16,6 +16,7 @@ namespace SCSA.Client.Test.ViewModels;
 public class MainWindowViewModel : ViewModelBase
 {
     private readonly ConcurrentDictionary<ParameterType, Parameter> _parameters;
+    private readonly ConcurrentDictionary<DeviceStatusType, DeviceStatus> _deviceStatus;
     private CancellationTokenSource _cts;
 
     private Task _dataUploadTask;
@@ -72,6 +73,20 @@ public class MainWindowViewModel : ViewModelBase
                 Length = Parameter.GetParameterLength(parameterType)
             };
             _parameters.TryAdd(parameterType, p);
+        }
+
+
+        _deviceStatus = new ConcurrentDictionary<DeviceStatusType, DeviceStatus>();
+        foreach (var deviceStatusType in Enum.GetValues<DeviceStatusType>())
+        {
+            var t = DeviceStatus.GetDeviceStatusType(deviceStatusType);
+            var v = Activator.CreateInstance(t);
+            var p = new DeviceStatus()
+            {
+                Value = v,
+                Address = deviceStatusType,
+            };
+            _deviceStatus.TryAdd(deviceStatusType, p);
         }
     }
 
@@ -173,6 +188,7 @@ public class MainWindowViewModel : ViewModelBase
                                             if (parts.Length >= 2 && double.TryParse(parts[1], out var v))
                                                 iSamples.Add((short)(v * 1000)); // 简单放大
                                         }
+
                                         foreach (var line in File.ReadLines(QFilePath).Skip(1))
                                         {
                                             var parts = line.Split('\t');
@@ -246,9 +262,11 @@ public class MainWindowViewModel : ViewModelBase
                                             list.AddRange(BitConverter.GetBytes(pointsToSend));
 
                                             // 生成数据
-                                            var uploadType = (Parameter.DataChannelType)Convert.ToByte(_parameters[ParameterType.UploadDataType].Value);
+                                            var uploadType =
+                                                (DataChannelType)Convert.ToByte(
+                                                    _parameters[ParameterType.UploadDataType].Value);
 
-                                            if (uploadType == Parameter.DataChannelType.ISignalAndQSignal)
+                                            if (uploadType == DataChannelType.ISignalAndQSignal)
                                             {
                                                 // 从文件缓冲读取 IQ
                                                 for (int i = 0; i < pointsToSend; i++)
@@ -298,6 +316,7 @@ public class MainWindowViewModel : ViewModelBase
 
                             var returnNetPackage = new NetDataPackage();
                             returnNetPackage.DeviceCommand = DeviceCommand.ReplyStartCollection;
+                            returnNetPackage.Flag = netPackage.Flag;
                             returnNetPackage.Data = BitConverter.GetBytes((short)0);
 
                             // 发送数据
@@ -313,6 +332,7 @@ public class MainWindowViewModel : ViewModelBase
 
                             var returnNetPackage = new NetDataPackage();
                             returnNetPackage.DeviceCommand = DeviceCommand.ReplyStopCollection;
+                            returnNetPackage.Flag = netPackage.Flag;
                             returnNetPackage.Data = BitConverter.GetBytes((short)0);
                             Send(returnNetPackage);
                         }
@@ -338,7 +358,7 @@ public class MainWindowViewModel : ViewModelBase
 
                             var returnNetPackage = new NetDataPackage();
                             returnNetPackage.DeviceCommand = DeviceCommand.ReplySetParameters;
-
+                            returnNetPackage.Flag = netPackage.Flag;
                             //var list = new List<byte>();
                             //list.AddRange(BitConverter.GetBytes(returnParameters.Count));
                             //foreach (var returnParameter in returnParameters)
@@ -365,13 +385,12 @@ public class MainWindowViewModel : ViewModelBase
                             {
                                 var p = new Parameter
                                 {
-                                    Address = parameterType, GetResult = false,
+                                    Address = parameterType,
                                     Length = Parameter.GetParameterLength(parameterType)
                                 };
                                 if (_parameters.ContainsKey(parameterType))
                                 {
                                     p.Value = _parameters[parameterType].Value;
-                                    p.GetResult = true;
                                 }
 
                                 returnParameters.Add(p);
@@ -379,17 +398,15 @@ public class MainWindowViewModel : ViewModelBase
 
                             var returnNetPackage = new NetDataPackage();
                             returnNetPackage.DeviceCommand = DeviceCommand.ReplyReadParameters;
+                            returnNetPackage.Flag = netPackage.Flag;
                             var list = new List<byte>();
+                            list.AddRange(BitConverter.GetBytes((short)0));
                             list.AddRange(BitConverter.GetBytes(returnParameters.Count));
                             foreach (var returnParameter in returnParameters)
                             {
                                 var bytes = BitConverter.GetBytes((uint)returnParameter.Address);
                                 list.AddRange(bytes
                                 );
-                                list.AddRange(
-                                    BitConverter.GetBytes(returnParameter.GetResult
-                                        ? (short)0
-                                        : (short)1));
                                 list.AddRange(BitConverter.GetBytes(returnParameter.Length));
                                 list.AddRange(returnParameter.GetParameterData());
                             }
@@ -399,7 +416,69 @@ public class MainWindowViewModel : ViewModelBase
                         }
 
                             break;
+                        case DeviceCommand.RequestGetParameterIds:
+                        {
 
+                            var returnNetPackage = new NetDataPackage();
+                            returnNetPackage.DeviceCommand = DeviceCommand.ReplyGetParameterIds;
+                            returnNetPackage.Flag = netPackage.Flag;
+                            var list = new List<byte>();
+                            list.AddRange(BitConverter.GetBytes((short)0));
+                            list.AddRange(BitConverter.GetBytes(_parameters.Count));
+                            foreach (var returnParameter in _parameters.Values)
+                            {
+                                var bytes = BitConverter.GetBytes((uint)returnParameter.Address);
+                                list.AddRange(bytes);
+                            }
+
+                            returnNetPackage.Data = list.ToArray();
+                            Send(returnNetPackage);
+                        }
+                            break;
+                        case DeviceCommand.RequestGetDeviceStatus:
+                        {
+
+                            var addressDeviceStatusTypes = new List<DeviceStatusType>();
+                            var reader = new BinaryReader(new MemoryStream(netPackage.Data));
+                            var len = reader.ReadInt32();
+                            for (int i = 0; i < len; i++)
+                            {
+
+                                addressDeviceStatusTypes.Add((DeviceStatusType)reader.ReadInt32());
+                            }
+
+                            var returnDeviceStatus = new List<DeviceStatus>();
+
+                            foreach (var deviceStatusType in addressDeviceStatusTypes)
+                            {
+                                var p = new DeviceStatus()
+                                {
+                                    Address = deviceStatusType,
+                                };
+                                if (_deviceStatus.ContainsKey(deviceStatusType))
+                                {
+                                    p.Value = _deviceStatus[deviceStatusType].Value;
+                                }
+
+                                returnDeviceStatus.Add(p);
+                            }
+
+                            var returnNetPackage = new NetDataPackage();
+                            returnNetPackage.DeviceCommand = DeviceCommand.ReplyGetDeviceStatus;
+                            returnNetPackage.Flag = netPackage.Flag;
+                            var list = new List<byte>();
+                            list.AddRange(BitConverter.GetBytes((short)0));
+                            list.AddRange(BitConverter.GetBytes(returnDeviceStatus.Count));
+                            foreach (var deviceStatus in returnDeviceStatus)
+                            {
+                                list.AddRange(BitConverter.GetBytes((int)deviceStatus.Address));
+                                list.AddRange(deviceStatus.GetParameterData());
+                            }
+
+                            returnNetPackage.Data = list.ToArray();
+                            Send(returnNetPackage);
+                        }
+                            break;
                         case DeviceCommand.RequestStartFirmwareUpgrade:
                         {
                             var reader = new BinaryReader(new MemoryStream(netPackage.Data));
@@ -422,11 +501,11 @@ public class MainWindowViewModel : ViewModelBase
                             var packetId = reader.ReadInt32();
                             var len = reader.ReadInt32();
                             var data = reader.ReadBytes(len);
-                            Debug.WriteLine("Update PacketId: " + packetId);
+                            //Debug.WriteLine("Update PacketId: " + packetId);
                             var returnNetPackage = new NetDataPackage();
                             returnNetPackage.DeviceCommand = DeviceCommand.ReplyTransferFirmwareUpgrade;
                             returnNetPackage.Flag = netPackage.Flag;
-                                var list = new List<byte>();
+                            var list = new List<byte>();
 
                             list.AddRange(BitConverter.GetBytes(type));
                             list.AddRange(BitConverter.GetBytes(packetId));

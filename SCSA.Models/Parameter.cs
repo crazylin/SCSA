@@ -5,13 +5,7 @@ namespace SCSA.Models;
 
 public class Parameter
 {
-    public enum DataChannelType : byte
-    {
-        Velocity = 0x00,
-        Displacement = 0x01,
-        Acceleration = 0x02,
-        ISignalAndQSignal = 0x03
-    }
+
 
     public ParameterType Address { set; get; }
 
@@ -20,9 +14,6 @@ public class Parameter
 
     public byte[] RawValue { set; get; }
 
-    public bool SetResult { set; get; }
-
-    public bool GetResult { set; get; }
 
     public byte[] GetParameterData()
     {
@@ -256,21 +247,7 @@ public class Parameter
         }
     }
 
-    public static List<Parameter> Get_SetParametersResult(byte[] data)
-    {
-        var parameters = new List<Parameter>();
-        var reader = new BinaryReader(new MemoryStream(data));
-        var len = reader.ReadInt32();
-        for (var i = 0; i < len; i++)
-        {
-            var parameter = new Parameter();
-            parameter.Address = (ParameterType)reader.ReadInt32();
-            parameter.SetResult = reader.ReadInt16() == 0;
-            parameters.Add(parameter);
-        }
 
-        return parameters;
-    }
 
     public static List<Parameter> Get_GetParametersResult(byte[] data)
     {
@@ -282,7 +259,6 @@ public class Parameter
             var parameter = new Parameter();
             var bytes = reader.ReadBytes(4);
             parameter.Address = (ParameterType)BitConverter.ToInt32(bytes);
-            parameter.GetResult = reader.ReadInt16() == 0;
             parameter.Length = reader.ReadInt32();
             parameter.RawValue = reader.ReadBytes(parameter.Length);
             parameters.Add(parameter);
@@ -312,6 +288,22 @@ public class Parameter
         foreach (var parameter in parameters) bytes.AddRange(BitConverter.GetBytes((int)parameter.Address));
 
         return bytes.ToArray();
+    }
+
+    public static List<Parameter> Get_GetParameterIdsResult(byte[] data)
+    {
+        var parameters = new List<Parameter>();
+        var reader = new BinaryReader(new MemoryStream(data));
+        var len = reader.ReadInt32();
+        for (var i = 0; i < len; i++)
+        {
+            var parameter = new Parameter();
+            var bytes = reader.ReadBytes(4);
+            parameter.Address = (ParameterType)BitConverter.ToInt32(bytes);
+            parameters.Add(parameter);
+        }
+
+        return parameters;
     }
 
     public static double GetSampleRate(byte sampleRate)

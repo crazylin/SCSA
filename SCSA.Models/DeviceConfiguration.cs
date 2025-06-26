@@ -208,6 +208,10 @@ public class DeviceConfiguration
             (float)1,
             typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
 
+        //AddParameter("算法参数", "加速度振幅修正", (int)ParameterType., sizeof(float), typeof(float),
+        //    (float)1,
+        //    typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
+
         //// 增加触发采样相关参数
         //AddParameter("触发采样", "触发采样使能", (int)ParameterType.TriggerSampleEnable, sizeof(byte), typeof(byte), (byte)0x00, typeof(BoolParameter));
         //AddParameter("触发采样", "触发采样模式", (int)ParameterType.TriggerSampleMode, sizeof(byte), typeof(byte), (byte)0x00, typeof(EnumParameter), new List<EnumOption>

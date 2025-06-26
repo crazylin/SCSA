@@ -8,10 +8,12 @@ using System.Reactive.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
+using DynamicData;
 using FluentAvalonia.UI.Controls;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using SCSA.Models;
+using SCSA.Services;
 using SCSA.ViewModels.Messages;
 
 namespace SCSA.ViewModels;
@@ -19,13 +21,15 @@ namespace SCSA.ViewModels;
 public class ParameterViewModel : ViewModelBase
 {
     private readonly IStorageProvider _storageProvider;
+    private readonly IAppSettingsService _appSettingsService;
 
-    public ParameterViewModel(IStorageProvider storageProvider)
+    public ParameterViewModel(IStorageProvider storageProvider, IAppSettingsService appSettingsService)
     {
         _storageProvider = storageProvider;
+        _appSettingsService = appSettingsService;
 
         Config = new DeviceConfiguration();
-        Categories = new ObservableCollection<ParameterCategory>(Config.Categories);
+     
 
         // Listen for device and parameter changes
         MessageBus.Current.Listen<SelectedDeviceChangedMessage>()
@@ -36,22 +40,63 @@ public class ParameterViewModel : ViewModelBase
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(OnParametersChanged);
 
+        // Listen for changes in supported parameters
+        MessageBus.Current.Listen<SupportedParametersChangedMessage>()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(message =>
+            {
+                Categories = new ObservableCollection<ParameterCategory>(Config.Categories);
+
+                var removeCategories = new List<ParameterCategory>();
+     
+                
+                foreach (var parameterCategory in Categories)
+                {
+                    var removeParameters = new List<DeviceParameter>();
+                    foreach (var parameterCategoryParameter in parameterCategory.Parameters)
+                    {
+                        if (message.DeviceConnection.SupportParameterTypes.Any(p => (int)p == parameterCategoryParameter.Address))
+                        {
+                           
+                        }
+                        else
+                        {
+                            removeParameters.Add(parameterCategoryParameter);
+                        }
+                    }
+                    foreach (var removeParameter in removeParameters)
+                    {
+                        parameterCategory.Parameters.Remove(removeParameter);
+                    }
+
+                    if (parameterCategory.Parameters.Count == 0)
+                        removeCategories.Add(parameterCategory);
+                }
+                foreach (var parameterCategory in removeCategories)
+                {
+                    Categories.Remove(parameterCategory);
+                }
+            });
+
         var canExecute = this.WhenAnyValue(x => x.CurrentDevice)
             .Select(device => device != null);
 
         ReadParametersFromDeviceCommand = ReactiveCommand.Create(ReadParametersFromDevice, canExecute);
+        
         SaveCommand = ReactiveCommand.Create(Save, canExecute);
-        SaveAsCommand = ReactiveCommand.CreateFromTask(SaveAsAsync);
+        SaveAsCommand = ReactiveCommand.CreateFromTask(SaveAsAsync, canExecute);
+        //LoadCommand = ReactiveCommand.Create(LoadParameters);
     }
 
     public DeviceConfiguration Config { get; }
-    public ObservableCollection<ParameterCategory> Categories { get; }
+    [Reactive] public ObservableCollection<ParameterCategory> Categories { get; set; }
 
     [Reactive] public DeviceConnection? CurrentDevice { get; private set; }
 
     public ReactiveCommand<Unit, Unit> ReadParametersFromDeviceCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveAsCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadCommand { get; }
 
     private void OnSelectedDeviceChanged(SelectedDeviceChangedMessage msg)
     {

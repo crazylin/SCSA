@@ -10,7 +10,7 @@ public interface IRecorderService
 {
     string StoragePath { get; set; }
 
-    Task<long> StartRecordingAsync(Parameter.DataChannelType signalType, TriggerType triggerType,
+    Task<long> StartRecordingAsync(DataChannelType signalType, TriggerType triggerType,
         double sampleRate, IProgress<int> saveProgress, long targetDataLength = 0,
         double targetTimeSeconds = 0,
         StorageType storageType = StorageType.Length, FileFormatType fileFormat = FileFormatType.Binary,
@@ -18,7 +18,7 @@ public interface IRecorderService
 
     Task StopRecordingAsync();
 
-    Task<bool> WriteDataAsync(Dictionary<Parameter.DataChannelType, double[,]> channelDatas);
+    Task<bool> WriteDataAsync(Dictionary<DataChannelType, double[,]> channelDatas);
 
     //void RecordCmdId(short cmdId);
 

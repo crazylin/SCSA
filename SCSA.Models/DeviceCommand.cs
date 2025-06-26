@@ -35,6 +35,18 @@ public enum DeviceCommand : byte
     ReplyReadParameters = 0x09,
 
     /// <summary>
+    ///     0x0A 获取设备参数Id列表
+    /// </summary>
+    RequestGetParameterIds = 0x0A,
+    ReplyGetParameterIds = 0x0B,
+
+    /// <summary>
+    ///     0x0C 获取设备状态
+    /// </summary>
+    RequestGetDeviceStatus = 0x0C,
+    ReplyGetDeviceStatus = 0x0D,
+
+    /// <summary>
     ///     0xFF 固件升级
     /// </summary>
     RequestStartFirmwareUpgrade = 0xFC,
