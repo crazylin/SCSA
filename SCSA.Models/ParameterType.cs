@@ -43,6 +43,5 @@ public enum ParameterType : uint
 
     // 新增硬件相关参数
     LaserDriveCurrent = 0x00000014,              // 激光器电流 (mA) float
-
-    TECTargetTemperature = 0x00000016        // TEC目标温度 (℃) float
+    TECTargetTemperature = 0x00000015        // TEC目标温度 (℃) float
 }
