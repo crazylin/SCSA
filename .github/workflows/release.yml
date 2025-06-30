@@ -81,3 +81,11 @@ jobs:
         tag_name: ${{ github.ref_name }}
         name: Release ${{ github.ref_name }}
         files: artifacts/*/*.zip
+        body: |
+          feat: add debug parameters page and dynamic window title
+
+          * Added DebugParameterView and DebugParameterViewModel for tuning laser drive current (0-200 mA, default 45 mA) and TEC target temperature (10-40 °C, default 25 °C).
+          * Added lock switch and range hints to prevent accidental changes.
+          * Disabled the entire debug page when no device is connected.
+          * Dynamic window title reflects the current navigation page.
+          * Minor UI tweaks and default value updates.
