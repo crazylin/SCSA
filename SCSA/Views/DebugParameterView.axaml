@@ -1,0 +1,28 @@
+<reactiveUi:ReactiveUserControl x:TypeArguments="viewModels:DebugParameterViewModel" xmlns="https://github.com/avaloniaui"
+                                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                xmlns:reactiveUi="http://reactiveui.net"
+                                xmlns:viewModels="clr-namespace:SCSA.ViewModels"
+                                mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+                                x:Class="SCSA.DebugParameterView">
+    <DockPanel Margin="10" IsEnabled="{Binding IsDeviceConnected}">
+        <!-- 顶部锁定区 -->
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Spacing="15">
+            <ToggleSwitch IsChecked="{Binding IsLocked}" OnContent="已锁定" OffContent="未锁定"/>
+            <Button Content="读取" Command="{Binding ReadCommand}" />
+            <Button Content="下发" Command="{Binding SaveCommand}" />
+        </StackPanel>
+        <!-- 参数编辑区 -->
+        <Grid Margin="0,20,0,0" RowDefinitions="Auto,Auto" ColumnDefinitions="150,150,120">
+            <!-- 激光电流 -->
+            <TextBlock Text="激光器电流 (mA)" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0"/>
+            <NumericUpDown Value="{Binding LaserCurrent, Mode=TwoWay}" Minimum="0" Maximum="200" Increment="1" Grid.Row="0" Grid.Column="1" IsEnabled="{Binding IsLocked}"/>
+            <TextBlock Text="0 - 200" VerticalAlignment="Center" Grid.Row="0" Grid.Column="2"/>
+            <!-- TEC 温度 -->
+            <TextBlock Text="TEC目标温度 (°C)" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0" Margin="0,10,0,0"/>
+            <NumericUpDown Value="{Binding TECTargetTemperature, Mode=TwoWay}" Minimum="10" Maximum="40" Increment="0.5" Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" IsEnabled="{Binding IsLocked}"/>
+            <TextBlock Text="10 - 40" VerticalAlignment="Center" Grid.Row="1" Grid.Column="2" Margin="0,10,0,0"/>
+        </Grid>
+    </DockPanel>
+</reactiveUi:ReactiveUserControl> 

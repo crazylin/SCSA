@@ -42,7 +42,7 @@ public enum ParameterType : uint
     TriggerSampleDelay = 0x00000013, // 触发前置点数
 
     // 新增硬件相关参数
-    LaserCurrent = 0x00000014,              // 激光器电流 (mA) float
-    InfraredLaserIndicatorLevel = 0x00000015, // 红外激光指示灯等级 byte
+    LaserDriveCurrent = 0x00000014,              // 激光器电流 (mA) float
+
     TECTargetTemperature = 0x00000016        // TEC目标温度 (℃) float
 }

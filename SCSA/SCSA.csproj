@@ -27,7 +27,7 @@
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.1" />
     <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.1" />
-    <PackageReference Include="FluentAvaloniaUI" Version="2.3.0" />
+    <PackageReference Include="FluentAvaloniaUI" Version="2.4.0-preview1" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.6" />
     <PackageReference Include="Oxyplot.AvaloniaCore" Version="2.1.3" />

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Reactive.Linq;
+using FluentAvalonia.UI.Controls;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
@@ -12,6 +13,8 @@ public class MainWindowViewModel : ViewModelBase
     private readonly ObservableAsPropertyHelper<bool> _isFirmwareUpdatePageVisible;
     private readonly ObservableAsPropertyHelper<bool> _isSettingsPageVisible;
     private readonly ObservableAsPropertyHelper<bool> _isPlaybackPageVisible;
+    private readonly ObservableAsPropertyHelper<bool> _isDebugParameterPageVisible;
+    private readonly ObservableAsPropertyHelper<string> _windowTitle;
     private NavItem _selectedItem;
 
     public NavItem SelectedItem
@@ -26,6 +29,7 @@ public class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel(ConnectionViewModel connectionViewModel,
         RealTimeTestViewModel realTimeTestViewModel,
+        DebugParameterViewModel debugParameterViewModel,
         FirmwareUpdateViewModel firmwareUpdateViewModel,
         PlaybackViewModel playbackViewModel,
         SettingsViewModel settingsViewModel,
@@ -33,6 +37,7 @@ public class MainWindowViewModel : ViewModelBase
     {
         ConnectionViewModel = connectionViewModel;
         RealTimeTestViewModel = realTimeTestViewModel;
+        DebugParameterViewModel = debugParameterViewModel;
         FirmwareUpdateViewModel = firmwareUpdateViewModel;
         PlaybackViewModel = playbackViewModel;
         SettingsViewModel = settingsViewModel;
@@ -42,12 +47,12 @@ public class MainWindowViewModel : ViewModelBase
         {
             new("设备管理", ConnectionViewModel, "ViewAll"),
             new("实时测试", RealTimeTestViewModel, "Play"),
+            new("调试参数", DebugParameterViewModel, "Code"),
             //new("数据回放", PlaybackViewModel, "Replay"),
             new("固件升级", FirmwareUpdateViewModel, "Sync")
         };
 
         SelectedItem = NavItems[0];
-
 
         FooterNavItems = new List<NavItem> { new("设置", SettingsViewModel, "Setting") };
 
@@ -70,6 +75,15 @@ public class MainWindowViewModel : ViewModelBase
         _isPlaybackPageVisible = this.WhenAnyValue(x => x.CurrentPage)
             .Select(page => page == PlaybackViewModel)
             .ToProperty(this, x => x.IsPlaybackPageVisible);
+
+        _isDebugParameterPageVisible = this.WhenAnyValue(x => x.CurrentPage)
+            .Select(page => page == DebugParameterViewModel)
+            .ToProperty(this, x => x.IsDebugParameterPageVisible);
+
+        // Window title binding
+        _windowTitle = this.WhenAnyValue(x => x.SelectedItem)
+            .Select(item => item == null ? "SCSA" : $"SCSA - {item.Title}")
+            .ToProperty(this, x => x.WindowTitle);
     }
 
     public IReadOnlyList<NavItem> NavItems { get; }
@@ -83,9 +97,13 @@ public class MainWindowViewModel : ViewModelBase
     public bool IsFirmwareUpdatePageVisible => _isFirmwareUpdatePageVisible?.Value ?? false;
     public bool IsSettingsPageVisible => _isSettingsPageVisible?.Value ?? false;
     public bool IsPlaybackPageVisible => _isPlaybackPageVisible?.Value ?? false;
+    public bool IsDebugParameterPageVisible => _isDebugParameterPageVisible?.Value ?? false;
+
+    public string WindowTitle => _windowTitle?.Value ?? "SCSA";
 
     public ConnectionViewModel ConnectionViewModel { get; }
     public RealTimeTestViewModel RealTimeTestViewModel { get; }
+    public DebugParameterViewModel DebugParameterViewModel { get; }
     public FirmwareUpdateViewModel FirmwareUpdateViewModel { get; }
     public PlaybackViewModel PlaybackViewModel { get; }
     public SettingsViewModel SettingsViewModel { get; }

@@ -24,29 +24,10 @@ public class DeviceConfiguration
                 new("位移", (byte)0x01),
                 new("加速度", (byte)0x02),
                 new("I、Q路信号", (byte)0x03)
-            }); 
-
-
-        // 添加硬件相关参数
-        AddParameter("硬件参数", "激光器电流", (int)ParameterType.LaserCurrent, sizeof(float), typeof(float), (float)1000,
-            typeof(FloatNumberParameter), min: 0, max: 100000); // mA, range 0~500
-
-        AddParameter("硬件参数", "测量激光等级", (int)ParameterType.InfraredLaserIndicatorLevel, sizeof(byte), typeof(byte), (byte)0,
-            typeof(EnumParameter), new List<EnumOption>
-            {
-                new("0", (byte)0x00),
-                new("1", (byte)0x01),
-                new("2", (byte)0x02),
-                new("3", (byte)0x03),
-                new("4", (byte)0x04),
-                new("5", (byte)0x05),
-                new("6", (byte)0x06),
-                new("7", (byte)0x07),
-                new("8", (byte)0x08),
-                new("9", (byte)0x09),
-                new("10", (byte)0x0A)
             });
-        AddParameter("硬件参数", "指示激光等级", (int)ParameterType.LaserPowerIndicatorLevel, sizeof(byte), typeof(byte), (byte)0x0A,
+
+
+        AddParameter("基础配置", "指示激光等级", (int)ParameterType.LaserPowerIndicatorLevel, sizeof(byte), typeof(byte), (byte)0x0A,
             typeof(EnumParameter),
             new List<EnumOption>
             {
@@ -63,8 +44,15 @@ public class DeviceConfiguration
                 new("10", (byte)0x0A)
             }); // 激光功率 (0-100%)
 
-        AddParameter("硬件参数", "TEC目标温度", (int)ParameterType.TECTargetTemperature, sizeof(float), typeof(float), (float)25,
-            typeof(FloatNumberParameter), min: 0, max: 9999); // ℃, default 25
+
+        //// 添加硬件相关参数
+        //// 激光器电流 (调试参数) 范围 0 ~ 200 mA
+        //AddParameter("硬件参数", "激光器电流", (int)ParameterType.LaserDriveCurrent, sizeof(float), typeof(float), 45f,
+        //    typeof(FloatNumberParameter), min: 0, max: 200);
+
+        //// TEC 目标温度 (调试参数) 范围 10 ~ 40 °C
+        //AddParameter("硬件参数", "TEC目标温度", (int)ParameterType.TECTargetTemperature, sizeof(float), typeof(float), 25f,
+        //    typeof(FloatNumberParameter), min: 10, max: 40);
 
         // 信号处理参数
         AddParameter("信号处理", "低通滤波", (int)ParameterType.LowPassFilter, sizeof(byte), typeof(byte), (byte)0x00,

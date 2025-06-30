@@ -68,6 +68,7 @@ public class App : Application
         services.AddSingleton<ConnectionViewModel>();
         services.AddSingleton<ParameterViewModel>();
         services.AddSingleton<RealTimeTestViewModel>();
+        services.AddSingleton<DebugParameterViewModel>();
         services.AddSingleton<FirmwareUpdateViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<StatusBarViewModel>();
@@ -81,6 +82,7 @@ public class App : Application
         // Views
         services.AddTransient<ConnectionView>();
         services.AddTransient<RealTimeTestView>();
+        services.AddTransient<DebugParameterView>();
         services.AddTransient<FirmwareUpdateView>();
         services.AddTransient<ParameterView>();
         services.AddTransient<SettingsView>();

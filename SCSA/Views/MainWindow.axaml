@@ -10,7 +10,7 @@
         x:Class="SCSA.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="SCSA">
+        Title="{Binding WindowTitle}">
 
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
@@ -91,6 +91,9 @@
                                                              RelativeSource={RelativeSource AncestorType=Window}}"/>
                         <scsa:RealTimeTestView DataContext="{Binding RealTimeTestViewModel}"
                                               IsVisible="{Binding Path=DataContext.IsRealTimeTestPageVisible, Mode=OneWay, FallbackValue=False,
+                                                             RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <scsa:DebugParameterView DataContext="{Binding DebugParameterViewModel}"
+                                              IsVisible="{Binding Path=DataContext.IsDebugParameterPageVisible, Mode=OneWay, FallbackValue=False,
                                                              RelativeSource={RelativeSource AncestorType=Window}}"/>
                         <scsa:FirmwareUpdateView DataContext="{Binding FirmwareUpdateViewModel}"
                                                IsVisible="{Binding Path=DataContext.IsFirmwareUpdatePageVisible, Mode=OneWay, FallbackValue=False,
