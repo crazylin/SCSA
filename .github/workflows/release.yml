@@ -82,10 +82,11 @@ jobs:
         name: Release ${{ github.ref_name }}
         files: artifacts/*/*.zip
         body: |
-          feat: add debug parameters page and dynamic window title
+          feat: refine firmware upgrade workflow with bootloader protocol
 
-          * Added DebugParameterView and DebugParameterViewModel for tuning laser drive current (0-200 mA, default 45 mA) and TEC target temperature (10-40 °C, default 25 °C).
-          * Added lock switch and range hints to prevent accidental changes.
-          * Disabled the entire debug page when no device is connected.
-          * Dynamic window title reflects the current navigation page.
-          * Minor UI tweaks and default value updates.
+          * Implemented bootloader upgrade commands (0xF8–0xFF) and AES-256-CTR encrypted CRC verification.
+          * PipelineDeviceControlApiAsync now supports WaitForDeviceRequestFirmwareUpgrade, FirmwareUpgradeSendInfo, and improved transfer acknowledgements.
+          * FirmwareUpdateView & ViewModel reworked: automatic disconnection, reconnection wait, progress bar, colored status and robust timeout handling.
+          * SCSA.Client.Test simulates device reboot, periodic 0xFA upload, and full upgrade path for CI testing.
+          * Added helper methods and cleaned obsolete timeout logging.
+          * Bumped .NET SDK to 8.0.x in workflow matrix.
