@@ -11,6 +11,9 @@ using ReactiveUI.Fody.Helpers;
 using Avalonia.Media;
 using SCSA.Utils;
 using System.Collections.Generic;
+using SCSA.Models;
+using System.Reactive.Threading.Tasks;
+using System.Reactive.Linq;
 
 namespace SCSA.ViewModels;
 
@@ -138,21 +141,68 @@ public class FirmwareUpdateViewModel : ViewModelBase
     int perLen = 1280;
     private async Task PerformFirmwareUpdate(CancellationToken token)
     {
-        if (!await _connectionVm.SelectedDevice.DeviceControlApi.FirmwareUpgradeStart(FirmwareData.Length,
+        // 1. 启动升级
+        if (!await _connectionVm.SelectedDevice.DeviceControlApi.FirmwareUpgradeStart(
                 new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token))
         {
-            StatusMessage = "开始升级失败！";
+            StatusMessage = "启动升级失败！";
             return;
         }
-        // 同步模式：逐个发送
-        for (var offset = 0; offset <= FirmwareData.Length; offset += perLen)
+
+        // 主动断开旧连接，确保后续使用新连接
+        try
+        {
+            await _connectionVm.DisconnectCommand.Execute(_connectionVm.SelectedDevice);
+        }
+        catch
+        {
+            // 忽略异常，继续流程
+        }
+        StatusMessage = "等待设备进入升级模式...";
+
+        var waitCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+
+            //等待设备重新连接
+            while (_connectionVm.SelectedDevice == null)
+            {
+                await Task.Delay(200, token);
+                waitCts.Token.ThrowIfCancellationRequested();
+            }
+
+            var newDevice = _connectionVm.SelectedDevice;
+
+            // b) 监听 0xFA
+            if (!await newDevice.DeviceControlApi.WaitForDeviceRequestFirmwareUpgrade(waitCts.Token))
+            {
+                StatusMessage = "未收到设备升级请求！";
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "等待设备升级模式超时！";
+            return;
+        }
+
+        // 3. 发送固件信息
+        if (!await _connectionVm.SelectedDevice.DeviceControlApi.FirmwareUpgradeSendInfo(FirmwareData,
+                new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token))
+        {
+            StatusMessage = "固件信息发送失败！";
+            return;
+        }
+
+        // 4. 同步模式：逐包发送固件数据
+        for (var offset = 0; offset < FirmwareData.Length; offset += perLen)
         {
             token.ThrowIfCancellationRequested();
-            ProgressPercentage = offset;
-            StatusMessage = $"升级中... {offset}/{MaxPercentage}";
             var chunk = FirmwareData.Skip(offset).Take(perLen).ToArray();
             var pkgId = offset / perLen + 1;
 
+            ProgressPercentage = offset + chunk.Length;
+            StatusMessage = $"升级中... {ProgressPercentage}/{MaxPercentage}";
 
             if (!await _connectionVm.SelectedDevice.DeviceControlApi.FirmwareUpgradeTransfer(pkgId, chunk,
                     new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token))
@@ -161,6 +211,7 @@ public class FirmwareUpdateViewModel : ViewModelBase
                 return;
             }
         }
+
         StatusMessage = "升级完成！";
     }
 

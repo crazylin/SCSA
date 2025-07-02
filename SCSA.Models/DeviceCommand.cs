@@ -46,11 +46,47 @@ public enum DeviceCommand : byte
     RequestGetDeviceStatus = 0x0C,
     ReplyGetDeviceStatus = 0x0D,
 
+    // -----------------------------------------------------------------
+    // 固件升级相关命令(Bootloader 模式)
+    // -----------------------------------------------------------------
+
     /// <summary>
-    ///     0xFF 固件升级
+    /// 0xF8 PC -> Device : 启动升级
     /// </summary>
-    RequestStartFirmwareUpgrade = 0xFC,
-    ReplyStartFirmwareUpgrade = 0xFD,
-    RequestTransferFirmwareUpgrade = 0xFE,
-    ReplyTransferFirmwareUpgrade = 0xFF
+    RequestStartFirmwareUpgrade = 0xF8,
+
+    /// <summary>
+    /// 0xF9 Device -> PC : 启动升级应答
+    /// </summary>
+    ReplyStartFirmwareUpgrade = 0xF9,
+
+    /// <summary>
+    /// 0xFA Device -> PC : 升级请求
+    /// </summary>
+    DeviceRequestFirmwareUpgrade = 0xFA,
+
+    /// <summary>
+    /// 0xFB PC -> Device : 发送固件参数(CRC 加密值 + 大小)
+    /// </summary>
+    RequestSendFirmwareInfo = 0xFB,
+
+    /// <summary>
+    /// 0xFC Device -> PC : 固件参数应答
+    /// </summary>
+    ReplySendFirmwareInfo = 0xFC,
+
+    /// <summary>
+    /// 0xFD PC -> Device : 传输固件数据包
+    /// </summary>
+    RequestTransferFirmwareUpgrade = 0xFD,
+
+    /// <summary>
+    /// 0xFE Device -> PC : 传输固件数据包应答
+    /// </summary>
+    ReplyTransferFirmwareUpgrade = 0xFE,
+
+    /// <summary>
+    /// 0xFF Device -> PC : 升级结果
+    /// </summary>
+    ReplyFirmwareUpgradeResult = 0xFF
 }

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using SCSA.IO.Net.TCP;
 using SCSA.Models;
 using SCSA.Utils;
+using System.Security.Cryptography;
 
 namespace SCSA.Services.Device;
 
@@ -24,14 +25,18 @@ public class PipelineDeviceControlApiAsync : IDisposable
     private readonly ConcurrentDictionary<short, DateTime> _commandCreationTimes;
 
     private readonly PipelineTcpClient<PipelineNetDataPackage> _tcpClient;
-    private DateTime? _lastDataReceivedTime;
+
     private short _flag;
-    private readonly ConcurrentDictionary<short, DateTime> _firmwareTransferSendTimes;
+ 
     
     // 添加取消令牌和清理任务
     private readonly CancellationTokenSource _cleanupCts;
     private Task? _cleanupTask;
     private bool _disposed;
+
+    // 升级请求(TC 0xFA)等待器
+    private TaskCompletionSource<bool>? _upgradeRequestTcs;
+    private readonly object _upgradeRequestLock = new();
 
     public PipelineDeviceControlApiAsync(PipelineTcpClient<PipelineNetDataPackage> tcpClient)
     {
@@ -39,7 +44,7 @@ public class PipelineDeviceControlApiAsync : IDisposable
         tcpClient.DataReceived += TcpClient_DataReceived;
         _pendingCommands = new ConcurrentDictionary<short, TaskCompletionSource<PipelineNetDataPackage>>();
         _commandCreationTimes = new ConcurrentDictionary<short, DateTime>();
-        _firmwareTransferSendTimes = new ConcurrentDictionary<short, DateTime>();
+
         
         // 初始化取消令牌和启动清理任务
         _cleanupCts = new CancellationTokenSource();
@@ -77,7 +82,7 @@ public class PipelineDeviceControlApiAsync : IDisposable
             }
             _pendingCommands.Clear();
             _commandCreationTimes.Clear();
-            _firmwareTransferSendTimes.Clear();
+       
             
             _cleanupCts?.Dispose();
         }
@@ -132,9 +137,9 @@ public class PipelineDeviceControlApiAsync : IDisposable
             case DeviceCommand.ReplyGetDeviceStatus:
             case DeviceCommand.ReplyStartFirmwareUpgrade:
             case DeviceCommand.ReplyTransferFirmwareUpgrade:
+            case DeviceCommand.ReplySendFirmwareInfo:
                 // 通过CmdId匹配等待的命令
                 if (_pendingCommands.TryRemove(netDataPackage.CmdId, out var tcs))
-
                 {
                     tcs.TrySetResult(netDataPackage);
                     // 清理相关记录
@@ -147,33 +152,20 @@ public class PipelineDeviceControlApiAsync : IDisposable
                 break;
 
             case DeviceCommand.ReplyUploadData:
-                //数据上传
-                var now = DateTime.Now;
-                if (_lastDataReceivedTime.HasValue)
-                {
-                    var interval = now - _lastDataReceivedTime.Value;
-                    Log.Info($"ReplyUploadData time interval: {interval.TotalMilliseconds:F2} ms");
-                }
-                _lastDataReceivedTime = now;
+                DataReceived?.Invoke(ProcessChannelData(netDataPackage.Data));
+                break;
 
-                var data = ProcessChannelData(netDataPackage.Data);
-                DataReceived?.Invoke(data);
+            case DeviceCommand.DeviceRequestFirmwareUpgrade:
+                // 设备发起的升级请求(0xFA)
+                lock (_upgradeRequestLock)
+                {
+                    _upgradeRequestTcs?.TrySetResult(true);
+                }
                 break;
 
             default:
                 Log.Error($"未知的命令类型: {netDataPackage.DeviceCommand}");
                 break;
-        }
-
-        // 记录固件传输的往返时间
-        if (netDataPackage.DeviceCommand == DeviceCommand.ReplyTransferFirmwareUpgrade)
-        {
-            var nowTransfer = DateTime.Now;
-            if (_firmwareTransferSendTimes.TryRemove(netDataPackage.CmdId, out var sendTime))
-            {
-                var roundTripTime = nowTransfer - sendTime;
-                Log.Info($"FirmwareTransfer round-trip time (CmdId: {netDataPackage.CmdId}): {roundTripTime.TotalMilliseconds:F2} ms");
-            }
         }
     }
 
@@ -206,12 +198,6 @@ public class PipelineDeviceControlApiAsync : IDisposable
         // 记录命令创建时间
         _commandCreationTimes.TryAdd(netPackage.CmdId, DateTime.Now);
 
-        // 记录固件传输命令的发送时间
-        if (command == DeviceCommand.RequestTransferFirmwareUpgrade)
-        {
-            _firmwareTransferSendTimes.TryAdd(netPackage.CmdId, DateTime.Now);
-        }
-
         if (!await _tcpClient.SendAsync(netPackage))
         {
             _pendingCommands.TryRemove(netPackage.CmdId, out _);
@@ -225,7 +211,6 @@ public class PipelineDeviceControlApiAsync : IDisposable
                              tcs.TrySetCanceled();
                              _pendingCommands.TryRemove(netPackage.CmdId, out _);
                              _commandCreationTimes.TryRemove(netPackage.CmdId, out _);
-                             _firmwareTransferSendTimes.TryRemove(netPackage.CmdId, out _);
                          }))
             {
                 return await tcs.Task.ConfigureAwait(false);
@@ -235,7 +220,7 @@ public class PipelineDeviceControlApiAsync : IDisposable
         {
             _pendingCommands.TryRemove(netPackage.CmdId, out _);
             _commandCreationTimes.TryRemove(netPackage.CmdId, out _);
-            _firmwareTransferSendTimes.TryRemove(netPackage.CmdId, out _);
+
             return null;
         }
     }
@@ -332,25 +317,61 @@ public class PipelineDeviceControlApiAsync : IDisposable
     }
     
 
-    public async Task<bool> FirmwareUpgradeStart(int size, CancellationToken cancellationToken)
+    /// <summary>
+    /// 发送 0xF8 启动升级命令
+    /// </summary>
+    public async Task<bool> FirmwareUpgradeStart(CancellationToken cancellationToken)
     {
-        var data = new List<byte>();
-        data.AddRange(BitConverter.GetBytes(0)); //0x00000000 表示开始传输
-        data.AddRange(BitConverter.GetBytes(size));
+        // 新协议中该命令无数据负载
+        var netDataPackage = await SendAsync(DeviceCommand.RequestStartFirmwareUpgrade, Array.Empty<byte>(),
+            cancellationToken);
+        return netDataPackage != null; // 只要收到应答即认为成功
+    }
 
-        var netDataPackage = await SendAsync(DeviceCommand.RequestStartFirmwareUpgrade, data.ToArray(),
+    /// <summary>
+    /// 发送 0xFB 固件参数 (加密 CRC32 + 固件大小)
+    /// </summary>
+    public async Task<bool> FirmwareUpgradeSendInfo(byte[] firmwareData, CancellationToken cancellationToken)
+    {
+        // 计算 CRC32
+        uint crc32 = System.IO.Hashing.Crc32.HashToUInt32(firmwareData);
+
+        var crcBytes = BitConverter.GetBytes(crc32);
+
+        // AES-256 CTR 加密 4 字节 CRC
+        byte[] key =
+        {
+            0x7A, 0x4F, 0x92, 0x1D, 0x3C, 0x88, 0x65, 0x4E, 0xE2, 0x1B, 0x07, 0x9A, 0x5F, 0x33, 0x4C, 0x78,
+            0xD9, 0x6A, 0x12, 0x8B, 0x40, 0xFF, 0x91, 0x06, 0x3E, 0x5D, 0x87, 0x2C, 0x19, 0xBE, 0x50, 0xA3
+        };
+
+        byte[] iv =
+        {
+            0x5E, 0x73, 0x9A, 0x2F, 0x4D, 0x18, 0x6C, 0xB7, 0xA1, 0x0C, 0x3F, 0x85, 0x29, 0x6E, 0x14, 0xD3
+        };
+
+        byte[] encryptedCrc = EncryptAesCtr(crcBytes, key, iv);
+
+        var data = new List<byte>();
+        data.AddRange(encryptedCrc);
+        data.AddRange(BitConverter.GetBytes(firmwareData.Length));
+
+        var netDataPackage = await SendAsync(DeviceCommand.RequestSendFirmwareInfo, data.ToArray(),
             cancellationToken);
         if (netDataPackage == null)
             return false;
 
-        return BitConverter.ToInt16(netDataPackage.Data.Skip(4).Take(2).ToArray()) == 0;
+        // 返回数据：2 Byte 应答码，0 为成功
+        return netDataPackage.Data.Length >= 2 && BitConverter.ToInt16(netDataPackage.Data, 0) == 0;
     }
 
+    /// <summary>
+    /// 发送 0xFD 固件数据包
+    /// </summary>
     public async Task<bool> FirmwareUpgradeTransfer(int packageId, byte[] firmwareData,
         CancellationToken cancellationToken)
     {
         var data = new List<byte>();
-        data.AddRange(BitConverter.GetBytes(1)); //表示传输的是固件包
         data.AddRange(BitConverter.GetBytes(packageId));
         data.AddRange(BitConverter.GetBytes(firmwareData.Length));
         data.AddRange(firmwareData);
@@ -360,7 +381,32 @@ public class PipelineDeviceControlApiAsync : IDisposable
         if (netDataPackage == null)
             return false;
 
-        return BitConverter.ToInt16(netDataPackage.Data.Skip(12).Take(2).ToArray()) == 0;
+        // 应答包结构: 包ID(4) + 包长度(4) + 应答(2)
+        return netDataPackage.Data.Length >= 10 && BitConverter.ToInt16(netDataPackage.Data, 8) == 0;
+    }
+
+    public static byte[] EncryptAesCtr(byte[] plain, byte[] key, byte[] iv)
+    {
+        if (plain.Length > 16)
+            throw new ArgumentException("CTR 加密辅助函数仅支持 16 字节以内的数据", nameof(plain));
+
+        using var aes = System.Security.Cryptography.Aes.Create();
+        aes.KeySize = 256;
+        aes.Key = key;
+        aes.Mode = System.Security.Cryptography.CipherMode.ECB;
+        aes.Padding = System.Security.Cryptography.PaddingMode.None;
+
+        using var encryptor = aes.CreateEncryptor();
+        // 生成 16 字节密钥流块
+        var keystreamBlock = encryptor.TransformFinalBlock(iv, 0, iv.Length);
+
+        var cipher = new byte[plain.Length];
+        for (int i = 0; i < plain.Length; i++)
+        {
+            cipher[i] = (byte)(plain[i] ^ keystreamBlock[i]);
+        }
+
+        return cipher;
     }
 
     private Dictionary<DataChannelType, double[,]> ProcessChannelData(byte[] data)
@@ -440,7 +486,6 @@ public class PipelineDeviceControlApiAsync : IDisposable
                         {
                             tcs.TrySetCanceled();
                             _commandCreationTimes.TryRemove(cmdId, out _);
-                            _firmwareTransferSendTimes.TryRemove(cmdId, out _);
                             Log.Info($"清理超时命令: {cmdId}");
                         }
                     }
@@ -473,6 +518,32 @@ public class PipelineDeviceControlApiAsync : IDisposable
         catch (Exception ex)
         {
             Log.Error("清理任务发生严重错误", ex);
+        }
+    }
+
+    public async Task<bool> WaitForDeviceRequestFirmwareUpgrade(CancellationToken cancellationToken)
+    {
+        lock (_upgradeRequestLock)
+        {
+            _upgradeRequestTcs = new TaskCompletionSource<bool>();
+        }
+
+        try
+        {
+            await using (cancellationToken.Register(() =>
+                     {
+                         lock (_upgradeRequestLock)
+                         {
+                             _upgradeRequestTcs?.TrySetCanceled();
+                         }
+                     }))
+            {
+                return await _upgradeRequestTcs.Task.ConfigureAwait(false);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            return false;
         }
     }
 }

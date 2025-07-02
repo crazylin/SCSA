@@ -30,6 +30,12 @@ public class MainWindowViewModel : ViewModelBase
     private string IFilePath;
     private string QFilePath;
 
+    private int _expectedFwSize;
+    private int _receivedFwBytes;
+
+    private Timer _upgradeReqTimer;
+    private volatile bool _firmwareInfoReceived;
+
     public MainWindowViewModel()
     {
         IFilePath = Path.Combine(AppContext.BaseDirectory, "I1-1280Hz-1.5米反光膜-新激光器-0.4mms.txt");
@@ -481,39 +487,90 @@ public class MainWindowViewModel : ViewModelBase
                             break;
                         case DeviceCommand.RequestStartFirmwareUpgrade:
                         {
-                            var reader = new BinaryReader(new MemoryStream(netPackage.Data));
-                            var type = reader.ReadInt32();
-                            var size = reader.ReadInt32();
+                            // 0xF8 无数据负载 -> 回复 0xF9
+                            var reply = new NetDataPackage
+                            {
+                                Flag = netPackage.Flag,
+                                DeviceCommand = DeviceCommand.ReplyStartFirmwareUpgrade,
+                                Data = Array.Empty<byte>()
+                            };
+                            Send(reply);
 
-                            var returnNetPackage = new NetDataPackage();
-                            returnNetPackage.Flag = netPackage.Flag;
-                            returnNetPackage.DeviceCommand = DeviceCommand.ReplyStartFirmwareUpgrade;
-                            returnNetPackage.Data = BitConverter.GetBytes(0)
-                                .Concat(BitConverter.GetBytes((short)0)).ToArray();
-                            Send(returnNetPackage);
+                            // 模拟设备重启：关闭当前连接，稍后重连并开始发送 0xFA
+                            Task.Run(async () =>
+                            {
+                                // 关闭
+                                CloseConnection();
+
+                                // 模拟重启耗时
+                                await Task.Delay(1500);
+
+                                // 重新连接到 PC
+                                ExecuteConnectToServer();
+
+                                // 开始定时发送 0xFA
+                                StartUpgradeRequestTimer();
+                            });
+                        }
+
+                            break;
+                        case DeviceCommand.RequestSendFirmwareInfo:
+                        {
+                            // 解析: 加密CRC(4) + size(4)
+                            var reader = new BinaryReader(new MemoryStream(netPackage.Data));
+                            var encCrc = reader.ReadBytes(4);
+                            var fwSize = reader.ReadInt32();
+
+                            _expectedFwSize = fwSize;
+                            _receivedFwBytes = 0;
+                            _firmwareInfoReceived = true;
+                            _upgradeReqTimer?.Dispose();
+
+                            var reply = new NetDataPackage
+                            {
+                                Flag = netPackage.Flag,
+                                DeviceCommand = DeviceCommand.ReplySendFirmwareInfo,
+                                Data = BitConverter.GetBytes((short)0) // 成功
+                            };
+                            Send(reply);
                         }
 
                             break;
                         case DeviceCommand.RequestTransferFirmwareUpgrade:
                         {
                             var reader = new BinaryReader(new MemoryStream(netPackage.Data));
-                            var type = reader.ReadInt32();
                             var packetId = reader.ReadInt32();
                             var len = reader.ReadInt32();
                             var data = reader.ReadBytes(len);
-                            //Debug.WriteLine("Update PacketId: " + packetId);
-                            var returnNetPackage = new NetDataPackage();
-                            returnNetPackage.DeviceCommand = DeviceCommand.ReplyTransferFirmwareUpgrade;
-                            returnNetPackage.Flag = netPackage.Flag;
-                            var list = new List<byte>();
 
-                            list.AddRange(BitConverter.GetBytes(type));
+                            _receivedFwBytes += len;
+
+                            var list = new List<byte>();
                             list.AddRange(BitConverter.GetBytes(packetId));
                             list.AddRange(BitConverter.GetBytes(len));
                             list.AddRange(BitConverter.GetBytes((short)0));
-                            returnNetPackage.Data = list.ToArray();
-                            Send(returnNetPackage);
+
+                            var reply = new NetDataPackage
+                            {
+                                Flag = netPackage.Flag,
+                                DeviceCommand = DeviceCommand.ReplyTransferFirmwareUpgrade,
+                                Data = list.ToArray()
+                            };
+                            Send(reply);
+
+                            // 如果已接收完整固件，发送升级结果(0xFF)
+                            if (_receivedFwBytes >= _expectedFwSize)
+                            {
+                                var resultPkg = new NetDataPackage
+                                {
+                                    Flag = 0,
+                                    DeviceCommand = DeviceCommand.ReplyFirmwareUpgradeResult,
+                                    Data = BitConverter.GetBytes((short)0) // 成功
+                                };
+                                Send(resultPkg);
+                            }
                         }
+
                             break;
                     }
                     ////返回数据
@@ -560,5 +617,51 @@ public class MainWindowViewModel : ViewModelBase
         for (var i = 0; i < length; i += 2) bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
 
         return bytes;
+    }
+
+    private void CloseConnection()
+    {
+        try
+        {
+            if (_tcpClient != null && _tcpClient.Connected)
+            {
+                _tcpClient.Shutdown(SocketShutdown.Both);
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            try
+            {
+                _tcpClient?.Close();
+            }
+            catch { }
+        }
+    }
+
+    private void StartUpgradeRequestTimer()
+    {
+        _upgradeReqTimer?.Dispose();
+        _firmwareInfoReceived = false;
+
+        _upgradeReqTimer = new Timer(_ =>
+        {
+            if (_firmwareInfoReceived)
+            {
+                _upgradeReqTimer?.Dispose();
+                return;
+            }
+
+            var req = new NetDataPackage
+            {
+                Flag = 0,
+                DeviceCommand = DeviceCommand.DeviceRequestFirmwareUpgrade,
+                Data = Array.Empty<byte>()
+            };
+            Send(req);
+        }, null, 0, 1000);
     }
 }
