@@ -325,7 +325,9 @@ public class PipelineDeviceControlApiAsync : IDisposable
         // 新协议中该命令无数据负载
         var netDataPackage = await SendAsync(DeviceCommand.RequestStartFirmwareUpgrade, Array.Empty<byte>(),
             cancellationToken);
-        return netDataPackage != null; // 只要收到应答即认为成功
+        if (netDataPackage == null)
+            return false;
+        return BitConverter.ToInt16(netDataPackage.Data) == 0;
     }
 
     /// <summary>

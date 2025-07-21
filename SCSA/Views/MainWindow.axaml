@@ -162,6 +162,11 @@
                                 <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding StatusBarViewModel.ShowDeviceStatus}">
                                     <TextBlock Text="{Binding StatusBarViewModel.PdCurrent, StringFormat='PD: {0:F2}mA'}" VerticalAlignment="Center" />
                                 </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding StatusBarViewModel.ShowDeviceStatus}">
+                                    <TextBlock Text="信号强度:" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding StatusBarViewModel.SignalStrengthI, StringFormat='(I: {0} '}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding StatusBarViewModel.SignalStrengthQ, StringFormat='Q: {0})'}" VerticalAlignment="Center" />
+                                </StackPanel>
                             </StackPanel>
                        
                         </Grid>

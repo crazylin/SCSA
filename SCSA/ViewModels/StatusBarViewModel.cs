@@ -28,6 +28,8 @@ namespace SCSA.ViewModels
         [Reactive] public float PdCurrent { get; set; }
         [Reactive] public string RunningState { get; set; }
         [Reactive] public bool ShowDeviceStatus { get; set; }
+        [Reactive] public short SignalStrengthI { get; set; }
+        [Reactive] public short SignalStrengthQ { get; set; }
 
         public StatusBarViewModel()
         {
@@ -67,7 +69,14 @@ namespace SCSA.ViewModels
                                 if (status.Value is float current)
                                     PdCurrent = current;
                                 break;
-                            
+                            case DeviceStatusType.SignalStrength:
+                                if (status.Value is Int32 signalStrength)
+                                {
+                                    SignalStrengthI = (short)(signalStrength & 0xFFFF);
+                                    SignalStrengthQ = (short)((signalStrength >> 16) & 0xFFFF);
+                                }
+                     
+                                break;
                         }
                     }
                 });

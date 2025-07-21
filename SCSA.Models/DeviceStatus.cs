@@ -52,6 +52,8 @@ namespace SCSA.Models
                 case DeviceStatusType.BoardTemperature:
                 case DeviceStatusType.PdCurrent:
                     return typeof(float);
+                case DeviceStatusType.SignalStrength:
+                    return typeof(Int32);
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(deviceStatusType), deviceStatusType, null);
@@ -61,7 +63,7 @@ namespace SCSA.Models
         {
             var t = GetDeviceStatusType(deviceStatusType);
 
-            // ÑéÖ¤ÀàÐÍÊÇ·ñÎªÖµÀàÐÍ
+            // ï¿½ï¿½Ö¤ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ÎªÖµï¿½ï¿½ï¿½ï¿½
             if (!t.IsValueType) throw new ArgumentException("Type must be a value type.");
 
             var size = Marshal.SizeOf(t);
@@ -79,9 +81,18 @@ namespace SCSA.Models
                 case DeviceStatusType.BoardTemperature:
                 case DeviceStatusType.PdCurrent:
                     return BitConverter.ToSingle(RawValue);
+                case DeviceStatusType.SignalStrength:
+                    return BitConverter.ToInt32(RawValue);
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        public class SignalStrengthValue
+        {
+            public float Value { get; set; }
+            public short Raw1 { get; set; }
+            public short Raw2 { get; set; }
         }
 
 
@@ -96,6 +107,9 @@ namespace SCSA.Models
                 case DeviceStatusType.BoardTemperature:
                 case DeviceStatusType.PdCurrent:
                     return BitConverter.GetBytes(Convert.ToSingle(Value));
+                case DeviceStatusType.SignalStrength:
+                    return BitConverter.GetBytes(Convert.ToInt32(Value));
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }

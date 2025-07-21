@@ -23,5 +23,11 @@ public enum DeviceStatusType : uint
     /// <summary>
     /// PD电流（float，单位是mA)
     /// </summary>
-    PdCurrent = 0x00000003
+    PdCurrent = 0x00000003,
+
+    /// <summary>
+    /// 信号强度（float，单位为dBm）
+    /// </summary>
+    SignalStrength = 0x00000004,
+
 } 
