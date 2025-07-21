@@ -86,9 +86,3 @@ jobs:
 
           - Display real-time device signal strength in the status bar, parsing the Int32 value into I/Q signals.
           - Add result validation for the firmware upgrade start command to improve process stability.
-          * Implemented bootloader upgrade commands (0xF8–0xFF) and AES-256-CTR encrypted CRC verification.
-          * PipelineDeviceControlApiAsync now supports WaitForDeviceRequestFirmwareUpgrade, FirmwareUpgradeSendInfo, and improved transfer acknowledgements.
-          * FirmwareUpdateView & ViewModel reworked: automatic disconnection, reconnection wait, progress bar, colored status and robust timeout handling.
-          * SCSA.Client.Test simulates device reboot, periodic 0xFA upload, and full upgrade path for CI testing.
-          * Added helper methods and cleaned obsolete timeout logging.
-          * Bumped .NET SDK to 8.0.x in workflow matrix.
