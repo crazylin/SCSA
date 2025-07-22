@@ -82,7 +82,9 @@ jobs:
         name: Release ${{ github.ref_name }}
         files: artifacts/*/*.zip
         body: |
-          feat: Add signal strength display and improve firmware upgrade feedback
+          feat: Add Pulse Output feature module
 
-          - Display real-time device signal strength in the status bar, parsing the Int32 value into I/Q signals.
-          - Add result validation for the firmware upgrade start command to improve process stability.
+          - Added a new "Pulse Output" page for configuring and controlling device pulses.
+          - Provided UI inputs for pulse interval (n), count (N), pulse width, and frequency (f).
+          - Implemented communication protocols for starting (0xD0) and stopping (0xD2) pulses.
+          - Integrated the new feature into the main window navigation.

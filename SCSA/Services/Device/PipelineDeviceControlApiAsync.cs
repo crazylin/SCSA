@@ -138,6 +138,8 @@ public class PipelineDeviceControlApiAsync : IDisposable
             case DeviceCommand.ReplyStartFirmwareUpgrade:
             case DeviceCommand.ReplyTransferFirmwareUpgrade:
             case DeviceCommand.ReplySendFirmwareInfo:
+            case DeviceCommand.ReplyStartPulseOutput:
+            case DeviceCommand.ReplyStopPulseOutput:
                 // 通过CmdId匹配等待的命令
                 if (_pendingCommands.TryRemove(netDataPackage.CmdId, out var tcs))
                 {
@@ -547,5 +549,47 @@ public class PipelineDeviceControlApiAsync : IDisposable
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// 发送 0xD0 开始脉冲输出命令
+    /// </summary>
+    /// <param name="pulseInterval">n脉冲间隔(ns)</param>
+    /// <param name="pulseCount">N脉冲次数</param>
+    /// <param name="frequency">f频率(Hz)</param>
+    /// <param name="pulseWidth">脉宽(ns)</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功</returns>
+    public async Task<bool> StartPulseOutput(long pulseInterval, long pulseCount, double frequency, long pulseWidth, CancellationToken cancellationToken)
+    {
+        // 按照协议文档计算参数
+        var param1 = (int)(pulseInterval / (frequency * 50));
+        var param2 = (int)(1000000000 / (frequency * pulseCount * 50));
+        var param3 = (int)(pulseWidth / 50);
+
+        var data = new byte[12];
+        BitConverter.GetBytes(param1).CopyTo(data, 0);
+        BitConverter.GetBytes(param2).CopyTo(data, 4);
+        BitConverter.GetBytes(param3).CopyTo(data, 8);
+
+        var netDataPackage = await SendAsync(DeviceCommand.RequestStartPulseOutput, data, cancellationToken);
+        if (netDataPackage == null)
+            return false;
+
+        return BitConverter.ToInt16(netDataPackage.Data) == 0;
+    }
+
+    /// <summary>
+    /// 发送 0xD2 停止脉冲输出命令
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功</returns>
+    public async Task<bool> StopPulseOutput(CancellationToken cancellationToken)
+    {
+        var netDataPackage = await SendAsync(DeviceCommand.RequestStopPulseOutput, Array.Empty<byte>(), cancellationToken);
+        if (netDataPackage == null)
+            return false;
+
+        return BitConverter.ToInt16(netDataPackage.Data) == 0;
     }
 }

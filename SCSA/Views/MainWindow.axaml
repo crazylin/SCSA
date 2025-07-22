@@ -27,6 +27,9 @@
         <DataTemplate DataType="vm:ParameterViewModel">
             <scsa:ParameterView />
         </DataTemplate>
+        <DataTemplate DataType="vm:PulseOutputViewModel">
+            <scsa:PulseOutputView />
+        </DataTemplate>
         <DataTemplate DataType="vm:FirmwareUpdateViewModel">
             <scsa:FirmwareUpdateView />
         </DataTemplate>
@@ -94,6 +97,9 @@
                                                              RelativeSource={RelativeSource AncestorType=Window}}"/>
                         <scsa:DebugParameterView DataContext="{Binding DebugParameterViewModel}"
                                               IsVisible="{Binding Path=DataContext.IsDebugParameterPageVisible, Mode=OneWay, FallbackValue=False,
+                                                             RelativeSource={RelativeSource AncestorType=Window}}"/>
+                        <scsa:PulseOutputView DataContext="{Binding PulseOutputViewModel}"
+                                            IsVisible="{Binding Path=DataContext.IsPulseOutputPageVisible, Mode=OneWay, FallbackValue=False,
                                                              RelativeSource={RelativeSource AncestorType=Window}}"/>
                         <scsa:FirmwareUpdateView DataContext="{Binding FirmwareUpdateViewModel}"
                                                IsVisible="{Binding Path=DataContext.IsFirmwareUpdatePageVisible, Mode=OneWay, FallbackValue=False,

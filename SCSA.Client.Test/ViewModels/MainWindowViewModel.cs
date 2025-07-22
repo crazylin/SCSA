@@ -572,6 +572,42 @@ public class MainWindowViewModel : ViewModelBase
                         }
 
                             break;
+
+                        case DeviceCommand.RequestStartPulseOutput:
+                        {
+                            // 解析脉冲输出参数 (12字节: param1, param2, param3 各4字节)
+                            var reader = new BinaryReader(new MemoryStream(netPackage.Data));
+                            var param1 = reader.ReadInt32();
+                            var param2 = reader.ReadInt32();
+                            var param3 = reader.ReadInt32();
+
+                            AppendLog($"开始脉冲输出 - 参数1: {param1}, 参数2: {param2}, 参数3: {param3}");
+
+                            // 模拟脉冲输出启动成功
+                            var reply = new NetDataPackage
+                            {
+                                Flag = netPackage.Flag,
+                                DeviceCommand = DeviceCommand.ReplyStartPulseOutput,
+                                Data = BitConverter.GetBytes((short)0) // 成功
+                            };
+                            Send(reply);
+                        }
+                            break;
+
+                        case DeviceCommand.RequestStopPulseOutput:
+                        {
+                            AppendLog("停止脉冲输出");
+
+                            // 模拟脉冲输出停止成功
+                            var reply = new NetDataPackage
+                            {
+                                Flag = netPackage.Flag,
+                                DeviceCommand = DeviceCommand.ReplyStopPulseOutput,
+                                Data = BitConverter.GetBytes((short)0) // 成功
+                            };
+                            Send(reply);
+                        }
+                            break;
                     }
                     ////返回数据
                     //var data = Encoding.UTF8.GetString(netPackage.Data);

@@ -14,6 +14,7 @@ public class MainWindowViewModel : ViewModelBase
     private readonly ObservableAsPropertyHelper<bool> _isSettingsPageVisible;
     private readonly ObservableAsPropertyHelper<bool> _isPlaybackPageVisible;
     private readonly ObservableAsPropertyHelper<bool> _isDebugParameterPageVisible;
+    private readonly ObservableAsPropertyHelper<bool> _isPulseOutputPageVisible;
     private readonly ObservableAsPropertyHelper<string> _windowTitle;
     private NavItem _selectedItem;
 
@@ -33,7 +34,8 @@ public class MainWindowViewModel : ViewModelBase
         FirmwareUpdateViewModel firmwareUpdateViewModel,
         PlaybackViewModel playbackViewModel,
         SettingsViewModel settingsViewModel,
-        StatusBarViewModel statusBarViewModel)
+        StatusBarViewModel statusBarViewModel,
+        PulseOutputViewModel pulseOutputViewModel)
     {
         ConnectionViewModel = connectionViewModel;
         RealTimeTestViewModel = realTimeTestViewModel;
@@ -42,12 +44,14 @@ public class MainWindowViewModel : ViewModelBase
         PlaybackViewModel = playbackViewModel;
         SettingsViewModel = settingsViewModel;
         StatusBarViewModel = statusBarViewModel;
+        PulseOutputViewModel = pulseOutputViewModel;
 
         NavItems = new List<NavItem>
         {
             new("设备管理", ConnectionViewModel, "ViewAll"),
             new("实时测试", RealTimeTestViewModel, "Play"),
             new("调试参数", DebugParameterViewModel, "Code"),
+            new("脉冲输出", PulseOutputViewModel, "Pulse"),
             //new("数据回放", PlaybackViewModel, "Replay"),
             new("固件升级", FirmwareUpdateViewModel, "Sync")
         };
@@ -80,6 +84,10 @@ public class MainWindowViewModel : ViewModelBase
             .Select(page => page == DebugParameterViewModel)
             .ToProperty(this, x => x.IsDebugParameterPageVisible);
 
+        _isPulseOutputPageVisible = this.WhenAnyValue(x => x.CurrentPage)
+            .Select(page => page == PulseOutputViewModel)
+            .ToProperty(this, x => x.IsPulseOutputPageVisible);
+
         // Window title binding
         _windowTitle = this.WhenAnyValue(x => x.SelectedItem)
             .Select(item => item == null ? "SCSA" : $"SCSA - {item.Title}")
@@ -98,6 +106,7 @@ public class MainWindowViewModel : ViewModelBase
     public bool IsSettingsPageVisible => _isSettingsPageVisible?.Value ?? false;
     public bool IsPlaybackPageVisible => _isPlaybackPageVisible?.Value ?? false;
     public bool IsDebugParameterPageVisible => _isDebugParameterPageVisible?.Value ?? false;
+    public bool IsPulseOutputPageVisible => _isPulseOutputPageVisible?.Value ?? false;
 
     public string WindowTitle => _windowTitle?.Value ?? "SCSA";
 
@@ -108,6 +117,7 @@ public class MainWindowViewModel : ViewModelBase
     public PlaybackViewModel PlaybackViewModel { get; }
     public SettingsViewModel SettingsViewModel { get; }
     public StatusBarViewModel StatusBarViewModel { get; }
+    public PulseOutputViewModel PulseOutputViewModel { get; }
 
     public record NavItem(string Title, object Page, object Icon);
 }

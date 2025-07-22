@@ -88,5 +88,29 @@ public enum DeviceCommand : byte
     /// <summary>
     /// 0xFF Device -> PC : 升级结果
     /// </summary>
-    ReplyFirmwareUpgradeResult = 0xFF
+    ReplyFirmwareUpgradeResult = 0xFF,
+
+    // -----------------------------------------------------------------
+    // 脉冲输出控制命令
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// 0xD0 PC -> Device : 开始脉冲输出
+    /// </summary>
+    RequestStartPulseOutput = 0xD0,
+
+    /// <summary>
+    /// 0xD1 Device -> PC : 开始脉冲输出应答
+    /// </summary>
+    ReplyStartPulseOutput = 0xD1,
+
+    /// <summary>
+    /// 0xD2 PC -> Device : 停止脉冲输出
+    /// </summary>
+    RequestStopPulseOutput = 0xD2,
+
+    /// <summary>
+    /// 0xD3 Device -> PC : 停止脉冲输出应答
+    /// </summary>
+    ReplyStopPulseOutput = 0xD3
 }

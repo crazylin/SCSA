@@ -73,6 +73,10 @@ public class App : Application
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<StatusBarViewModel>();
         services.AddSingleton<PlaybackViewModel>();
+        services.AddSingleton<PulseOutputViewModel>(provider => 
+            new PulseOutputViewModel(
+                provider.GetRequiredService<ConnectionViewModel>(),
+                provider.GetRequiredService<IAppSettingsService>()));
 
         // Services
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
@@ -87,5 +91,6 @@ public class App : Application
         services.AddTransient<ParameterView>();
         services.AddTransient<SettingsView>();
         services.AddTransient<PlaybackView>();
+        services.AddTransient<PulseOutputView>();
     }
 }
