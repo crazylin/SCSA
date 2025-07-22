@@ -1,0 +1,131 @@
+<reactiveUi:ReactiveUserControl x:TypeArguments="viewModels:PulseOutputViewModel" xmlns="https://github.com/avaloniaui"
+                                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                xmlns:reactiveUi="http://reactiveui.net"
+                                xmlns:viewModels="clr-namespace:SCSA.ViewModels"
+                                xmlns:controls="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
+                                mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+                                x:Class="SCSA.PulseOutputView">
+    
+    <Grid Margin="20" RowDefinitions="Auto,20,*,20,Auto,20,Auto">
+        
+        <!-- 标题区域 -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+            <controls:SymbolIcon Symbol="Sync" FontSize="24" VerticalAlignment="Center"/>
+            <TextBlock Text="脉冲输出控制" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- 参数配置区域 -->
+        <Border Grid.Row="2" BorderBrush="{DynamicResource ControlStrokeColorDefault}" 
+                BorderThickness="1" CornerRadius="8" Padding="20">
+            <StackPanel Spacing="15">
+                <TextBlock Text="参数设置" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                
+                <Grid ColumnDefinitions="150,*,150,*" RowDefinitions="Auto,Auto,Auto,Auto" 
+                      RowSpacing="15" ColumnSpacing="20">
+                    
+                    <!-- n脉冲间隔 -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="n脉冲间隔(s):" VerticalAlignment="Center"/>
+                    <NumericUpDown Grid.Row="0" Grid.Column="1" 
+                                   Value="{Binding N_PulseIntervalSeconds}"
+                                   Minimum="0.000000001" Maximum="999"
+                                   Increment="0.1"
+                                   FormatString="0.#########"
+                                   ShowButtonSpinner="True"/>
+
+                    <!-- N脉冲次数 -->
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="N脉冲次数:" VerticalAlignment="Center"/>
+                    <NumericUpDown Grid.Row="0" Grid.Column="3" 
+                                   Value="{Binding N_PulseCount}"
+                                   Minimum="1" Maximum="999999999999"
+                                   Increment="1"
+                                   FormatString="0"
+                                   ShowButtonSpinner="True"/>
+
+                    <!-- f频率 -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="f频率(Hz):" VerticalAlignment="Center"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" 
+                                   Value="{Binding Frequency}"
+                                   Minimum="0.1" Maximum="1000000"
+                                   Increment="1"
+                                   FormatString="0.#"
+                                   ShowButtonSpinner="True"/>
+
+                    <!-- 脉宽 -->
+                    <TextBlock Grid.Row="1" Grid.Column="2" Text="脉宽(s):" VerticalAlignment="Center"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="3" 
+                                   Value="{Binding PulseWidthSeconds}"
+                                   Minimum="0.000000001" Maximum="999"
+                                   Increment="0.1"
+                                   FormatString="0.#########"
+                                   ShowButtonSpinner="True"/>
+                </Grid>
+
+                <!-- 公式说明 -->
+                <Border BorderBrush="{DynamicResource ControlStrokeColorDefault}" 
+                        BorderThickness="1" CornerRadius="4" Padding="15" Margin="0,15,0,0"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="计算公式说明:" FontWeight="SemiBold"/>
+                        <TextBlock Text="Tₖ = Tₖ₋₁ + n/f + 1/(f·N)" FontFamily="Consolas"/>
+                        <TextBlock Text="界面输入单位为秒，内部自动转换为纳秒进行计算" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="20">
+                            <TextBlock Text="参数1: n(ns)/(f*50)" FontFamily="Consolas" FontSize="12"/>
+                            <TextBlock Text="参数2: 1000000000/(f*N*50)" FontFamily="Consolas" FontSize="12"/>
+                            <TextBlock Text="参数3: 脉宽(ns)/50" FontFamily="Consolas" FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- 控制按钮区域 -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center">
+            <Button Content="开始脉冲输出" 
+                    Command="{Binding StartPulseCommand}"
+                    IsEnabled="{Binding !IsPulseRunning}"
+                    Width="150" Height="40"
+                    FontSize="14"
+                    Background="{DynamicResource AccentButtonBackground}"/>
+            
+            <Button Content="停止脉冲输出" 
+                    Command="{Binding StopPulseCommand}"
+                    IsEnabled="{Binding IsPulseRunning}"
+                    Width="150" Height="40"
+                    FontSize="14"
+                    Background="{DynamicResource DangerButtonBackground}"/>
+        </StackPanel>
+
+        <!-- 状态区域 -->
+        <Border Grid.Row="6" BorderBrush="{DynamicResource ControlStrokeColorDefault}" 
+                BorderThickness="1" CornerRadius="8" Padding="15">
+            <StackPanel Orientation="Horizontal" Spacing="15">
+                <controls:SymbolIcon Symbol="Accept" 
+                                     Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+                                     IsVisible="{Binding IsConnected}"/>
+                <controls:SymbolIcon Symbol="Cancel" 
+                                     Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                     IsVisible="{Binding !IsConnected}"/>
+                <TextBlock Text="连接状态:" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding IsConnected, Converter={x:Static viewModels:BoolToTextConverter.ConnectedStatus}}"/>
+                
+                <Border Width="1" Height="20" Background="{DynamicResource ControlStrokeColorDefault}" Margin="10,0"/>
+                
+                <controls:SymbolIcon Symbol="Play" 
+                                     Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+                                     IsVisible="{Binding IsPulseRunning}"/>
+                <controls:SymbolIcon Symbol="Stop" 
+                                     Foreground="{DynamicResource SystemFillColorNeutralBrush}"
+                                     IsVisible="{Binding !IsPulseRunning}"/>
+                <TextBlock Text="运行状态:" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding IsPulseRunning, Converter={x:Static viewModels:BoolToTextConverter.RunningStatus}}"/>
+                
+                <Border Width="1" Height="20" Background="{DynamicResource ControlStrokeColorDefault}" Margin="10,0"/>
+                
+                <TextBlock Text="状态消息:" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</reactiveUi:ReactiveUserControl>
