@@ -22,7 +22,7 @@ public class PulseOutputViewModel : ViewModelBase
 
         N_PulseIntervalSeconds = 1.0; // 1秒
         N_PulseCount = 10;
-        PulseWidthSeconds = 1.0; // 1秒
+        PulseWidthSeconds = 0.01; // 1秒
         Frequency = 50;
 
         var canExecuteCommands = this.WhenAnyValue(
