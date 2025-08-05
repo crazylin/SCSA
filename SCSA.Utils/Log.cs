@@ -51,6 +51,7 @@ namespace SCSA.Utils
 
         public static void Info(string message) => Write("INFO", message);
         public static void Warning(string message) => Write("WARNING", message);
+        public static void Debug(string message) => Write("DEBUG", message);
         public static void Error(string message, Exception? ex = null)
         {
             var msg = ex == null ? message : $"{message} | Exception: {ex}";
@@ -81,7 +82,7 @@ namespace SCSA.Utils
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"日志后台写入失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"日志后台写入失败: {ex.Message}");
             }
         }
 

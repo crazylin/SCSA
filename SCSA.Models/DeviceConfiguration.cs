@@ -73,6 +73,16 @@ public class DeviceConfiguration
                 new("档位10", (byte)0x09)
             }); // 高通滤波
 
+
+        // 量程配置
+        AddParameter("量程配置", "数字量程", (int)ParameterType.DigitalRange, sizeof(byte), typeof(byte), (byte)0x00,
+            typeof(EnumParameter),
+            new List<EnumOption>
+            {
+                new("中", (byte)0x00),
+                new("低", (byte)0x01),
+                new("高", (byte)0x02),
+            }); // 速度量程
         // 量程配置
         AddParameter("量程配置", "速度量程", (int)ParameterType.VelocityRange, sizeof(byte), typeof(byte), (byte)0x00,
             typeof(EnumParameter),

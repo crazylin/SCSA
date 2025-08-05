@@ -30,6 +30,7 @@ public class Parameter
             case ParameterType.VelocityRange:
             case ParameterType.DisplacementRange:
             case ParameterType.AccelerationRange:
+            case ParameterType.DigitalRange:
             case ParameterType.AnalogOutputType1:
             case ParameterType.AnalogOutputSwitch1:
             case ParameterType.AnalogOutputType2:
@@ -124,6 +125,7 @@ public class Parameter
             case ParameterType.LowPassFilter:
             case ParameterType.HighPassFilter:
             case ParameterType.VelocityRange:
+            case ParameterType.DigitalRange:
             case ParameterType.DisplacementRange:
             case ParameterType.AccelerationRange:
             case ParameterType.AnalogOutputType1:
@@ -220,6 +222,7 @@ public class Parameter
             case ParameterType.VelocityRange:
             case ParameterType.DisplacementRange:
             case ParameterType.AccelerationRange:
+            case ParameterType.DigitalRange:
             case ParameterType.AnalogOutputType1:
             case ParameterType.AnalogOutputSwitch1:
             case ParameterType.AnalogOutputType2:

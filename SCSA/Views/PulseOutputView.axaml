@@ -25,11 +25,11 @@
                 <Grid ColumnDefinitions="150,*,150,*" RowDefinitions="Auto,Auto,Auto,Auto" 
                       RowSpacing="15" ColumnSpacing="20">
                     
-                    <!-- n脉冲间隔 -->
+                    <!-- n/f脉冲间隔 -->
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="n脉冲间隔(s):" VerticalAlignment="Center"/>
                     <NumericUpDown Grid.Row="0" Grid.Column="1" 
                                    Value="{Binding N_PulseIntervalSeconds}"
-                                   Minimum="0.000000001" Maximum="999"
+                                   Minimum="0.000000001" Maximum="99999999"
                                    Increment="0.1"
                                    FormatString="0.#########"
                                    ShowButtonSpinner="True"/>

@@ -82,9 +82,9 @@ jobs:
         name: Release ${{ github.ref_name }}
         files: artifacts/*/*.zip
         body: |
-          feat: Add Pulse Output feature module
+          feat: Added digital range configuration, removed pulse output
 
-          - Added a new "Pulse Output" page for configuring and controlling device pulses.
-          - Provided UI inputs for pulse interval (n), count (N), pulse width, and frequency (f).
-          - Implemented communication protocols for starting (0xD0) and stopping (0xD2) pulses.
-          - Integrated the new feature into the main window navigation.
+          - Added digital range configuration with options (Low/Medium/High) for device range settings.
+          - Enhanced parameter configuration system with new DigitalRange parameter type.
+          - Removed pulse output functionality from main navigation menu.
+          - Updated device configuration to support digital range parameter selection.

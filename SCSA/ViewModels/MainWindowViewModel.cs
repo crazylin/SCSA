@@ -51,7 +51,7 @@ public class MainWindowViewModel : ViewModelBase
             new("设备管理", ConnectionViewModel, "ViewAll"),
             new("实时测试", RealTimeTestViewModel, "Play"),
             new("调试参数", DebugParameterViewModel, "Code"),
-            new("脉冲输出", PulseOutputViewModel, "Pulse"),
+            //new("脉冲输出", PulseOutputViewModel, "Pulse"),
             //new("数据回放", PlaybackViewModel, "Replay"),
             new("固件升级", FirmwareUpdateViewModel, "Sync")
         };

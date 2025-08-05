@@ -33,6 +33,9 @@ public enum ParameterType : uint
     LaserDriveCurrent = 0x00000014,              // 激光器电流 (mA) float
     TECTargetTemperature = 0x00000015,        // TEC目标温度 (℃) float
 
+    //数字口量程
+    DigitalRange = 0x00000016,
+
     //前端算法
     FrontendFilter = 0x10000000,
     FrontendFilterType = 0x10000001,
