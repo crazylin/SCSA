@@ -202,10 +202,23 @@ public class DeviceConfiguration
         AddParameter("算法参数", "去直流开关", (int)ParameterType.FrontendDcRemovalSwitch, sizeof(byte), typeof(byte),
             (byte)0x00,
             typeof(BoolParameter));
-        AddParameter("算法参数", "正交修正开关", (int)ParameterType.FrontendOrthogonalityCorrectionSwitch, sizeof(byte),
+
+        AddParameter("算法参数", "IQ校正算法开关", (int)ParameterType.OrthogonalityCorrectionSwitch, sizeof(byte),
             typeof(byte),
             (byte)0x00,
             typeof(BoolParameter));
+        AddParameter("算法参数", "IQ校正算法模式", (int)ParameterType.OrthogonalityCorrectionMode, sizeof(byte), typeof(byte),
+            (byte)0x00,
+            typeof(EnumParameter), new List<EnumOption>
+            {
+                new("自动", (byte)0x00),
+                new("手动", (byte)0x01)
+            });
+
+        AddParameter("算法参数", "IQ校正算法值", (int)ParameterType.OrthogonalityCorrectionValue, sizeof(float), typeof(float),
+            (float)1,
+            typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
+
         AddParameter("算法参数", "数据分段长度", (int)ParameterType.DataSegmentLength, sizeof(int), typeof(int),
             1024,
             typeof(IntegerNumberParameter), min: 0, max: int.MaxValue);
@@ -229,6 +242,9 @@ public class DeviceConfiguration
         AddParameter("算法参数", "加速度振幅修正", (int)ParameterType.AccelerationAmpCorrection, sizeof(float), typeof(float),
             (float)1,
             typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
+
+
+
 
         //AddParameter("算法参数", "加速度振幅修正", (int)ParameterType., sizeof(float), typeof(float),
         //    (float)1,

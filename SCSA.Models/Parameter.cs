@@ -39,7 +39,8 @@ public class Parameter
             case ParameterType.FrontendFilterType:
             case ParameterType.FrontendFilterSwitch:
             case ParameterType.FrontendDcRemovalSwitch:
-            case ParameterType.FrontendOrthogonalityCorrectionSwitch:
+            case ParameterType.OrthogonalityCorrectionSwitch:
+            case ParameterType.OrthogonalityCorrectionMode:
                 return [(byte)Value];
             case ParameterType.DataSegmentLength:
                 return BitConverter.GetBytes(Convert.ToInt32(Value));
@@ -63,8 +64,8 @@ public class Parameter
                 return BitConverter.GetBytes(Convert.ToInt32(Value));
             case ParameterType.LaserDriveCurrent:
             case ParameterType.TECTargetTemperature:
+            case ParameterType.OrthogonalityCorrectionValue:
                 return BitConverter.GetBytes(Convert.ToSingle(Value));
-
             default:
                 return [0];
         }
@@ -136,7 +137,8 @@ public class Parameter
             case ParameterType.FrontendFilterType:
             case ParameterType.FrontendFilterSwitch:
             case ParameterType.FrontendDcRemovalSwitch:
-            case ParameterType.FrontendOrthogonalityCorrectionSwitch:
+            case ParameterType.OrthogonalityCorrectionSwitch:
+            case ParameterType.OrthogonalityCorrectionMode:
                 return typeof(byte);
             case ParameterType.DataSegmentLength:
                 return typeof(int);
@@ -160,6 +162,7 @@ public class Parameter
                 return typeof(int);
             case ParameterType.LaserDriveCurrent:
             case ParameterType.TECTargetTemperature:
+            case ParameterType.OrthogonalityCorrectionValue:
                 return typeof(float);
 
             default:
@@ -231,7 +234,8 @@ public class Parameter
             case ParameterType.FrontendFilterType:
             case ParameterType.FrontendFilterSwitch:
             case ParameterType.FrontendDcRemovalSwitch:
-            case ParameterType.FrontendOrthogonalityCorrectionSwitch:
+            case ParameterType.OrthogonalityCorrectionSwitch:
+            case ParameterType.OrthogonalityCorrectionMode:
                 return RawValue[0];
             case ParameterType.DataSegmentLength:
                 return BitConverter.ToInt32(RawValue);
@@ -255,6 +259,7 @@ public class Parameter
                 return BitConverter.ToInt32(RawValue);
             case ParameterType.LaserDriveCurrent:
             case ParameterType.TECTargetTemperature:
+            case ParameterType.OrthogonalityCorrectionValue:
                 return BitConverter.ToSingle(RawValue);
 
             default:

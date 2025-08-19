@@ -41,7 +41,6 @@ public enum ParameterType : uint
     FrontendFilterType = 0x10000001,
     FrontendFilterSwitch = 0x10000002,
     FrontendDcRemovalSwitch = 0x10000003,
-    FrontendOrthogonalityCorrectionSwitch = 0x10000004,
     DataSegmentLength = 0x10000005,
     VelocityLowPassFilterSwitch = 0x10000006,
     DisplacementLowPassFilterSwitch = 0x10000007,
@@ -50,4 +49,7 @@ public enum ParameterType : uint
     DisplacementAmpCorrection = 0x1000000A,
     AccelerationAmpCorrection = 0x1000000B,
 
+    OrthogonalityCorrectionSwitch = 0x10000004,
+    OrthogonalityCorrectionMode = 0x1000000C,
+    OrthogonalityCorrectionValue = 0x1000000D,
 }

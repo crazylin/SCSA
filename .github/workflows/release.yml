@@ -82,9 +82,25 @@ jobs:
         name: Release ${{ github.ref_name }}
         files: artifacts/*/*.zip
         body: |
-          feat: Added digital range configuration, removed pulse output
+          feat: Enhanced IQ Correction Algorithm Configuration and Test Data Simulation
 
-          - Added digital range configuration with options (Low/Medium/High) for device range settings.
-          - Enhanced parameter configuration system with new DigitalRange parameter type.
-          - Removed pulse output functionality from main navigation menu.
-          - Updated device configuration to support digital range parameter selection.
+          ## 🚀 New Features
+          
+          ### IQ Correction Algorithm System Enhancement
+          - **Advanced IQ Correction Parameters**: Expanded from simple orthogonality correction switch to comprehensive IQ correction algorithm configuration
+          - **Dual Mode Support**: Added automatic/manual mode selection for IQ correction algorithm
+          - **Precision Control**: Introduced floating-point correction value parameter for fine-tuning
+          - **Parameter Address Optimization**: Reorganized parameter type definitions (OrthogonalityCorrectionSwitch: 0x10000004, OrthogonalityCorrectionMode: 0x1000000C, OrthogonalityCorrectionValue: 0x1000000D)
+          
+          ### Test Environment Improvements
+          - **Simulated Device Status**: Added fixed simulation data for TEC NTC temperature (999), board temperature (22.22°C), and PD current (100.12)
+          - **Enhanced Testing Reliability**: Provides stable mock data for development and validation
+          
+          ## 🔧 Technical Improvements
+          - **Parameter System Refactoring**: Updated serialization/deserialization logic for new IQ correction parameter types
+          - **Type Safety Enhancement**: Improved parameter type mapping and validation
+          - **Protocol Documentation Sync**: Updated communication protocol documentation to reflect parameter changes
+          
+          ## 📚 Documentation
+          - **Communication Protocol Update**: Synchronized protocol documentation with new parameter definitions
+          - **Parameter Reference**: Added comprehensive parameter address mapping and value ranges

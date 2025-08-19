@@ -463,7 +463,23 @@ public class MainWindowViewModel : ViewModelBase
                                 };
                                 if (_deviceStatus.ContainsKey(deviceStatusType))
                                 {
-                                    p.Value = _deviceStatus[deviceStatusType].Value;
+                                    if (deviceStatusType == DeviceStatusType.TecNtc)
+                                    {
+                                        p.Value = 999;
+                                    }
+                                    else if (deviceStatusType == DeviceStatusType.BoardTemperature)
+                                    {
+                                        p.Value = 22.22;
+                                    }
+                                    else if (deviceStatusType == DeviceStatusType.PdCurrent)
+                                    {
+                                        p.Value = 100.12;
+                                    }
+                                    else
+                                    {
+                                        p.Value = _deviceStatus[deviceStatusType].Value;
+                                    }
+                      
                                 }
 
                                 returnDeviceStatus.Add(p);
