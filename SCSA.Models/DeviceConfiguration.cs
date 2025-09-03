@@ -217,7 +217,7 @@ public class DeviceConfiguration
 
         AddParameter("算法参数", "IQ校正算法值", (int)ParameterType.OrthogonalityCorrectionValue, sizeof(float), typeof(float),
             (float)1,
-            typeof(FloatNumberParameter), min: 0, max: int.MaxValue);
+            typeof(FloatNumberParameter), min: 0, max: 1);
 
         AddParameter("算法参数", "数据分段长度", (int)ParameterType.DataSegmentLength, sizeof(int), typeof(int),
             1024,
