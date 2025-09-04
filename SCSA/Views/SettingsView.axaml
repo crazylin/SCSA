@@ -72,12 +72,18 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <StackPanel Orientation="Horizontal" Spacing="5"
+                    <StackPanel Orientation="Vertical" Spacing="3"
                                 IsVisible="{Binding SelectedStorageType, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Length}">
-                        <NumericUpDown AllowSpin="False" ParsingNumberStyle="Integer" FormatString="0"
-                                       ShowButtonSpinner="False"
-                                       Value="{Binding DataLength}" Width="200" HorizontalAlignment="Left" />
-                        <TextBlock Text="{Binding DataLengthDisplay}" VerticalAlignment="Center" Foreground="Green" />
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <NumericUpDown AllowSpin="False" ParsingNumberStyle="Integer" FormatString="0"
+                                           ShowButtonSpinner="False"
+                                           Value="{Binding DataLength}" Width="200" HorizontalAlignment="Left" />
+                            <TextBlock Text="{Binding DataLengthDisplay}" VerticalAlignment="Center" Foreground="Green" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding DataLengthHint}" 
+                                   FontSize="12" 
+                                   Foreground="Orange" 
+                                   IsVisible="{Binding DataLengthHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Spacing="5"

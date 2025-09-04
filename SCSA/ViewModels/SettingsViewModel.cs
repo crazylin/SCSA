@@ -52,13 +52,15 @@ public class SettingsViewModel : ViewModelBase
 
     [Reactive] public bool EnableLogging { get; set; } = true;
 
+    [Reactive] public string DataLengthHint { get; set; } = string.Empty;
+
     public SettingsViewModel(IAppSettingsService settingsService)
     {
         _settingsService = settingsService;
 
         StorageTypes = new ObservableCollection<StorageType>(Enum.GetValues<StorageType>());
         TriggerTypes =
-            new ObservableCollection<TriggerType>(new[] { TriggerType.FreeTrigger, TriggerType.DebugTrigger });
+            new ObservableCollection<TriggerType>(new[] { TriggerType.FreeTrigger, TriggerType.SoftwareTrigger, TriggerType.DebugTrigger });
         FileFormatTypes = new ObservableCollection<FileFormatType>(Enum.GetValues<FileFormatType>());
         UFFFormatTypes = new ObservableCollection<UFFFormatType>(Enum.GetValues<UFFFormatType>());
         DisplacementUnits = new ObservableCollection<PhysicalUnit>(new[]
@@ -104,10 +106,60 @@ public class SettingsViewModel : ViewModelBase
 
         // 更新 ShowDataLengthSettings: 调试触发时隐藏数据长度设置
         this.WhenAnyValue(x => x.SelectedTriggerType)
-            .Subscribe(trigger => ShowDataLengthSettings = trigger != TriggerType.DebugTrigger);
+            .Subscribe(trigger => 
+            {
+                ShowDataLengthSettings = trigger != TriggerType.DebugTrigger;
+                
+                // 更新数据长度提示信息
+                if (trigger == TriggerType.SoftwareTrigger)
+                {
+                    DataLengthHint = "软件触发模式：数据长度必须是2的指数倍 (2048-16777216)";
+                    
+                    const int minLength = 8192 / 4;  // 2048
+                    const int maxLength = 64 * 1024 * 1024 / 4;  // 16777216
+                    
+                    var adjustedLength = AdjustToPowerOfTwo(DataLength, minLength, maxLength);
+                    if (DataLength != adjustedLength)
+                        DataLength = adjustedLength;
+                }
+                else
+                {
+                    DataLengthHint = string.Empty;
+                }
+            });
 
         // 初始化 ShowDataLengthSettings 值
         ShowDataLengthSettings = SelectedTriggerType != TriggerType.DebugTrigger;
+        
+        // 初始化时也检查数据长度限制，且必须是2的指数倍
+        if (SelectedTriggerType == TriggerType.SoftwareTrigger)
+        {
+            DataLengthHint = "软件触发模式：数据长度必须是2的指数倍 (2048-16777216)";
+            
+            const int minLength = 8192 / 4;  // 2048
+            const int maxLength = 64 * 1024 * 1024 / 4;  // 16777216
+            
+            var adjustedLength = AdjustToPowerOfTwo(DataLength, minLength, maxLength);
+            if (DataLength != adjustedLength)
+                DataLength = adjustedLength;
+        }
+        else
+        {
+            DataLengthHint = string.Empty;
+        }
+        
+        // 监听数据长度变化，在软件触发模式下进行范围限制，且必须是2的指数倍
+        this.WhenAnyValue(x => x.DataLength)
+            .Where(_ => SelectedTriggerType == TriggerType.SoftwareTrigger)
+            .Subscribe(length =>
+            {
+                const int minLength = 8192 / 4;  // 2048
+                const int maxLength = 64 * 1024 * 1024 / 4;  // 16777216
+                
+                var adjustedLength = AdjustToPowerOfTwo(length, minLength, maxLength);
+                if (length != adjustedLength && DataLength != adjustedLength)
+                    DataLength = adjustedLength;
+            });
 
         BrowseStoragePathCommand = ReactiveCommand.CreateFromTask(BrowseStoragePath);
     }
@@ -215,5 +267,73 @@ public class SettingsViewModel : ViewModelBase
         });
 
         if (folders.Count > 0) DataStoragePath = folders[0].Path.LocalPath;
+    }
+    
+    /// <summary>
+    /// 将数值调整为指定范围内最接近的2的指数倍
+    /// </summary>
+    /// <param name="value">原始数值</param>
+    /// <param name="minValue">最小值</param>
+    /// <param name="maxValue">最大值</param>
+    /// <returns>调整后的2的指数倍数值</returns>
+    private static int AdjustToPowerOfTwo(int value, int minValue, int maxValue)
+    {
+        // 确保值在范围内
+        if (value < minValue) value = minValue;
+        if (value > maxValue) value = maxValue;
+        
+        // 如果已经是2的指数倍，直接返回
+        if (IsPowerOfTwo(value)) return value;
+        
+        // 找到最接近的2的指数倍
+        int lowerPower = GetLowerPowerOfTwo(value);
+        int upperPower = lowerPower * 2;
+        
+        // 选择更接近的那个
+        int result = (value - lowerPower) <= (upperPower - value) ? lowerPower : upperPower;
+        
+        // 确保结果在范围内
+        if (result < minValue) result = GetNextPowerOfTwo(minValue - 1);
+        if (result > maxValue) result = GetLowerPowerOfTwo(maxValue);
+        
+        return result;
+    }
+    
+    /// <summary>
+    /// 检查一个数是否是2的指数倍
+    /// </summary>
+    private static bool IsPowerOfTwo(int value)
+    {
+        return value > 0 && (value & (value - 1)) == 0;
+    }
+    
+    /// <summary>
+    /// 获取小于等于指定值的最大2的指数倍
+    /// </summary>
+    private static int GetLowerPowerOfTwo(int value)
+    {
+        if (value <= 0) return 1;
+        
+        int power = 1;
+        while (power * 2 <= value)
+        {
+            power *= 2;
+        }
+        return power;
+    }
+    
+    /// <summary>
+    /// 获取大于指定值的最小2的指数倍
+    /// </summary>
+    private static int GetNextPowerOfTwo(int value)
+    {
+        if (value <= 0) return 1;
+        
+        int power = 1;
+        while (power <= value)
+        {
+            power *= 2;
+        }
+        return power;
     }
 }
