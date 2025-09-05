@@ -224,16 +224,9 @@ public class SettingsViewModel : ViewModelBase
     private static string FormatDataLength(StorageType type, int dataLength)
     {
         if (type != StorageType.Length) return string.Empty;
-        string[] sizes = { "B", "KB", "MB", "GB" };
-        var order = 0;
-        double len = dataLength;
-        while (len >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            len /= 1024;
-        }
-
-        return $"{len:0.##} {sizes[order]}";
+        
+        // 数据长度表示采集的点数，不使用字节单位
+        return $"{dataLength:N0} 点";
     }
 
     private static string FormatStorageTime(StorageType type, int storageTime)
