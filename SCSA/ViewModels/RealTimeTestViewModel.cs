@@ -368,8 +368,7 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
 
 
             _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await _currentDevice.DeviceControlApi.SetParameters(
-                [
+            var parameters = new List<Parameter>() { 
                     //上传数据类型
                     new Parameter
                     {
@@ -394,8 +393,19 @@ public class RealTimeTestViewModel : ViewModelBase, IActivatableViewModel
                         Address = ParameterType.TriggerSampleType, Length = sizeof(byte),
                         Value = _currentSettings.SelectedTriggerType
                     }
-                ],
-                _cts.Token);
+            };
+            if(_currentSettings.SelectedTriggerType== TriggerType.SoftwareTrigger)
+            {
+                parameters.Add(                       
+                    //触发类型
+                    new Parameter
+                    {
+                        Address = ParameterType.TriggerSampleLength,
+                        Length = sizeof(int),
+                        Value = _currentSettings.DataLength * 4
+                    });
+            }
+            await _currentDevice.DeviceControlApi.SetParameters(parameters,_cts.Token);
 
             _cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await _currentDevice.DeviceControlApi.Start(_cts.Token);

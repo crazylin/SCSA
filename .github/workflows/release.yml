@@ -82,25 +82,26 @@ jobs:
         name: Release ${{ github.ref_name }}
         files: artifacts/*/*.zip
         body: |
-          feat: Enhanced IQ Correction Algorithm Configuration and Test Data Simulation
+          feat: Optimize Data Length Restrictions in Software Trigger Mode
 
           ## 🚀 New Features
           
-          ### IQ Correction Algorithm System Enhancement
-          - **Advanced IQ Correction Parameters**: Expanded from simple orthogonality correction switch to comprehensive IQ correction algorithm configuration
-          - **Dual Mode Support**: Added automatic/manual mode selection for IQ correction algorithm
-          - **Precision Control**: Introduced floating-point correction value parameter for fine-tuning
-          - **Parameter Address Optimization**: Reorganized parameter type definitions (OrthogonalityCorrectionSwitch: 0x10000004, OrthogonalityCorrectionMode: 0x1000000C, OrthogonalityCorrectionValue: 0x1000000D)
+          ### Software Trigger Mode Data Length Optimization
+          - **Range Restriction**: Limited data length to 2048-16777216 range in software trigger mode
+          - **Power of 2 Validation**: Ensured data length must be a power of 2 for optimal performance
+          - **Auto-Adjustment**: Implemented automatic adjustment to nearest valid value when user input is invalid
+          - **Smart UI Hints**: Added orange hint text to inform users about data length requirements
           
-          ### Test Environment Improvements
-          - **Simulated Device Status**: Added fixed simulation data for TEC NTC temperature (999), board temperature (22.22°C), and PD current (100.12)
-          - **Enhanced Testing Reliability**: Provides stable mock data for development and validation
+          ### User Experience Improvements
+          - **Real-time Validation**: Automatic validation during trigger type switching, initialization, and manual modification
+          - **Visual Feedback**: Clear visual indicators for data length constraints
+          - **Seamless Adjustment**: Transparent value correction without disrupting user workflow
           
           ## 🔧 Technical Improvements
-          - **Parameter System Refactoring**: Updated serialization/deserialization logic for new IQ correction parameter types
-          - **Type Safety Enhancement**: Improved parameter type mapping and validation
-          - **Protocol Documentation Sync**: Updated communication protocol documentation to reflect parameter changes
+          - **Helper Functions**: Added utility functions for power-of-2 calculations (IsPowerOfTwo, GetLowerPowerOfTwo, GetNextPowerOfTwo)
+          - **Reactive Validation**: Implemented reactive property subscriptions for real-time constraint enforcement
+          - **UI Enhancement**: Updated settings view layout to accommodate hint display
           
           ## 📚 Documentation
-          - **Communication Protocol Update**: Synchronized protocol documentation with new parameter definitions
-          - **Parameter Reference**: Added comprehensive parameter address mapping and value ranges
+          - **Parameter Constraints**: Clear documentation of data length limitations in software trigger mode
+          - **User Guidance**: Improved user interface with contextual hints and validation feedback
